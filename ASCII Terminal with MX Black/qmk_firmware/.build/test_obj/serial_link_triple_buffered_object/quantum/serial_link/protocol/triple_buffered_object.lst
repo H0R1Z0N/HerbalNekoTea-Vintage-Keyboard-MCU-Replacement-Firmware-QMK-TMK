@@ -1,0 +1,290 @@
+   1              		.file	"triple_buffered_object.c"
+   2              		.text
+   3              	.Ltext0:
+   4              		.section	.text.triple_buffer_init,"ax",@progbits
+   5              		.globl	triple_buffer_init
+   7              	triple_buffer_init:
+   8              	.LVL0:
+   9              	.LFB2:
+  10              		.file 1 "quantum/serial_link/protocol/triple_buffered_object.c"
+   1:quantum/serial_link/protocol/triple_buffered_object.c **** /*
+   2:quantum/serial_link/protocol/triple_buffered_object.c **** The MIT License (MIT)
+   3:quantum/serial_link/protocol/triple_buffered_object.c **** 
+   4:quantum/serial_link/protocol/triple_buffered_object.c **** Copyright (c) 2016 Fred Sundvik
+   5:quantum/serial_link/protocol/triple_buffered_object.c **** 
+   6:quantum/serial_link/protocol/triple_buffered_object.c **** Permission is hereby granted, free of charge, to any person obtaining a copy
+   7:quantum/serial_link/protocol/triple_buffered_object.c **** of this software and associated documentation files (the "Software"), to deal
+   8:quantum/serial_link/protocol/triple_buffered_object.c **** in the Software without restriction, including without limitation the rights
+   9:quantum/serial_link/protocol/triple_buffered_object.c **** to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+  10:quantum/serial_link/protocol/triple_buffered_object.c **** copies of the Software, and to permit persons to whom the Software is
+  11:quantum/serial_link/protocol/triple_buffered_object.c **** furnished to do so, subject to the following conditions:
+  12:quantum/serial_link/protocol/triple_buffered_object.c **** 
+  13:quantum/serial_link/protocol/triple_buffered_object.c **** The above copyright notice and this permission notice shall be included in all
+  14:quantum/serial_link/protocol/triple_buffered_object.c **** copies or substantial portions of the Software.
+  15:quantum/serial_link/protocol/triple_buffered_object.c **** 
+  16:quantum/serial_link/protocol/triple_buffered_object.c **** THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+  17:quantum/serial_link/protocol/triple_buffered_object.c **** IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+  18:quantum/serial_link/protocol/triple_buffered_object.c **** FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+  19:quantum/serial_link/protocol/triple_buffered_object.c **** AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+  20:quantum/serial_link/protocol/triple_buffered_object.c **** LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+  21:quantum/serial_link/protocol/triple_buffered_object.c **** OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+  22:quantum/serial_link/protocol/triple_buffered_object.c **** SOFTWARE.
+  23:quantum/serial_link/protocol/triple_buffered_object.c **** */
+  24:quantum/serial_link/protocol/triple_buffered_object.c **** 
+  25:quantum/serial_link/protocol/triple_buffered_object.c **** #include "serial_link/protocol/triple_buffered_object.h"
+  26:quantum/serial_link/protocol/triple_buffered_object.c **** #include "serial_link/system/serial_link.h"
+  27:quantum/serial_link/protocol/triple_buffered_object.c **** #include <stdbool.h>
+  28:quantum/serial_link/protocol/triple_buffered_object.c **** #include <stddef.h>
+  29:quantum/serial_link/protocol/triple_buffered_object.c **** 
+  30:quantum/serial_link/protocol/triple_buffered_object.c **** #define GET_READ_INDEX() object->state & 3
+  31:quantum/serial_link/protocol/triple_buffered_object.c **** #define GET_WRITE_INDEX() (object->state >> 2) & 3
+  32:quantum/serial_link/protocol/triple_buffered_object.c **** #define GET_SHARED_INDEX() (object->state >> 4) & 3
+  33:quantum/serial_link/protocol/triple_buffered_object.c **** #define GET_DATA_AVAILABLE() (object->state >> 6) & 1
+  34:quantum/serial_link/protocol/triple_buffered_object.c **** 
+  35:quantum/serial_link/protocol/triple_buffered_object.c **** #define SET_READ_INDEX(i) object->state = ((object->state & ~3) | i)
+  36:quantum/serial_link/protocol/triple_buffered_object.c **** #define SET_WRITE_INDEX(i) object->state = ((object->state & ~(3 << 2)) | (i << 2))
+  37:quantum/serial_link/protocol/triple_buffered_object.c **** #define SET_SHARED_INDEX(i) object->state = ((object->state & ~(3 << 4)) | (i << 4))
+  38:quantum/serial_link/protocol/triple_buffered_object.c **** #define SET_DATA_AVAILABLE(i) object->state = ((object->state & ~(1 << 6)) | (i << 6))
+  39:quantum/serial_link/protocol/triple_buffered_object.c **** 
+  40:quantum/serial_link/protocol/triple_buffered_object.c **** void triple_buffer_init(triple_buffer_object_t* object) {
+  11              		.loc 1 40 57 view -0
+  12              		.cfi_startproc
+  41:quantum/serial_link/protocol/triple_buffered_object.c ****     object->state = 0;
+  13              		.loc 1 41 5 view .LVU1
+  42:quantum/serial_link/protocol/triple_buffered_object.c ****     SET_WRITE_INDEX(0);
+  14              		.loc 1 42 5 view .LVU2
+  43:quantum/serial_link/protocol/triple_buffered_object.c ****     SET_READ_INDEX(1);
+  15              		.loc 1 43 5 view .LVU3
+  44:quantum/serial_link/protocol/triple_buffered_object.c ****     SET_SHARED_INDEX(2);
+  16              		.loc 1 44 5 view .LVU4
+  17 0000 C60721   		movb	$33, (%rdi)
+  45:quantum/serial_link/protocol/triple_buffered_object.c ****     SET_DATA_AVAILABLE(0);
+  18              		.loc 1 45 5 view .LVU5
+  46:quantum/serial_link/protocol/triple_buffered_object.c **** }
+  19              		.loc 1 46 1 is_stmt 0 view .LVU6
+  20 0003 C3       		ret
+  21              		.cfi_endproc
+  22              	.LFE2:
+  24              		.section	.text.triple_buffer_read_internal,"ax",@progbits
+  25              		.globl	triple_buffer_read_internal
+  27              	triple_buffer_read_internal:
+  28              	.LVL1:
+  29              	.LFB3:
+  47:quantum/serial_link/protocol/triple_buffered_object.c **** 
+  48:quantum/serial_link/protocol/triple_buffered_object.c **** void* triple_buffer_read_internal(uint16_t object_size, triple_buffer_object_t* object) {
+  30              		.loc 1 48 89 is_stmt 1 view -0
+  31              		.cfi_startproc
+  49:quantum/serial_link/protocol/triple_buffered_object.c ****     serial_link_lock();
+  32              		.loc 1 49 5 view .LVU8
+  50:quantum/serial_link/protocol/triple_buffered_object.c ****     if (GET_DATA_AVAILABLE()) {
+  33              		.loc 1 50 5 view .LVU9
+  34              		.loc 1 50 9 is_stmt 0 view .LVU10
+  35 0000 8A06     		movb	(%rsi), %al
+  51:quantum/serial_link/protocol/triple_buffered_object.c ****         uint8_t shared_index = GET_SHARED_INDEX();
+  52:quantum/serial_link/protocol/triple_buffered_object.c ****         uint8_t read_index = GET_READ_INDEX();
+  53:quantum/serial_link/protocol/triple_buffered_object.c ****         SET_READ_INDEX(shared_index);
+  54:quantum/serial_link/protocol/triple_buffered_object.c ****         SET_SHARED_INDEX(read_index);
+  55:quantum/serial_link/protocol/triple_buffered_object.c ****         SET_DATA_AVAILABLE(false);
+  56:quantum/serial_link/protocol/triple_buffered_object.c ****         serial_link_unlock();
+  57:quantum/serial_link/protocol/triple_buffered_object.c ****         return object->buffer + object_size * shared_index;
+  58:quantum/serial_link/protocol/triple_buffered_object.c ****     }
+  59:quantum/serial_link/protocol/triple_buffered_object.c ****     else {
+  60:quantum/serial_link/protocol/triple_buffered_object.c ****         serial_link_unlock();
+  61:quantum/serial_link/protocol/triple_buffered_object.c ****         return NULL;
+  36              		.loc 1 61 16 view .LVU11
+  37 0002 4531C0   		xorl	%r8d, %r8d
+  50:quantum/serial_link/protocol/triple_buffered_object.c ****     if (GET_DATA_AVAILABLE()) {
+  38              		.loc 1 50 8 view .LVU12
+  39 0005 A840     		testb	$64, %al
+  40 0007 742D     		je	.L2
+  41              	.LBB13:
+  51:quantum/serial_link/protocol/triple_buffered_object.c ****         uint8_t shared_index = GET_SHARED_INDEX();
+  42              		.loc 1 51 9 is_stmt 1 view .LVU13
+  51:quantum/serial_link/protocol/triple_buffered_object.c ****         uint8_t shared_index = GET_SHARED_INDEX();
+  43              		.loc 1 51 32 is_stmt 0 view .LVU14
+  44 0009 89C1     		movl	%eax, %ecx
+  53:quantum/serial_link/protocol/triple_buffered_object.c ****         SET_SHARED_INDEX(read_index);
+  45              		.loc 1 53 9 view .LVU15
+  46 000b 89C2     		movl	%eax, %edx
+  54:quantum/serial_link/protocol/triple_buffered_object.c ****         SET_DATA_AVAILABLE(false);
+  47              		.loc 1 54 9 view .LVU16
+  48 000d 83E003   		andl	$3, %eax
+  57:quantum/serial_link/protocol/triple_buffered_object.c ****     }
+  49              		.loc 1 57 45 view .LVU17
+  50 0010 0FB7FF   		movzwl	%di, %edi
+  51:quantum/serial_link/protocol/triple_buffered_object.c ****         uint8_t read_index = GET_READ_INDEX();
+  51              		.loc 1 51 32 view .LVU18
+  52 0013 C0E904   		shrb	$4, %cl
+  53:quantum/serial_link/protocol/triple_buffered_object.c ****         SET_SHARED_INDEX(read_index);
+  53              		.loc 1 53 9 view .LVU19
+  54 0016 83E2CC   		andl	$-52, %edx
+  54:quantum/serial_link/protocol/triple_buffered_object.c ****         SET_DATA_AVAILABLE(false);
+  55              		.loc 1 54 9 view .LVU20
+  56 0019 C1E004   		sall	$4, %eax
+  51:quantum/serial_link/protocol/triple_buffered_object.c ****         uint8_t read_index = GET_READ_INDEX();
+  57              		.loc 1 51 17 view .LVU21
+  58 001c 83E103   		andl	$3, %ecx
+  59              	.LVL2:
+  52:quantum/serial_link/protocol/triple_buffered_object.c ****         SET_READ_INDEX(shared_index);
+  60              		.loc 1 52 9 is_stmt 1 view .LVU22
+  53:quantum/serial_link/protocol/triple_buffered_object.c ****         SET_SHARED_INDEX(read_index);
+  61              		.loc 1 53 9 view .LVU23
+  54:quantum/serial_link/protocol/triple_buffered_object.c ****         SET_DATA_AVAILABLE(false);
+  62              		.loc 1 54 9 view .LVU24
+  55:quantum/serial_link/protocol/triple_buffered_object.c ****         serial_link_unlock();
+  63              		.loc 1 55 9 view .LVU25
+  54:quantum/serial_link/protocol/triple_buffered_object.c ****         SET_DATA_AVAILABLE(false);
+  64              		.loc 1 54 9 is_stmt 0 view .LVU26
+  65 001f 09CA     		orl	%ecx, %edx
+  57:quantum/serial_link/protocol/triple_buffered_object.c ****     }
+  66              		.loc 1 57 45 view .LVU27
+  67 0021 0FB6C9   		movzbl	%cl, %ecx
+  57:quantum/serial_link/protocol/triple_buffered_object.c ****     }
+  68              		.loc 1 57 45 view .LVU28
+  69 0024 0FAFF9   		imull	%ecx, %edi
+  70              	.LVL3:
+  54:quantum/serial_link/protocol/triple_buffered_object.c ****         SET_DATA_AVAILABLE(false);
+  71              		.loc 1 54 9 view .LVU29
+  72 0027 09D0     		orl	%edx, %eax
+  55:quantum/serial_link/protocol/triple_buffered_object.c ****         serial_link_unlock();
+  73              		.loc 1 55 9 view .LVU30
+  74 0029 83E0BF   		andl	$-65, %eax
+  75 002c 8806     		movb	%al, (%rsi)
+  56:quantum/serial_link/protocol/triple_buffered_object.c ****         return object->buffer + object_size * shared_index;
+  76              		.loc 1 56 9 is_stmt 1 view .LVU31
+  57:quantum/serial_link/protocol/triple_buffered_object.c ****     }
+  77              		.loc 1 57 9 view .LVU32
+  57:quantum/serial_link/protocol/triple_buffered_object.c ****     }
+  78              		.loc 1 57 45 is_stmt 0 view .LVU33
+  79 002e 4863FF   		movslq	%edi, %rdi
+  57:quantum/serial_link/protocol/triple_buffered_object.c ****     }
+  80              		.loc 1 57 31 view .LVU34
+  81 0031 4C8D443E 		leaq	4(%rsi,%rdi), %r8
+  81      04
+  82              	.LVL4:
+  83              	.L2:
+  57:quantum/serial_link/protocol/triple_buffered_object.c ****     }
+  84              		.loc 1 57 31 view .LVU35
+  85              	.LBE13:
+  62:quantum/serial_link/protocol/triple_buffered_object.c ****     }
+  63:quantum/serial_link/protocol/triple_buffered_object.c **** }
+  86              		.loc 1 63 1 view .LVU36
+  87 0036 4C89C0   		movq	%r8, %rax
+  88 0039 C3       		ret
+  89              		.cfi_endproc
+  90              	.LFE3:
+  92              		.section	.text.triple_buffer_begin_write_internal,"ax",@progbits
+  93              		.globl	triple_buffer_begin_write_internal
+  95              	triple_buffer_begin_write_internal:
+  96              	.LVL5:
+  97              	.LFB4:
+  64:quantum/serial_link/protocol/triple_buffered_object.c **** 
+  65:quantum/serial_link/protocol/triple_buffered_object.c **** void* triple_buffer_begin_write_internal(uint16_t object_size, triple_buffer_object_t* object) {
+  98              		.loc 1 65 96 is_stmt 1 view -0
+  99              		.cfi_startproc
+  66:quantum/serial_link/protocol/triple_buffered_object.c ****     uint8_t write_index = GET_WRITE_INDEX();
+ 100              		.loc 1 66 5 view .LVU38
+  67:quantum/serial_link/protocol/triple_buffered_object.c ****     return object->buffer + object_size * write_index;
+ 101              		.loc 1 67 5 view .LVU39
+  66:quantum/serial_link/protocol/triple_buffered_object.c ****     uint8_t write_index = GET_WRITE_INDEX();
+ 102              		.loc 1 66 27 is_stmt 0 view .LVU40
+ 103 0000 8A06     		movb	(%rsi), %al
+ 104              		.loc 1 67 41 view .LVU41
+ 105 0002 0FB7FF   		movzwl	%di, %edi
+  66:quantum/serial_link/protocol/triple_buffered_object.c ****     uint8_t write_index = GET_WRITE_INDEX();
+ 106              		.loc 1 66 27 view .LVU42
+ 107 0005 C0E802   		shrb	$2, %al
+ 108              		.loc 1 67 41 view .LVU43
+ 109 0008 83E003   		andl	$3, %eax
+ 110 000b 0FAFC7   		imull	%edi, %eax
+ 111 000e 4898     		cltq
+ 112              		.loc 1 67 27 view .LVU44
+ 113 0010 488D4406 		leaq	4(%rsi,%rax), %rax
+ 113      04
+  68:quantum/serial_link/protocol/triple_buffered_object.c **** }
+ 114              		.loc 1 68 1 view .LVU45
+ 115 0015 C3       		ret
+ 116              		.cfi_endproc
+ 117              	.LFE4:
+ 119              		.section	.text.triple_buffer_end_write_internal,"ax",@progbits
+ 120              		.globl	triple_buffer_end_write_internal
+ 122              	triple_buffer_end_write_internal:
+ 123              	.LVL6:
+ 124              	.LFB5:
+  69:quantum/serial_link/protocol/triple_buffered_object.c **** 
+  70:quantum/serial_link/protocol/triple_buffered_object.c **** void triple_buffer_end_write_internal(triple_buffer_object_t* object) {
+ 125              		.loc 1 70 71 is_stmt 1 view -0
+ 126              		.cfi_startproc
+  71:quantum/serial_link/protocol/triple_buffered_object.c ****     serial_link_lock();
+ 127              		.loc 1 71 5 view .LVU47
+  72:quantum/serial_link/protocol/triple_buffered_object.c ****     uint8_t shared_index = GET_SHARED_INDEX();
+ 128              		.loc 1 72 5 view .LVU48
+ 129              		.loc 1 72 28 is_stmt 0 view .LVU49
+ 130 0000 8A07     		movb	(%rdi), %al
+ 131              	.LVL7:
+  73:quantum/serial_link/protocol/triple_buffered_object.c ****     uint8_t write_index = GET_WRITE_INDEX();
+ 132              		.loc 1 73 5 is_stmt 1 view .LVU50
+  74:quantum/serial_link/protocol/triple_buffered_object.c ****     SET_SHARED_INDEX(write_index);
+ 133              		.loc 1 74 5 view .LVU51
+  75:quantum/serial_link/protocol/triple_buffered_object.c ****     SET_WRITE_INDEX(shared_index);
+ 134              		.loc 1 75 5 view .LVU52
+  76:quantum/serial_link/protocol/triple_buffered_object.c ****     SET_DATA_AVAILABLE(true);
+ 135              		.loc 1 76 5 view .LVU53
+  73:quantum/serial_link/protocol/triple_buffered_object.c ****     SET_SHARED_INDEX(write_index);
+ 136              		.loc 1 73 27 is_stmt 0 view .LVU54
+ 137 0002 89C1     		movl	%eax, %ecx
+  74:quantum/serial_link/protocol/triple_buffered_object.c ****     SET_WRITE_INDEX(shared_index);
+ 138              		.loc 1 74 5 view .LVU55
+ 139 0004 89C2     		movl	%eax, %edx
+  72:quantum/serial_link/protocol/triple_buffered_object.c ****     uint8_t write_index = GET_WRITE_INDEX();
+ 140              		.loc 1 72 28 view .LVU56
+ 141 0006 C0E804   		shrb	$4, %al
+ 142              	.LVL8:
+  73:quantum/serial_link/protocol/triple_buffered_object.c ****     SET_SHARED_INDEX(write_index);
+ 143              		.loc 1 73 27 view .LVU57
+ 144 0009 C0E902   		shrb	$2, %cl
+  74:quantum/serial_link/protocol/triple_buffered_object.c ****     SET_WRITE_INDEX(shared_index);
+ 145              		.loc 1 74 5 view .LVU58
+ 146 000c 83E2C3   		andl	$-61, %edx
+ 147              	.LVL9:
+  75:quantum/serial_link/protocol/triple_buffered_object.c ****     SET_DATA_AVAILABLE(true);
+ 148              		.loc 1 75 5 view .LVU59
+ 149 000f 83E003   		andl	$3, %eax
+  74:quantum/serial_link/protocol/triple_buffered_object.c ****     SET_WRITE_INDEX(shared_index);
+ 150              		.loc 1 74 5 view .LVU60
+ 151 0012 83E103   		andl	$3, %ecx
+  75:quantum/serial_link/protocol/triple_buffered_object.c ****     SET_DATA_AVAILABLE(true);
+ 152              		.loc 1 75 5 view .LVU61
+ 153 0015 C1E002   		sall	$2, %eax
+  74:quantum/serial_link/protocol/triple_buffered_object.c ****     SET_WRITE_INDEX(shared_index);
+ 154              		.loc 1 74 5 view .LVU62
+ 155 0018 C1E104   		sall	$4, %ecx
+  75:quantum/serial_link/protocol/triple_buffered_object.c ****     SET_DATA_AVAILABLE(true);
+ 156              		.loc 1 75 5 view .LVU63
+ 157 001b 09CA     		orl	%ecx, %edx
+ 158 001d 09D0     		orl	%edx, %eax
+ 159              		.loc 1 76 5 view .LVU64
+ 160 001f 83C840   		orl	$64, %eax
+ 161 0022 8807     		movb	%al, (%rdi)
+ 162              	.LVL10:
+  77:quantum/serial_link/protocol/triple_buffered_object.c ****     serial_link_unlock();
+ 163              		.loc 1 77 5 is_stmt 1 view .LVU65
+  78:quantum/serial_link/protocol/triple_buffered_object.c **** }
+ 164              		.loc 1 78 1 is_stmt 0 view .LVU66
+ 165 0024 C3       		ret
+ 166              		.cfi_endproc
+ 167              	.LFE5:
+ 169              		.text
+ 170              	.Letext0:
+ 171              		.file 2 "/usr/include/bits/types.h"
+ 172              		.file 3 "/usr/include/bits/stdint-uintn.h"
+ 173              		.file 4 "./quantum/serial_link/system/serial_link.h"
+ 174              		.file 5 "./quantum/serial_link/protocol/triple_buffered_object.h"
+DEFINED SYMBOLS
+                            *ABS*:0000000000000000 triple_buffered_object.c
+     /tmp/ccfVl8QX.s:7      .text.triple_buffer_init:0000000000000000 triple_buffer_init
+     /tmp/ccfVl8QX.s:27     .text.triple_buffer_read_internal:0000000000000000 triple_buffer_read_internal
+     /tmp/ccfVl8QX.s:95     .text.triple_buffer_begin_write_internal:0000000000000000 triple_buffer_begin_write_internal
+     /tmp/ccfVl8QX.s:122    .text.triple_buffer_end_write_internal:0000000000000000 triple_buffer_end_write_internal
+
+NO UNDEFINED SYMBOLS

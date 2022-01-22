@@ -1,0 +1,1772 @@
+   1               		.file	"action_util.c"
+   2               	__SP_H__ = 0x3e
+   3               	__SP_L__ = 0x3d
+   4               	__SREG__ = 0x3f
+   5               	__RAMPZ__ = 0x3b
+   6               	__tmp_reg__ = 0
+   7               	__zero_reg__ = 1
+   8               		.text
+   9               	.Ltext0:
+  10               		.cfi_sections	.debug_frame
+  11               		.section	.text.get_oneshot_locked_mods,"ax",@progbits
+  12               	.global	get_oneshot_locked_mods
+  14               	get_oneshot_locked_mods:
+  15               	.LFB103:
+  16               		.file 1 "./tmk_core/common/action_util.c"
+   1:./tmk_core/common/action_util.c **** /*
+   2:./tmk_core/common/action_util.c **** Copyright 2013 Jun Wako <wakojun@gmail.com>
+   3:./tmk_core/common/action_util.c **** 
+   4:./tmk_core/common/action_util.c **** This program is free software: you can redistribute it and/or modify
+   5:./tmk_core/common/action_util.c **** it under the terms of the GNU General Public License as published by
+   6:./tmk_core/common/action_util.c **** the Free Software Foundation, either version 2 of the License, or
+   7:./tmk_core/common/action_util.c **** (at your option) any later version.
+   8:./tmk_core/common/action_util.c **** 
+   9:./tmk_core/common/action_util.c **** This program is distributed in the hope that it will be useful,
+  10:./tmk_core/common/action_util.c **** but WITHOUT ANY WARRANTY; without even the implied warranty of
+  11:./tmk_core/common/action_util.c **** MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+  12:./tmk_core/common/action_util.c **** GNU General Public License for more details.
+  13:./tmk_core/common/action_util.c **** 
+  14:./tmk_core/common/action_util.c **** You should have received a copy of the GNU General Public License
+  15:./tmk_core/common/action_util.c **** along with this program.  If not, see <http://www.gnu.org/licenses/>.
+  16:./tmk_core/common/action_util.c **** */
+  17:./tmk_core/common/action_util.c **** #include "host.h"
+  18:./tmk_core/common/action_util.c **** #include "report.h"
+  19:./tmk_core/common/action_util.c **** #include "debug.h"
+  20:./tmk_core/common/action_util.c **** #include "action_util.h"
+  21:./tmk_core/common/action_util.c **** #include "action_layer.h"
+  22:./tmk_core/common/action_util.c **** #include "timer.h"
+  23:./tmk_core/common/action_util.c **** #include "keycode_config.h"
+  24:./tmk_core/common/action_util.c **** 
+  25:./tmk_core/common/action_util.c **** extern keymap_config_t keymap_config;
+  26:./tmk_core/common/action_util.c **** 
+  27:./tmk_core/common/action_util.c **** 
+  28:./tmk_core/common/action_util.c **** static inline void add_key_byte(uint8_t code);
+  29:./tmk_core/common/action_util.c **** static inline void del_key_byte(uint8_t code);
+  30:./tmk_core/common/action_util.c **** #ifdef NKRO_ENABLE
+  31:./tmk_core/common/action_util.c **** static inline void add_key_bit(uint8_t code);
+  32:./tmk_core/common/action_util.c **** static inline void del_key_bit(uint8_t code);
+  33:./tmk_core/common/action_util.c **** #endif
+  34:./tmk_core/common/action_util.c **** 
+  35:./tmk_core/common/action_util.c **** static uint8_t real_mods = 0;
+  36:./tmk_core/common/action_util.c **** static uint8_t weak_mods = 0;
+  37:./tmk_core/common/action_util.c **** static uint8_t macro_mods = 0;
+  38:./tmk_core/common/action_util.c **** 
+  39:./tmk_core/common/action_util.c **** #ifdef USB_6KRO_ENABLE
+  40:./tmk_core/common/action_util.c **** #define RO_ADD(a, b) ((a + b) % KEYBOARD_REPORT_KEYS)
+  41:./tmk_core/common/action_util.c **** #define RO_SUB(a, b) ((a - b + KEYBOARD_REPORT_KEYS) % KEYBOARD_REPORT_KEYS)
+  42:./tmk_core/common/action_util.c **** #define RO_INC(a) RO_ADD(a, 1)
+  43:./tmk_core/common/action_util.c **** #define RO_DEC(a) RO_SUB(a, 1)
+  44:./tmk_core/common/action_util.c **** static int8_t cb_head = 0;
+  45:./tmk_core/common/action_util.c **** static int8_t cb_tail = 0;
+  46:./tmk_core/common/action_util.c **** static int8_t cb_count = 0;
+  47:./tmk_core/common/action_util.c **** #endif
+  48:./tmk_core/common/action_util.c **** 
+  49:./tmk_core/common/action_util.c **** // TODO: pointer variable is not needed
+  50:./tmk_core/common/action_util.c **** //report_keyboard_t keyboard_report = {};
+  51:./tmk_core/common/action_util.c **** report_keyboard_t *keyboard_report = &(report_keyboard_t){};
+  52:./tmk_core/common/action_util.c **** 
+  53:./tmk_core/common/action_util.c **** #ifndef NO_ACTION_ONESHOT
+  54:./tmk_core/common/action_util.c **** static int8_t oneshot_mods = 0;
+  55:./tmk_core/common/action_util.c **** static int8_t oneshot_locked_mods = 0;
+  56:./tmk_core/common/action_util.c **** int8_t get_oneshot_locked_mods(void) { return oneshot_locked_mods; }
+  17               		.loc 1 56 38 view -0
+  18               		.cfi_startproc
+  19               	/* prologue: function */
+  20               	/* frame size = 0 */
+  21               	/* stack size = 0 */
+  22               	.L__stack_usage = 0
+  23               		.loc 1 56 40 view .LVU1
+  24               		.loc 1 56 1 is_stmt 0 view .LVU2
+  25 0000 8091 0000 		lds r24,oneshot_locked_mods
+  26               	/* epilogue start */
+  27 0004 0895      		ret
+  28               		.cfi_endproc
+  29               	.LFE103:
+  31               		.section	.text.set_oneshot_locked_mods,"ax",@progbits
+  32               	.global	set_oneshot_locked_mods
+  34               	set_oneshot_locked_mods:
+  35               	.LVL0:
+  36               	.LFB104:
+  57:./tmk_core/common/action_util.c **** void set_oneshot_locked_mods(int8_t mods) { oneshot_locked_mods = mods; }
+  37               		.loc 1 57 43 is_stmt 1 view -0
+  38               		.cfi_startproc
+  39               	/* prologue: function */
+  40               	/* frame size = 0 */
+  41               	/* stack size = 0 */
+  42               	.L__stack_usage = 0
+  43               		.loc 1 57 45 view .LVU4
+  44               		.loc 1 57 65 is_stmt 0 view .LVU5
+  45 0000 8093 0000 		sts oneshot_locked_mods,r24
+  46               	/* epilogue start */
+  47               		.loc 1 57 1 view .LVU6
+  48 0004 0895      		ret
+  49               		.cfi_endproc
+  50               	.LFE104:
+  52               		.section	.text.clear_oneshot_locked_mods,"ax",@progbits
+  53               	.global	clear_oneshot_locked_mods
+  55               	clear_oneshot_locked_mods:
+  56               	.LFB105:
+  58:./tmk_core/common/action_util.c **** void clear_oneshot_locked_mods(void) { oneshot_locked_mods = 0; }
+  57               		.loc 1 58 38 is_stmt 1 view -0
+  58               		.cfi_startproc
+  59               	/* prologue: function */
+  60               	/* frame size = 0 */
+  61               	/* stack size = 0 */
+  62               	.L__stack_usage = 0
+  63               		.loc 1 58 40 view .LVU8
+  64               		.loc 1 58 60 is_stmt 0 view .LVU9
+  65 0000 1092 0000 		sts oneshot_locked_mods,__zero_reg__
+  66               	/* epilogue start */
+  67               		.loc 1 58 1 view .LVU10
+  68 0004 0895      		ret
+  69               		.cfi_endproc
+  70               	.LFE105:
+  72               		.section	.text.get_oneshot_layer,"ax",@progbits
+  73               	.global	get_oneshot_layer
+  75               	get_oneshot_layer:
+  76               	.LFB106:
+  59:./tmk_core/common/action_util.c **** #if (defined(ONESHOT_TIMEOUT) && (ONESHOT_TIMEOUT > 0))
+  60:./tmk_core/common/action_util.c **** static int16_t oneshot_time = 0;
+  61:./tmk_core/common/action_util.c **** inline bool has_oneshot_mods_timed_out() {
+  62:./tmk_core/common/action_util.c ****   return TIMER_DIFF_16(timer_read(), oneshot_time) >= ONESHOT_TIMEOUT;
+  63:./tmk_core/common/action_util.c **** }
+  64:./tmk_core/common/action_util.c **** #endif
+  65:./tmk_core/common/action_util.c **** #endif
+  66:./tmk_core/common/action_util.c **** 
+  67:./tmk_core/common/action_util.c **** /* oneshot layer */
+  68:./tmk_core/common/action_util.c **** #ifndef NO_ACTION_ONESHOT
+  69:./tmk_core/common/action_util.c **** /* oneshot_layer_data bits
+  70:./tmk_core/common/action_util.c **** * LLLL LSSS
+  71:./tmk_core/common/action_util.c **** * where:
+  72:./tmk_core/common/action_util.c **** *   L => are layer bits
+  73:./tmk_core/common/action_util.c **** *   S => oneshot state bits
+  74:./tmk_core/common/action_util.c **** */
+  75:./tmk_core/common/action_util.c **** static int8_t oneshot_layer_data = 0;
+  76:./tmk_core/common/action_util.c **** 
+  77:./tmk_core/common/action_util.c **** inline uint8_t get_oneshot_layer(void) { return oneshot_layer_data >> 3; }
+  77               		.loc 1 77 40 is_stmt 1 view -0
+  78               		.cfi_startproc
+  79               	/* prologue: function */
+  80               	/* frame size = 0 */
+  81               	/* stack size = 0 */
+  82               	.L__stack_usage = 0
+  83               		.loc 1 77 42 view .LVU12
+  84               		.loc 1 77 68 is_stmt 0 view .LVU13
+  85 0000 8091 0000 		lds r24,oneshot_layer_data
+  86               		.loc 1 77 1 view .LVU14
+  87 0004 8595      		asr r24
+  88 0006 8595      		asr r24
+  89 0008 8595      		asr r24
+  90               	/* epilogue start */
+  91 000a 0895      		ret
+  92               		.cfi_endproc
+  93               	.LFE106:
+  95               		.section	.text.get_oneshot_layer_state,"ax",@progbits
+  96               	.global	get_oneshot_layer_state
+  98               	get_oneshot_layer_state:
+  99               	.LFB107:
+  78:./tmk_core/common/action_util.c **** inline uint8_t get_oneshot_layer_state(void) { return oneshot_layer_data & 0b111; }
+ 100               		.loc 1 78 46 is_stmt 1 view -0
+ 101               		.cfi_startproc
+ 102               	/* prologue: function */
+ 103               	/* frame size = 0 */
+ 104               	/* stack size = 0 */
+ 105               	.L__stack_usage = 0
+ 106               		.loc 1 78 48 view .LVU16
+ 107               		.loc 1 78 74 is_stmt 0 view .LVU17
+ 108 0000 8091 0000 		lds r24,oneshot_layer_data
+ 109               		.loc 1 78 1 view .LVU18
+ 110 0004 8770      		andi r24,lo8(7)
+ 111               	/* epilogue start */
+ 112 0006 0895      		ret
+ 113               		.cfi_endproc
+ 114               	.LFE107:
+ 116               		.section	.text.set_oneshot_layer,"ax",@progbits
+ 117               	.global	set_oneshot_layer
+ 119               	set_oneshot_layer:
+ 120               	.LVL1:
+ 121               	.LFB108:
+  79:./tmk_core/common/action_util.c **** 
+  80:./tmk_core/common/action_util.c **** #if (defined(ONESHOT_TIMEOUT) && (ONESHOT_TIMEOUT > 0))
+  81:./tmk_core/common/action_util.c **** static int16_t oneshot_layer_time = 0;
+  82:./tmk_core/common/action_util.c **** inline bool has_oneshot_layer_timed_out() {
+  83:./tmk_core/common/action_util.c ****     return TIMER_DIFF_16(timer_read(), oneshot_layer_time) >= ONESHOT_TIMEOUT &&
+  84:./tmk_core/common/action_util.c ****         !(get_oneshot_layer_state() & ONESHOT_TOGGLED);
+  85:./tmk_core/common/action_util.c **** }
+  86:./tmk_core/common/action_util.c **** #endif
+  87:./tmk_core/common/action_util.c **** 
+  88:./tmk_core/common/action_util.c **** /* Oneshot layer */
+  89:./tmk_core/common/action_util.c **** void set_oneshot_layer(uint8_t layer, uint8_t state)
+  90:./tmk_core/common/action_util.c **** {
+ 122               		.loc 1 90 1 is_stmt 1 view -0
+ 123               		.cfi_startproc
+ 124               	/* prologue: function */
+ 125               	/* frame size = 0 */
+ 126               	/* stack size = 0 */
+ 127               	.L__stack_usage = 0
+  91:./tmk_core/common/action_util.c ****     oneshot_layer_data = layer << 3 | state;
+ 128               		.loc 1 91 5 view .LVU20
+ 129               		.loc 1 91 32 is_stmt 0 view .LVU21
+ 130 0000 98E0      		ldi r25,lo8(8)
+ 131 0002 899F      		mul r24,r25
+ 132 0004 9001      		movw r18,r0
+ 133 0006 1124      		clr __zero_reg__
+ 134               		.loc 1 91 37 view .LVU22
+ 135 0008 622B      		or r22,r18
+ 136               	.LVL2:
+ 137               		.loc 1 91 24 view .LVU23
+ 138 000a 6093 0000 		sts oneshot_layer_data,r22
+  92:./tmk_core/common/action_util.c ****     layer_on(layer);
+ 139               		.loc 1 92 5 is_stmt 1 view .LVU24
+ 140 000e 0C94 0000 		jmp layer_on
+ 141               	.LVL3:
+ 142               		.loc 1 92 5 is_stmt 0 view .LVU25
+ 143               		.cfi_endproc
+ 144               	.LFE108:
+ 146               		.section	.text.reset_oneshot_layer,"ax",@progbits
+ 147               	.global	reset_oneshot_layer
+ 149               	reset_oneshot_layer:
+ 150               	.LFB109:
+  93:./tmk_core/common/action_util.c **** #if (defined(ONESHOT_TIMEOUT) && (ONESHOT_TIMEOUT > 0))
+  94:./tmk_core/common/action_util.c ****     oneshot_layer_time = timer_read();
+  95:./tmk_core/common/action_util.c **** #endif
+  96:./tmk_core/common/action_util.c **** }
+  97:./tmk_core/common/action_util.c **** void reset_oneshot_layer(void) {
+ 151               		.loc 1 97 32 is_stmt 1 view -0
+ 152               		.cfi_startproc
+ 153               	/* prologue: function */
+ 154               	/* frame size = 0 */
+ 155               	/* stack size = 0 */
+ 156               	.L__stack_usage = 0
+  98:./tmk_core/common/action_util.c ****     oneshot_layer_data = 0;
+ 157               		.loc 1 98 5 view .LVU27
+ 158               		.loc 1 98 24 is_stmt 0 view .LVU28
+ 159 0000 1092 0000 		sts oneshot_layer_data,__zero_reg__
+ 160               	/* epilogue start */
+  99:./tmk_core/common/action_util.c **** #if (defined(ONESHOT_TIMEOUT) && (ONESHOT_TIMEOUT > 0))
+ 100:./tmk_core/common/action_util.c ****     oneshot_layer_time = 0;
+ 101:./tmk_core/common/action_util.c **** #endif
+ 102:./tmk_core/common/action_util.c **** }
+ 161               		.loc 1 102 1 view .LVU29
+ 162 0004 0895      		ret
+ 163               		.cfi_endproc
+ 164               	.LFE109:
+ 166               		.section	.text.clear_oneshot_layer_state,"ax",@progbits
+ 167               	.global	clear_oneshot_layer_state
+ 169               	clear_oneshot_layer_state:
+ 170               	.LVL4:
+ 171               	.LFB110:
+ 103:./tmk_core/common/action_util.c **** void clear_oneshot_layer_state(oneshot_fullfillment_t state)
+ 104:./tmk_core/common/action_util.c **** {
+ 172               		.loc 1 104 1 is_stmt 1 view -0
+ 173               		.cfi_startproc
+ 174               	/* prologue: function */
+ 175               	/* frame size = 0 */
+ 176               	/* stack size = 0 */
+ 177               	.L__stack_usage = 0
+ 105:./tmk_core/common/action_util.c ****     uint8_t start_state = oneshot_layer_data;
+ 178               		.loc 1 105 5 view .LVU31
+ 179               		.loc 1 105 13 is_stmt 0 view .LVU32
+ 180 0000 9091 0000 		lds r25,oneshot_layer_data
+ 181               	.LVL5:
+ 106:./tmk_core/common/action_util.c ****     oneshot_layer_data &= ~state;
+ 182               		.loc 1 106 5 is_stmt 1 view .LVU33
+ 183               		.loc 1 106 24 is_stmt 0 view .LVU34
+ 184 0004 8095      		com r24
+ 185               	.LVL6:
+ 186               		.loc 1 106 24 view .LVU35
+ 187 0006 8923      		and r24,r25
+ 188               	.LVL7:
+ 189               		.loc 1 106 24 view .LVU36
+ 190 0008 8093 0000 		sts oneshot_layer_data,r24
+ 107:./tmk_core/common/action_util.c ****     if (!get_oneshot_layer_state() && start_state != oneshot_layer_data) {
+ 191               		.loc 1 107 5 is_stmt 1 view .LVU37
+ 192               	.LBB8:
+ 193               	.LBI8:
+  78:./tmk_core/common/action_util.c **** 
+ 194               		.loc 1 78 16 view .LVU38
+ 195               	.LBB9:
+  78:./tmk_core/common/action_util.c **** 
+ 196               		.loc 1 78 48 view .LVU39
+  78:./tmk_core/common/action_util.c **** 
+ 197               		.loc 1 78 74 is_stmt 0 view .LVU40
+ 198 000c 282F      		mov r18,r24
+ 199 000e 2770      		andi r18,lo8(7)
+ 200               	.LBE9:
+ 201               	.LBE8:
+ 202               		.loc 1 107 8 view .LVU41
+ 203 0010 01F4      		brne .L8
+ 204               		.loc 1 107 51 discriminator 1 view .LVU42
+ 205 0012 282F      		mov r18,r24
+ 206 0014 082E      		mov __tmp_reg__,r24
+ 207 0016 000C      		lsl r0
+ 208 0018 330B      		sbc r19,r19
+ 209               		.loc 1 107 36 discriminator 1 view .LVU43
+ 210 001a 9217      		cp r25,r18
+ 211 001c 1306      		cpc __zero_reg__,r19
+ 212 001e 01F0      		breq .L8
+ 108:./tmk_core/common/action_util.c ****         layer_off(get_oneshot_layer());
+ 213               		.loc 1 108 9 is_stmt 1 view .LVU44
+ 214               	.LBB10:
+ 215               	.LBI10:
+  77:./tmk_core/common/action_util.c **** inline uint8_t get_oneshot_layer_state(void) { return oneshot_layer_data & 0b111; }
+ 216               		.loc 1 77 16 view .LVU45
+ 217               	.LBB11:
+  77:./tmk_core/common/action_util.c **** inline uint8_t get_oneshot_layer_state(void) { return oneshot_layer_data & 0b111; }
+ 218               		.loc 1 77 42 view .LVU46
+ 219               	.LBE11:
+ 220               	.LBE10:
+ 221               		.loc 1 108 9 is_stmt 0 view .LVU47
+ 222 0020 8595      		asr r24
+ 223 0022 8595      		asr r24
+ 224 0024 8595      		asr r24
+ 225 0026 0C94 0000 		jmp layer_off
+ 226               	.LVL8:
+ 227               	.L8:
+ 228               	/* epilogue start */
+ 109:./tmk_core/common/action_util.c **** #if (defined(ONESHOT_TIMEOUT) && (ONESHOT_TIMEOUT > 0))
+ 110:./tmk_core/common/action_util.c ****     oneshot_layer_time = 0;
+ 111:./tmk_core/common/action_util.c **** #endif
+ 112:./tmk_core/common/action_util.c ****     }
+ 113:./tmk_core/common/action_util.c **** }
+ 229               		.loc 1 113 1 view .LVU48
+ 230 002a 0895      		ret
+ 231               		.cfi_endproc
+ 232               	.LFE110:
+ 234               		.section	.text.is_oneshot_layer_active,"ax",@progbits
+ 235               	.global	is_oneshot_layer_active
+ 237               	is_oneshot_layer_active:
+ 238               	.LFB111:
+ 114:./tmk_core/common/action_util.c **** bool is_oneshot_layer_active(void)
+ 115:./tmk_core/common/action_util.c **** {
+ 239               		.loc 1 115 1 is_stmt 1 view -0
+ 240               		.cfi_startproc
+ 241               	/* prologue: function */
+ 242               	/* frame size = 0 */
+ 243               	/* stack size = 0 */
+ 244               	.L__stack_usage = 0
+ 116:./tmk_core/common/action_util.c ****     return get_oneshot_layer_state();
+ 245               		.loc 1 116 5 view .LVU50
+ 246               	.LBB12:
+ 247               	.LBI12:
+  78:./tmk_core/common/action_util.c **** 
+ 248               		.loc 1 78 16 view .LVU51
+ 249               	.LBB13:
+  78:./tmk_core/common/action_util.c **** 
+ 250               		.loc 1 78 48 view .LVU52
+  78:./tmk_core/common/action_util.c **** 
+ 251               		.loc 1 78 74 is_stmt 0 view .LVU53
+ 252 0000 9091 0000 		lds r25,oneshot_layer_data
+ 253 0004 9770      		andi r25,lo8(7)
+ 254               	.LBE13:
+ 255               	.LBE12:
+ 256               		.loc 1 116 12 view .LVU54
+ 257 0006 81E0      		ldi r24,lo8(1)
+ 258 0008 01F4      		brne .L11
+ 259 000a 80E0      		ldi r24,0
+ 260               	.L11:
+ 261               	/* epilogue start */
+ 117:./tmk_core/common/action_util.c **** }
+ 262               		.loc 1 117 1 view .LVU55
+ 263 000c 0895      		ret
+ 264               		.cfi_endproc
+ 265               	.LFE111:
+ 267               		.section	.text.add_key,"ax",@progbits
+ 268               	.global	add_key
+ 270               	add_key:
+ 271               	.LVL9:
+ 272               	.LFB113:
+ 118:./tmk_core/common/action_util.c **** #endif
+ 119:./tmk_core/common/action_util.c **** 
+ 120:./tmk_core/common/action_util.c **** void send_keyboard_report(void) {
+ 121:./tmk_core/common/action_util.c ****     keyboard_report->mods  = real_mods;
+ 122:./tmk_core/common/action_util.c ****     keyboard_report->mods |= weak_mods;
+ 123:./tmk_core/common/action_util.c ****     keyboard_report->mods |= macro_mods;
+ 124:./tmk_core/common/action_util.c **** #ifndef NO_ACTION_ONESHOT
+ 125:./tmk_core/common/action_util.c ****     if (oneshot_mods) {
+ 126:./tmk_core/common/action_util.c **** #if (defined(ONESHOT_TIMEOUT) && (ONESHOT_TIMEOUT > 0))
+ 127:./tmk_core/common/action_util.c ****         if (has_oneshot_mods_timed_out()) {
+ 128:./tmk_core/common/action_util.c ****             dprintf("Oneshot: timeout\n");
+ 129:./tmk_core/common/action_util.c ****             clear_oneshot_mods();
+ 130:./tmk_core/common/action_util.c ****         }
+ 131:./tmk_core/common/action_util.c **** #endif
+ 132:./tmk_core/common/action_util.c ****         keyboard_report->mods |= oneshot_mods;
+ 133:./tmk_core/common/action_util.c ****         if (has_anykey()) {
+ 134:./tmk_core/common/action_util.c ****             clear_oneshot_mods();
+ 135:./tmk_core/common/action_util.c ****         }
+ 136:./tmk_core/common/action_util.c ****     }
+ 137:./tmk_core/common/action_util.c **** 
+ 138:./tmk_core/common/action_util.c **** #endif
+ 139:./tmk_core/common/action_util.c ****     host_keyboard_send(keyboard_report);
+ 140:./tmk_core/common/action_util.c **** }
+ 141:./tmk_core/common/action_util.c **** 
+ 142:./tmk_core/common/action_util.c **** /* key */
+ 143:./tmk_core/common/action_util.c **** void add_key(uint8_t key)
+ 144:./tmk_core/common/action_util.c **** {
+ 273               		.loc 1 144 1 is_stmt 1 view -0
+ 274               		.cfi_startproc
+ 275               	/* prologue: function */
+ 276               	/* frame size = 0 */
+ 277               	/* stack size = 0 */
+ 278               	.L__stack_usage = 0
+ 145:./tmk_core/common/action_util.c **** #ifdef NKRO_ENABLE
+ 146:./tmk_core/common/action_util.c ****     if (keyboard_protocol && keymap_config.nkro) {
+ 279               		.loc 1 146 5 view .LVU57
+ 280               		.loc 1 146 8 is_stmt 0 view .LVU58
+ 281 0000 9091 0000 		lds r25,keyboard_protocol
+ 282 0004 9923      		tst r25
+ 283 0006 01F0      		breq .L13
+ 284               		.loc 1 146 27 discriminator 1 view .LVU59
+ 285 0008 9091 0000 		lds r25,keymap_config
+ 286 000c 97FF      		sbrs r25,7
+ 287 000e 00C0      		rjmp .L13
+ 147:./tmk_core/common/action_util.c ****         add_key_bit(key);
+ 288               		.loc 1 147 9 is_stmt 1 view .LVU60
+ 289               	.LVL10:
+ 290               	.LBB18:
+ 291               	.LBI18:
+ 148:./tmk_core/common/action_util.c ****         return;
+ 149:./tmk_core/common/action_util.c ****     }
+ 150:./tmk_core/common/action_util.c **** #endif
+ 151:./tmk_core/common/action_util.c ****     add_key_byte(key);
+ 152:./tmk_core/common/action_util.c **** }
+ 153:./tmk_core/common/action_util.c **** 
+ 154:./tmk_core/common/action_util.c **** void del_key(uint8_t key)
+ 155:./tmk_core/common/action_util.c **** {
+ 156:./tmk_core/common/action_util.c **** #ifdef NKRO_ENABLE
+ 157:./tmk_core/common/action_util.c ****     if (keyboard_protocol && keymap_config.nkro) {
+ 158:./tmk_core/common/action_util.c ****         del_key_bit(key);
+ 159:./tmk_core/common/action_util.c ****         return;
+ 160:./tmk_core/common/action_util.c ****     }
+ 161:./tmk_core/common/action_util.c **** #endif
+ 162:./tmk_core/common/action_util.c ****     del_key_byte(key);
+ 163:./tmk_core/common/action_util.c **** }
+ 164:./tmk_core/common/action_util.c **** 
+ 165:./tmk_core/common/action_util.c **** void clear_keys(void)
+ 166:./tmk_core/common/action_util.c **** {
+ 167:./tmk_core/common/action_util.c ****     // not clear mods
+ 168:./tmk_core/common/action_util.c ****     for (int8_t i = 1; i < KEYBOARD_REPORT_SIZE; i++) {
+ 169:./tmk_core/common/action_util.c ****         keyboard_report->raw[i] = 0;
+ 170:./tmk_core/common/action_util.c ****     }
+ 171:./tmk_core/common/action_util.c **** }
+ 172:./tmk_core/common/action_util.c **** 
+ 173:./tmk_core/common/action_util.c **** 
+ 174:./tmk_core/common/action_util.c **** /* modifier */
+ 175:./tmk_core/common/action_util.c **** uint8_t get_mods(void) { return real_mods; }
+ 176:./tmk_core/common/action_util.c **** void add_mods(uint8_t mods) { real_mods |= mods; }
+ 177:./tmk_core/common/action_util.c **** void del_mods(uint8_t mods) { real_mods &= ~mods; }
+ 178:./tmk_core/common/action_util.c **** void set_mods(uint8_t mods) { real_mods = mods; }
+ 179:./tmk_core/common/action_util.c **** void clear_mods(void) { real_mods = 0; }
+ 180:./tmk_core/common/action_util.c **** 
+ 181:./tmk_core/common/action_util.c **** /* weak modifier */
+ 182:./tmk_core/common/action_util.c **** uint8_t get_weak_mods(void) { return weak_mods; }
+ 183:./tmk_core/common/action_util.c **** void add_weak_mods(uint8_t mods) { weak_mods |= mods; }
+ 184:./tmk_core/common/action_util.c **** void del_weak_mods(uint8_t mods) { weak_mods &= ~mods; }
+ 185:./tmk_core/common/action_util.c **** void set_weak_mods(uint8_t mods) { weak_mods = mods; }
+ 186:./tmk_core/common/action_util.c **** void clear_weak_mods(void) { weak_mods = 0; }
+ 187:./tmk_core/common/action_util.c **** 
+ 188:./tmk_core/common/action_util.c **** /* macro modifier */
+ 189:./tmk_core/common/action_util.c **** uint8_t get_macro_mods(void) { return macro_mods; }
+ 190:./tmk_core/common/action_util.c **** void add_macro_mods(uint8_t mods) { macro_mods |= mods; }
+ 191:./tmk_core/common/action_util.c **** void del_macro_mods(uint8_t mods) { macro_mods &= ~mods; }
+ 192:./tmk_core/common/action_util.c **** void set_macro_mods(uint8_t mods) { macro_mods = mods; }
+ 193:./tmk_core/common/action_util.c **** void clear_macro_mods(void) { macro_mods = 0; }
+ 194:./tmk_core/common/action_util.c **** 
+ 195:./tmk_core/common/action_util.c **** /* Oneshot modifier */
+ 196:./tmk_core/common/action_util.c **** #ifndef NO_ACTION_ONESHOT
+ 197:./tmk_core/common/action_util.c **** void set_oneshot_mods(uint8_t mods)
+ 198:./tmk_core/common/action_util.c **** {
+ 199:./tmk_core/common/action_util.c ****     oneshot_mods = mods;
+ 200:./tmk_core/common/action_util.c **** #if (defined(ONESHOT_TIMEOUT) && (ONESHOT_TIMEOUT > 0))
+ 201:./tmk_core/common/action_util.c ****     oneshot_time = timer_read();
+ 202:./tmk_core/common/action_util.c **** #endif
+ 203:./tmk_core/common/action_util.c **** }
+ 204:./tmk_core/common/action_util.c **** void clear_oneshot_mods(void)
+ 205:./tmk_core/common/action_util.c **** {
+ 206:./tmk_core/common/action_util.c ****     oneshot_mods = 0;
+ 207:./tmk_core/common/action_util.c **** #if (defined(ONESHOT_TIMEOUT) && (ONESHOT_TIMEOUT > 0))
+ 208:./tmk_core/common/action_util.c ****     oneshot_time = 0;
+ 209:./tmk_core/common/action_util.c **** #endif
+ 210:./tmk_core/common/action_util.c **** }
+ 211:./tmk_core/common/action_util.c **** uint8_t get_oneshot_mods(void)
+ 212:./tmk_core/common/action_util.c **** {
+ 213:./tmk_core/common/action_util.c ****     return oneshot_mods;
+ 214:./tmk_core/common/action_util.c **** }
+ 215:./tmk_core/common/action_util.c **** #endif
+ 216:./tmk_core/common/action_util.c **** 
+ 217:./tmk_core/common/action_util.c **** /*
+ 218:./tmk_core/common/action_util.c ****  * inspect keyboard state
+ 219:./tmk_core/common/action_util.c ****  */
+ 220:./tmk_core/common/action_util.c **** uint8_t has_anykey(void)
+ 221:./tmk_core/common/action_util.c **** {
+ 222:./tmk_core/common/action_util.c ****     uint8_t cnt = 0;
+ 223:./tmk_core/common/action_util.c ****     for (uint8_t i = 1; i < KEYBOARD_REPORT_SIZE; i++) {
+ 224:./tmk_core/common/action_util.c ****         if (keyboard_report->raw[i])
+ 225:./tmk_core/common/action_util.c ****             cnt++;
+ 226:./tmk_core/common/action_util.c ****     }
+ 227:./tmk_core/common/action_util.c ****     return cnt;
+ 228:./tmk_core/common/action_util.c **** }
+ 229:./tmk_core/common/action_util.c **** 
+ 230:./tmk_core/common/action_util.c **** uint8_t has_anymod(void)
+ 231:./tmk_core/common/action_util.c **** {
+ 232:./tmk_core/common/action_util.c ****     return bitpop(real_mods);
+ 233:./tmk_core/common/action_util.c **** }
+ 234:./tmk_core/common/action_util.c **** 
+ 235:./tmk_core/common/action_util.c **** uint8_t get_first_key(void)
+ 236:./tmk_core/common/action_util.c **** {
+ 237:./tmk_core/common/action_util.c **** #ifdef NKRO_ENABLE
+ 238:./tmk_core/common/action_util.c ****     if (keyboard_protocol && keymap_config.nkro) {
+ 239:./tmk_core/common/action_util.c ****         uint8_t i = 0;
+ 240:./tmk_core/common/action_util.c ****         for (; i < KEYBOARD_REPORT_BITS && !keyboard_report->nkro.bits[i]; i++)
+ 241:./tmk_core/common/action_util.c ****             ;
+ 242:./tmk_core/common/action_util.c ****         return i<<3 | biton(keyboard_report->nkro.bits[i]);
+ 243:./tmk_core/common/action_util.c ****     }
+ 244:./tmk_core/common/action_util.c **** #endif
+ 245:./tmk_core/common/action_util.c **** #ifdef USB_6KRO_ENABLE
+ 246:./tmk_core/common/action_util.c ****     uint8_t i = cb_head;
+ 247:./tmk_core/common/action_util.c ****     do {
+ 248:./tmk_core/common/action_util.c ****         if (keyboard_report->keys[i] != 0) {
+ 249:./tmk_core/common/action_util.c ****             break;
+ 250:./tmk_core/common/action_util.c ****         }
+ 251:./tmk_core/common/action_util.c ****         i = RO_INC(i);
+ 252:./tmk_core/common/action_util.c ****     } while (i != cb_tail);
+ 253:./tmk_core/common/action_util.c ****     return keyboard_report->keys[i];
+ 254:./tmk_core/common/action_util.c **** #else
+ 255:./tmk_core/common/action_util.c ****     return keyboard_report->keys[0];
+ 256:./tmk_core/common/action_util.c **** #endif
+ 257:./tmk_core/common/action_util.c **** }
+ 258:./tmk_core/common/action_util.c **** 
+ 259:./tmk_core/common/action_util.c **** 
+ 260:./tmk_core/common/action_util.c **** 
+ 261:./tmk_core/common/action_util.c **** /* local functions */
+ 262:./tmk_core/common/action_util.c **** static inline void add_key_byte(uint8_t code)
+ 263:./tmk_core/common/action_util.c **** {
+ 264:./tmk_core/common/action_util.c **** #ifdef USB_6KRO_ENABLE
+ 265:./tmk_core/common/action_util.c ****     int8_t i = cb_head;
+ 266:./tmk_core/common/action_util.c ****     int8_t empty = -1;
+ 267:./tmk_core/common/action_util.c ****     if (cb_count) {
+ 268:./tmk_core/common/action_util.c ****         do {
+ 269:./tmk_core/common/action_util.c ****             if (keyboard_report->keys[i] == code) {
+ 270:./tmk_core/common/action_util.c ****                 return;
+ 271:./tmk_core/common/action_util.c ****             }
+ 272:./tmk_core/common/action_util.c ****             if (empty == -1 && keyboard_report->keys[i] == 0) {
+ 273:./tmk_core/common/action_util.c ****                 empty = i;
+ 274:./tmk_core/common/action_util.c ****             }
+ 275:./tmk_core/common/action_util.c ****             i = RO_INC(i);
+ 276:./tmk_core/common/action_util.c ****         } while (i != cb_tail);
+ 277:./tmk_core/common/action_util.c ****         if (i == cb_tail) {
+ 278:./tmk_core/common/action_util.c ****             if (cb_tail == cb_head) {
+ 279:./tmk_core/common/action_util.c ****                 // buffer is full
+ 280:./tmk_core/common/action_util.c ****                 if (empty == -1) {
+ 281:./tmk_core/common/action_util.c ****                     // pop head when has no empty space
+ 282:./tmk_core/common/action_util.c ****                     cb_head = RO_INC(cb_head);
+ 283:./tmk_core/common/action_util.c ****                     cb_count--;
+ 284:./tmk_core/common/action_util.c ****                 }
+ 285:./tmk_core/common/action_util.c ****                 else {
+ 286:./tmk_core/common/action_util.c ****                     // left shift when has empty space
+ 287:./tmk_core/common/action_util.c ****                     uint8_t offset = 1;
+ 288:./tmk_core/common/action_util.c ****                     i = RO_INC(empty);
+ 289:./tmk_core/common/action_util.c ****                     do {
+ 290:./tmk_core/common/action_util.c ****                         if (keyboard_report->keys[i] != 0) {
+ 291:./tmk_core/common/action_util.c ****                             keyboard_report->keys[empty] = keyboard_report->keys[i];
+ 292:./tmk_core/common/action_util.c ****                             keyboard_report->keys[i] = 0;
+ 293:./tmk_core/common/action_util.c ****                             empty = RO_INC(empty);
+ 294:./tmk_core/common/action_util.c ****                         }
+ 295:./tmk_core/common/action_util.c ****                         else {
+ 296:./tmk_core/common/action_util.c ****                             offset++;
+ 297:./tmk_core/common/action_util.c ****                         }
+ 298:./tmk_core/common/action_util.c ****                         i = RO_INC(i);
+ 299:./tmk_core/common/action_util.c ****                     } while (i != cb_tail);
+ 300:./tmk_core/common/action_util.c ****                     cb_tail = RO_SUB(cb_tail, offset);
+ 301:./tmk_core/common/action_util.c ****                 }
+ 302:./tmk_core/common/action_util.c ****             }
+ 303:./tmk_core/common/action_util.c ****         }
+ 304:./tmk_core/common/action_util.c ****     }
+ 305:./tmk_core/common/action_util.c ****     // add to tail
+ 306:./tmk_core/common/action_util.c ****     keyboard_report->keys[cb_tail] = code;
+ 307:./tmk_core/common/action_util.c ****     cb_tail = RO_INC(cb_tail);
+ 308:./tmk_core/common/action_util.c ****     cb_count++;
+ 309:./tmk_core/common/action_util.c **** #else
+ 310:./tmk_core/common/action_util.c ****     int8_t i = 0;
+ 311:./tmk_core/common/action_util.c ****     int8_t empty = -1;
+ 312:./tmk_core/common/action_util.c ****     for (; i < KEYBOARD_REPORT_KEYS; i++) {
+ 313:./tmk_core/common/action_util.c ****         if (keyboard_report->keys[i] == code) {
+ 314:./tmk_core/common/action_util.c ****             break;
+ 315:./tmk_core/common/action_util.c ****         }
+ 316:./tmk_core/common/action_util.c ****         if (empty == -1 && keyboard_report->keys[i] == 0) {
+ 317:./tmk_core/common/action_util.c ****             empty = i;
+ 318:./tmk_core/common/action_util.c ****         }
+ 319:./tmk_core/common/action_util.c ****     }
+ 320:./tmk_core/common/action_util.c ****     if (i == KEYBOARD_REPORT_KEYS) {
+ 321:./tmk_core/common/action_util.c ****         if (empty != -1) {
+ 322:./tmk_core/common/action_util.c ****             keyboard_report->keys[empty] = code;
+ 323:./tmk_core/common/action_util.c ****         }
+ 324:./tmk_core/common/action_util.c ****     }
+ 325:./tmk_core/common/action_util.c **** #endif
+ 326:./tmk_core/common/action_util.c **** }
+ 327:./tmk_core/common/action_util.c **** 
+ 328:./tmk_core/common/action_util.c **** static inline void del_key_byte(uint8_t code)
+ 329:./tmk_core/common/action_util.c **** {
+ 330:./tmk_core/common/action_util.c **** #ifdef USB_6KRO_ENABLE
+ 331:./tmk_core/common/action_util.c ****     uint8_t i = cb_head;
+ 332:./tmk_core/common/action_util.c ****     if (cb_count) {
+ 333:./tmk_core/common/action_util.c ****         do {
+ 334:./tmk_core/common/action_util.c ****             if (keyboard_report->keys[i] == code) {
+ 335:./tmk_core/common/action_util.c ****                 keyboard_report->keys[i] = 0;
+ 336:./tmk_core/common/action_util.c ****                 cb_count--;
+ 337:./tmk_core/common/action_util.c ****                 if (cb_count == 0) {
+ 338:./tmk_core/common/action_util.c ****                     // reset head and tail
+ 339:./tmk_core/common/action_util.c ****                     cb_tail = cb_head = 0;
+ 340:./tmk_core/common/action_util.c ****                 }
+ 341:./tmk_core/common/action_util.c ****                 if (i == RO_DEC(cb_tail)) {
+ 342:./tmk_core/common/action_util.c ****                     // left shift when next to tail
+ 343:./tmk_core/common/action_util.c ****                     do {
+ 344:./tmk_core/common/action_util.c ****                         cb_tail = RO_DEC(cb_tail);
+ 345:./tmk_core/common/action_util.c ****                         if (keyboard_report->keys[RO_DEC(cb_tail)] != 0) {
+ 346:./tmk_core/common/action_util.c ****                             break;
+ 347:./tmk_core/common/action_util.c ****                         }
+ 348:./tmk_core/common/action_util.c ****                     } while (cb_tail != cb_head);
+ 349:./tmk_core/common/action_util.c ****                 }
+ 350:./tmk_core/common/action_util.c ****                 break;
+ 351:./tmk_core/common/action_util.c ****             }
+ 352:./tmk_core/common/action_util.c ****             i = RO_INC(i);
+ 353:./tmk_core/common/action_util.c ****         } while (i != cb_tail);
+ 354:./tmk_core/common/action_util.c ****     }
+ 355:./tmk_core/common/action_util.c **** #else
+ 356:./tmk_core/common/action_util.c ****     for (uint8_t i = 0; i < KEYBOARD_REPORT_KEYS; i++) {
+ 357:./tmk_core/common/action_util.c ****         if (keyboard_report->keys[i] == code) {
+ 358:./tmk_core/common/action_util.c ****             keyboard_report->keys[i] = 0;
+ 359:./tmk_core/common/action_util.c ****         }
+ 360:./tmk_core/common/action_util.c ****     }
+ 361:./tmk_core/common/action_util.c **** #endif
+ 362:./tmk_core/common/action_util.c **** }
+ 363:./tmk_core/common/action_util.c **** 
+ 364:./tmk_core/common/action_util.c **** #ifdef NKRO_ENABLE
+ 365:./tmk_core/common/action_util.c **** static inline void add_key_bit(uint8_t code)
+ 292               		.loc 1 365 20 view .LVU61
+ 293               	.LBB19:
+ 366:./tmk_core/common/action_util.c **** {
+ 367:./tmk_core/common/action_util.c ****     if ((code>>3) < KEYBOARD_REPORT_BITS) {
+ 294               		.loc 1 367 5 view .LVU62
+ 295               		.loc 1 367 19 is_stmt 0 view .LVU63
+ 296 0010 E82F      		mov r30,r24
+ 297 0012 E695      		lsr r30
+ 298 0014 E695      		lsr r30
+ 299 0016 E695      		lsr r30
+ 300               		.loc 1 367 8 view .LVU64
+ 301 0018 EF31      		cpi r30,lo8(31)
+ 302 001a 01F0      		breq .L12
+ 368:./tmk_core/common/action_util.c ****         keyboard_report->nkro.bits[code>>3] |= 1<<(code&7);
+ 303               		.loc 1 368 9 is_stmt 1 view .LVU65
+ 304               		.loc 1 368 45 is_stmt 0 view .LVU66
+ 305 001c 2091 0000 		lds r18,keyboard_report
+ 306 0020 3091 0000 		lds r19,keyboard_report+1
+ 307 0024 E20F      		add r30,r18
+ 308 0026 F32F      		mov r31,r19
+ 309 0028 F11D      		adc r31,__zero_reg__
+ 310               		.loc 1 368 56 view .LVU67
+ 311 002a 8770      		andi r24,lo8(7)
+ 312               	.LVL11:
+ 313               		.loc 1 368 49 view .LVU68
+ 314 002c 21E0      		ldi r18,lo8(1)
+ 315 002e 30E0      		ldi r19,0
+ 316 0030 00C0      		rjmp 2f
+ 317               		1:
+ 318 0032 220F      		lsl r18
+ 319               		2:
+ 320 0034 8A95      		dec r24
+ 321 0036 02F4      		brpl 1b
+ 322               		.loc 1 368 45 view .LVU69
+ 323 0038 8181      		ldd r24,Z+1
+ 324 003a 822B      		or r24,r18
+ 325 003c 8183      		std Z+1,r24
+ 326 003e 0895      		ret
+ 327               	.LVL12:
+ 328               	.L13:
+ 329               		.loc 1 368 45 view .LVU70
+ 330               	.LBE19:
+ 331               	.LBE18:
+ 332               	.LBB20:
+ 333               	.LBB21:
+ 313:./tmk_core/common/action_util.c ****             break;
+ 334               		.loc 1 313 28 view .LVU71
+ 335 0040 2091 0000 		lds r18,keyboard_report
+ 336 0044 3091 0000 		lds r19,keyboard_report+1
+ 337 0048 F901      		movw r30,r18
+ 338 004a 3296      		adiw r30,2
+ 339 004c 9FEF      		ldi r25,lo8(-1)
+ 340 004e 40E0      		ldi r20,0
+ 341               	.L16:
+ 342               	.LVL13:
+ 313:./tmk_core/common/action_util.c ****             break;
+ 343               		.loc 1 313 9 is_stmt 1 view .LVU72
+ 313:./tmk_core/common/action_util.c ****             break;
+ 344               		.loc 1 313 34 is_stmt 0 view .LVU73
+ 345 0050 5191      		ld r21,Z+
+ 313:./tmk_core/common/action_util.c ****             break;
+ 346               		.loc 1 313 12 view .LVU74
+ 347 0052 8517      		cp r24,r21
+ 348 0054 01F0      		breq .L12
+ 316:./tmk_core/common/action_util.c ****             empty = i;
+ 349               		.loc 1 316 9 is_stmt 1 view .LVU75
+ 316:./tmk_core/common/action_util.c ****             empty = i;
+ 350               		.loc 1 316 12 is_stmt 0 view .LVU76
+ 351 0056 9F3F      		cpi r25,lo8(-1)
+ 352 0058 01F4      		brne .L15
+ 316:./tmk_core/common/action_util.c ****             empty = i;
+ 353               		.loc 1 316 25 view .LVU77
+ 354 005a 5111      		cpse r21,__zero_reg__
+ 355 005c 00C0      		rjmp .L15
+ 356 005e 942F      		mov r25,r20
+ 357               	.LVL14:
+ 358               	.L15:
+ 316:./tmk_core/common/action_util.c ****             empty = i;
+ 359               		.loc 1 316 25 view .LVU78
+ 360 0060 4F5F      		subi r20,lo8(-(1))
+ 361               	.LVL15:
+ 312:./tmk_core/common/action_util.c ****         if (keyboard_report->keys[i] == code) {
+ 362               		.loc 1 312 5 view .LVU79
+ 363 0062 4E31      		cpi r20,lo8(30)
+ 364 0064 01F4      		brne .L16
+ 320:./tmk_core/common/action_util.c ****         if (empty != -1) {
+ 365               		.loc 1 320 5 is_stmt 1 view .LVU80
+ 321:./tmk_core/common/action_util.c ****             keyboard_report->keys[empty] = code;
+ 366               		.loc 1 321 9 view .LVU81
+ 321:./tmk_core/common/action_util.c ****             keyboard_report->keys[empty] = code;
+ 367               		.loc 1 321 12 is_stmt 0 view .LVU82
+ 368 0066 9F3F      		cpi r25,lo8(-1)
+ 369 0068 01F4      		brne .L18
+ 370               	.LVL16:
+ 371               	.L12:
+ 372               	/* epilogue start */
+ 321:./tmk_core/common/action_util.c ****             keyboard_report->keys[empty] = code;
+ 373               		.loc 1 321 12 view .LVU83
+ 374               	.LBE21:
+ 375               	.LBE20:
+ 152:./tmk_core/common/action_util.c **** 
+ 376               		.loc 1 152 1 view .LVU84
+ 377 006a 0895      		ret
+ 378               	.LVL17:
+ 379               	.L18:
+ 380               	.LBB23:
+ 381               	.LBB22:
+ 322:./tmk_core/common/action_util.c ****         }
+ 382               		.loc 1 322 13 is_stmt 1 view .LVU85
+ 322:./tmk_core/common/action_util.c ****         }
+ 383               		.loc 1 322 42 is_stmt 0 view .LVU86
+ 384 006c 290F      		add r18,r25
+ 385 006e 311D      		adc r19,__zero_reg__
+ 386 0070 97FD      		sbrc r25,7
+ 387 0072 3A95      		dec r19
+ 388 0074 F901      		movw r30,r18
+ 389 0076 8283      		std Z+2,r24
+ 390 0078 0895      		ret
+ 391               	.LBE22:
+ 392               	.LBE23:
+ 393               		.cfi_endproc
+ 394               	.LFE113:
+ 396               		.section	.text.del_key,"ax",@progbits
+ 397               	.global	del_key
+ 399               	del_key:
+ 400               	.LVL18:
+ 401               	.LFB114:
+ 155:./tmk_core/common/action_util.c **** #ifdef NKRO_ENABLE
+ 402               		.loc 1 155 1 is_stmt 1 view -0
+ 403               		.cfi_startproc
+ 404               	/* prologue: function */
+ 405               	/* frame size = 0 */
+ 406               	/* stack size = 0 */
+ 407               	.L__stack_usage = 0
+ 157:./tmk_core/common/action_util.c ****         del_key_bit(key);
+ 408               		.loc 1 157 5 view .LVU88
+ 157:./tmk_core/common/action_util.c ****         del_key_bit(key);
+ 409               		.loc 1 157 8 is_stmt 0 view .LVU89
+ 410 0000 9091 0000 		lds r25,keyboard_protocol
+ 411 0004 9923      		tst r25
+ 412 0006 01F0      		breq .L28
+ 157:./tmk_core/common/action_util.c ****         del_key_bit(key);
+ 413               		.loc 1 157 27 discriminator 1 view .LVU90
+ 414 0008 9091 0000 		lds r25,keymap_config
+ 415 000c 97FF      		sbrs r25,7
+ 416 000e 00C0      		rjmp .L28
+ 158:./tmk_core/common/action_util.c ****         return;
+ 417               		.loc 1 158 9 is_stmt 1 view .LVU91
+ 418               	.LVL19:
+ 419               	.LBB29:
+ 420               	.LBI29:
+ 369:./tmk_core/common/action_util.c ****     } else {
+ 370:./tmk_core/common/action_util.c ****         dprintf("add_key_bit: can't add: %02X\n", code);
+ 371:./tmk_core/common/action_util.c ****     }
+ 372:./tmk_core/common/action_util.c **** }
+ 373:./tmk_core/common/action_util.c **** 
+ 374:./tmk_core/common/action_util.c **** static inline void del_key_bit(uint8_t code)
+ 421               		.loc 1 374 20 view .LVU92
+ 422               	.LBB30:
+ 375:./tmk_core/common/action_util.c **** {
+ 376:./tmk_core/common/action_util.c ****     if ((code>>3) < KEYBOARD_REPORT_BITS) {
+ 423               		.loc 1 376 5 view .LVU93
+ 424               		.loc 1 376 19 is_stmt 0 view .LVU94
+ 425 0010 E82F      		mov r30,r24
+ 426 0012 E695      		lsr r30
+ 427 0014 E695      		lsr r30
+ 428 0016 E695      		lsr r30
+ 429               		.loc 1 376 8 view .LVU95
+ 430 0018 EF31      		cpi r30,lo8(31)
+ 431 001a 01F0      		breq .L27
+ 377:./tmk_core/common/action_util.c ****         keyboard_report->nkro.bits[code>>3] &= ~(1<<(code&7));
+ 432               		.loc 1 377 9 is_stmt 1 view .LVU96
+ 433               		.loc 1 377 45 is_stmt 0 view .LVU97
+ 434 001c 2091 0000 		lds r18,keyboard_report
+ 435 0020 3091 0000 		lds r19,keyboard_report+1
+ 436 0024 E20F      		add r30,r18
+ 437 0026 F32F      		mov r31,r19
+ 438 0028 F11D      		adc r31,__zero_reg__
+ 439               		.loc 1 377 58 view .LVU98
+ 440 002a 282F      		mov r18,r24
+ 441 002c 2770      		andi r18,lo8(7)
+ 442               		.loc 1 377 51 view .LVU99
+ 443 002e 81E0      		ldi r24,lo8(1)
+ 444 0030 90E0      		ldi r25,0
+ 445               	.LVL20:
+ 446               		.loc 1 377 51 view .LVU100
+ 447 0032 00C0      		rjmp 2f
+ 448               		1:
+ 449 0034 880F      		lsl r24
+ 450               		2:
+ 451 0036 2A95      		dec r18
+ 452 0038 02F4      		brpl 1b
+ 453               		.loc 1 377 45 view .LVU101
+ 454 003a 8095      		com r24
+ 455 003c 9181      		ldd r25,Z+1
+ 456 003e 8923      		and r24,r25
+ 457 0040 8183      		std Z+1,r24
+ 458 0042 0895      		ret
+ 459               	.LVL21:
+ 460               	.L28:
+ 461               		.loc 1 377 45 view .LVU102
+ 462               	.LBE30:
+ 463               	.LBE29:
+ 464               	.LBB31:
+ 465               	.LBB32:
+ 357:./tmk_core/common/action_util.c ****             keyboard_report->keys[i] = 0;
+ 466               		.loc 1 357 28 view .LVU103
+ 467 0044 2091 0000 		lds r18,keyboard_report
+ 468 0048 3091 0000 		lds r19,keyboard_report+1
+ 469 004c F901      		movw r30,r18
+ 470 004e 3296      		adiw r30,2
+ 471 0050 205E      		subi r18,-32
+ 472 0052 3F4F      		sbci r19,-1
+ 473               	.L32:
+ 474               	.LVL22:
+ 357:./tmk_core/common/action_util.c ****             keyboard_report->keys[i] = 0;
+ 475               		.loc 1 357 9 is_stmt 1 view .LVU104
+ 357:./tmk_core/common/action_util.c ****             keyboard_report->keys[i] = 0;
+ 476               		.loc 1 357 34 is_stmt 0 view .LVU105
+ 477 0054 9191      		ld r25,Z+
+ 478               	.LVL23:
+ 357:./tmk_core/common/action_util.c ****             keyboard_report->keys[i] = 0;
+ 479               		.loc 1 357 12 view .LVU106
+ 480 0056 8913      		cpse r24,r25
+ 481 0058 00C0      		rjmp .L31
+ 358:./tmk_core/common/action_util.c ****         }
+ 482               		.loc 1 358 13 is_stmt 1 view .LVU107
+ 358:./tmk_core/common/action_util.c ****         }
+ 483               		.loc 1 358 38 is_stmt 0 view .LVU108
+ 484 005a DF01      		movw r26,r30
+ 485 005c 1197      		sbiw r26,1
+ 486 005e 1C92      		st X,__zero_reg__
+ 487               	.L31:
+ 488               	.LVL24:
+ 356:./tmk_core/common/action_util.c ****         if (keyboard_report->keys[i] == code) {
+ 489               		.loc 1 356 5 view .LVU109
+ 490 0060 E217      		cp r30,r18
+ 491 0062 F307      		cpc r31,r19
+ 492 0064 01F4      		brne .L32
+ 493               	.LVL25:
+ 494               	.L27:
+ 495               	/* epilogue start */
+ 356:./tmk_core/common/action_util.c ****         if (keyboard_report->keys[i] == code) {
+ 496               		.loc 1 356 5 view .LVU110
+ 497               	.LBE32:
+ 498               	.LBE31:
+ 163:./tmk_core/common/action_util.c **** 
+ 499               		.loc 1 163 1 view .LVU111
+ 500 0066 0895      		ret
+ 501               		.cfi_endproc
+ 502               	.LFE114:
+ 504               		.section	.text.clear_keys,"ax",@progbits
+ 505               	.global	clear_keys
+ 507               	clear_keys:
+ 508               	.LFB115:
+ 166:./tmk_core/common/action_util.c ****     // not clear mods
+ 509               		.loc 1 166 1 is_stmt 1 view -0
+ 510               		.cfi_startproc
+ 511               	/* prologue: function */
+ 512               	/* frame size = 0 */
+ 513               	/* stack size = 0 */
+ 514               	.L__stack_usage = 0
+ 168:./tmk_core/common/action_util.c ****         keyboard_report->raw[i] = 0;
+ 515               		.loc 1 168 5 view .LVU113
+ 516               	.LBB33:
+ 168:./tmk_core/common/action_util.c ****         keyboard_report->raw[i] = 0;
+ 517               		.loc 1 168 10 view .LVU114
+ 518               	.LVL26:
+ 168:./tmk_core/common/action_util.c ****         keyboard_report->raw[i] = 0;
+ 519               		.loc 1 168 10 is_stmt 0 view .LVU115
+ 520               	.LBE33:
+ 166:./tmk_core/common/action_util.c ****     // not clear mods
+ 521               		.loc 1 166 1 view .LVU116
+ 522 0000 81E0      		ldi r24,lo8(1)
+ 523 0002 90E0      		ldi r25,0
+ 524               	.LVL27:
+ 525               	.L39:
+ 526               	.LBB34:
+ 169:./tmk_core/common/action_util.c ****     }
+ 527               		.loc 1 169 9 is_stmt 1 discriminator 3 view .LVU117
+ 169:./tmk_core/common/action_util.c ****     }
+ 528               		.loc 1 169 24 is_stmt 0 discriminator 3 view .LVU118
+ 529 0004 E091 0000 		lds r30,keyboard_report
+ 530 0008 F091 0000 		lds r31,keyboard_report+1
+ 169:./tmk_core/common/action_util.c ****     }
+ 531               		.loc 1 169 33 discriminator 3 view .LVU119
+ 532 000c E80F      		add r30,r24
+ 533 000e F91F      		adc r31,r25
+ 534 0010 1082      		st Z,__zero_reg__
+ 535               	.LVL28:
+ 169:./tmk_core/common/action_util.c ****     }
+ 536               		.loc 1 169 33 discriminator 3 view .LVU120
+ 537 0012 0196      		adiw r24,1
+ 538               	.LVL29:
+ 168:./tmk_core/common/action_util.c ****         keyboard_report->raw[i] = 0;
+ 539               		.loc 1 168 5 discriminator 3 view .LVU121
+ 540 0014 8032      		cpi r24,32
+ 541 0016 9105      		cpc r25,__zero_reg__
+ 542 0018 01F4      		brne .L39
+ 543               	/* epilogue start */
+ 544               	.LBE34:
+ 171:./tmk_core/common/action_util.c **** 
+ 545               		.loc 1 171 1 view .LVU122
+ 546 001a 0895      		ret
+ 547               		.cfi_endproc
+ 548               	.LFE115:
+ 550               		.section	.text.get_mods,"ax",@progbits
+ 551               	.global	get_mods
+ 553               	get_mods:
+ 554               	.LFB116:
+ 175:./tmk_core/common/action_util.c **** void add_mods(uint8_t mods) { real_mods |= mods; }
+ 555               		.loc 1 175 24 is_stmt 1 view -0
+ 556               		.cfi_startproc
+ 557               	/* prologue: function */
+ 558               	/* frame size = 0 */
+ 559               	/* stack size = 0 */
+ 560               	.L__stack_usage = 0
+ 175:./tmk_core/common/action_util.c **** void add_mods(uint8_t mods) { real_mods |= mods; }
+ 561               		.loc 1 175 26 view .LVU124
+ 175:./tmk_core/common/action_util.c **** void add_mods(uint8_t mods) { real_mods |= mods; }
+ 562               		.loc 1 175 1 is_stmt 0 view .LVU125
+ 563 0000 8091 0000 		lds r24,real_mods
+ 564               	/* epilogue start */
+ 565 0004 0895      		ret
+ 566               		.cfi_endproc
+ 567               	.LFE116:
+ 569               		.section	.text.add_mods,"ax",@progbits
+ 570               	.global	add_mods
+ 572               	add_mods:
+ 573               	.LVL30:
+ 574               	.LFB117:
+ 176:./tmk_core/common/action_util.c **** void del_mods(uint8_t mods) { real_mods &= ~mods; }
+ 575               		.loc 1 176 29 is_stmt 1 view -0
+ 576               		.cfi_startproc
+ 577               	/* prologue: function */
+ 578               	/* frame size = 0 */
+ 579               	/* stack size = 0 */
+ 580               	.L__stack_usage = 0
+ 176:./tmk_core/common/action_util.c **** void del_mods(uint8_t mods) { real_mods &= ~mods; }
+ 581               		.loc 1 176 31 view .LVU127
+ 176:./tmk_core/common/action_util.c **** void del_mods(uint8_t mods) { real_mods &= ~mods; }
+ 582               		.loc 1 176 41 is_stmt 0 view .LVU128
+ 583 0000 9091 0000 		lds r25,real_mods
+ 584 0004 892B      		or r24,r25
+ 585               	.LVL31:
+ 176:./tmk_core/common/action_util.c **** void del_mods(uint8_t mods) { real_mods &= ~mods; }
+ 586               		.loc 1 176 41 view .LVU129
+ 587 0006 8093 0000 		sts real_mods,r24
+ 588               	/* epilogue start */
+ 176:./tmk_core/common/action_util.c **** void del_mods(uint8_t mods) { real_mods &= ~mods; }
+ 589               		.loc 1 176 1 view .LVU130
+ 590 000a 0895      		ret
+ 591               		.cfi_endproc
+ 592               	.LFE117:
+ 594               		.section	.text.del_mods,"ax",@progbits
+ 595               	.global	del_mods
+ 597               	del_mods:
+ 598               	.LVL32:
+ 599               	.LFB118:
+ 177:./tmk_core/common/action_util.c **** void set_mods(uint8_t mods) { real_mods = mods; }
+ 600               		.loc 1 177 29 is_stmt 1 view -0
+ 601               		.cfi_startproc
+ 602               	/* prologue: function */
+ 603               	/* frame size = 0 */
+ 604               	/* stack size = 0 */
+ 605               	.L__stack_usage = 0
+ 177:./tmk_core/common/action_util.c **** void set_mods(uint8_t mods) { real_mods = mods; }
+ 606               		.loc 1 177 31 view .LVU132
+ 177:./tmk_core/common/action_util.c **** void set_mods(uint8_t mods) { real_mods = mods; }
+ 607               		.loc 1 177 41 is_stmt 0 view .LVU133
+ 608 0000 8095      		com r24
+ 609               	.LVL33:
+ 177:./tmk_core/common/action_util.c **** void set_mods(uint8_t mods) { real_mods = mods; }
+ 610               		.loc 1 177 41 view .LVU134
+ 611 0002 9091 0000 		lds r25,real_mods
+ 612 0006 9823      		and r25,r24
+ 613 0008 9093 0000 		sts real_mods,r25
+ 614               	/* epilogue start */
+ 177:./tmk_core/common/action_util.c **** void set_mods(uint8_t mods) { real_mods = mods; }
+ 615               		.loc 1 177 1 view .LVU135
+ 616 000c 0895      		ret
+ 617               		.cfi_endproc
+ 618               	.LFE118:
+ 620               		.section	.text.set_mods,"ax",@progbits
+ 621               	.global	set_mods
+ 623               	set_mods:
+ 624               	.LVL34:
+ 625               	.LFB119:
+ 178:./tmk_core/common/action_util.c **** void clear_mods(void) { real_mods = 0; }
+ 626               		.loc 1 178 29 is_stmt 1 view -0
+ 627               		.cfi_startproc
+ 628               	/* prologue: function */
+ 629               	/* frame size = 0 */
+ 630               	/* stack size = 0 */
+ 631               	.L__stack_usage = 0
+ 178:./tmk_core/common/action_util.c **** void clear_mods(void) { real_mods = 0; }
+ 632               		.loc 1 178 31 view .LVU137
+ 178:./tmk_core/common/action_util.c **** void clear_mods(void) { real_mods = 0; }
+ 633               		.loc 1 178 41 is_stmt 0 view .LVU138
+ 634 0000 8093 0000 		sts real_mods,r24
+ 635               	/* epilogue start */
+ 178:./tmk_core/common/action_util.c **** void clear_mods(void) { real_mods = 0; }
+ 636               		.loc 1 178 1 view .LVU139
+ 637 0004 0895      		ret
+ 638               		.cfi_endproc
+ 639               	.LFE119:
+ 641               		.section	.text.clear_mods,"ax",@progbits
+ 642               	.global	clear_mods
+ 644               	clear_mods:
+ 645               	.LFB120:
+ 179:./tmk_core/common/action_util.c **** 
+ 646               		.loc 1 179 23 is_stmt 1 view -0
+ 647               		.cfi_startproc
+ 648               	/* prologue: function */
+ 649               	/* frame size = 0 */
+ 650               	/* stack size = 0 */
+ 651               	.L__stack_usage = 0
+ 179:./tmk_core/common/action_util.c **** 
+ 652               		.loc 1 179 25 view .LVU141
+ 179:./tmk_core/common/action_util.c **** 
+ 653               		.loc 1 179 35 is_stmt 0 view .LVU142
+ 654 0000 1092 0000 		sts real_mods,__zero_reg__
+ 655               	/* epilogue start */
+ 179:./tmk_core/common/action_util.c **** 
+ 656               		.loc 1 179 1 view .LVU143
+ 657 0004 0895      		ret
+ 658               		.cfi_endproc
+ 659               	.LFE120:
+ 661               		.section	.text.get_weak_mods,"ax",@progbits
+ 662               	.global	get_weak_mods
+ 664               	get_weak_mods:
+ 665               	.LFB121:
+ 182:./tmk_core/common/action_util.c **** void add_weak_mods(uint8_t mods) { weak_mods |= mods; }
+ 666               		.loc 1 182 29 is_stmt 1 view -0
+ 667               		.cfi_startproc
+ 668               	/* prologue: function */
+ 669               	/* frame size = 0 */
+ 670               	/* stack size = 0 */
+ 671               	.L__stack_usage = 0
+ 182:./tmk_core/common/action_util.c **** void add_weak_mods(uint8_t mods) { weak_mods |= mods; }
+ 672               		.loc 1 182 31 view .LVU145
+ 182:./tmk_core/common/action_util.c **** void add_weak_mods(uint8_t mods) { weak_mods |= mods; }
+ 673               		.loc 1 182 1 is_stmt 0 view .LVU146
+ 674 0000 8091 0000 		lds r24,weak_mods
+ 675               	/* epilogue start */
+ 676 0004 0895      		ret
+ 677               		.cfi_endproc
+ 678               	.LFE121:
+ 680               		.section	.text.add_weak_mods,"ax",@progbits
+ 681               	.global	add_weak_mods
+ 683               	add_weak_mods:
+ 684               	.LVL35:
+ 685               	.LFB122:
+ 183:./tmk_core/common/action_util.c **** void del_weak_mods(uint8_t mods) { weak_mods &= ~mods; }
+ 686               		.loc 1 183 34 is_stmt 1 view -0
+ 687               		.cfi_startproc
+ 688               	/* prologue: function */
+ 689               	/* frame size = 0 */
+ 690               	/* stack size = 0 */
+ 691               	.L__stack_usage = 0
+ 183:./tmk_core/common/action_util.c **** void del_weak_mods(uint8_t mods) { weak_mods &= ~mods; }
+ 692               		.loc 1 183 36 view .LVU148
+ 183:./tmk_core/common/action_util.c **** void del_weak_mods(uint8_t mods) { weak_mods &= ~mods; }
+ 693               		.loc 1 183 46 is_stmt 0 view .LVU149
+ 694 0000 9091 0000 		lds r25,weak_mods
+ 695 0004 892B      		or r24,r25
+ 696               	.LVL36:
+ 183:./tmk_core/common/action_util.c **** void del_weak_mods(uint8_t mods) { weak_mods &= ~mods; }
+ 697               		.loc 1 183 46 view .LVU150
+ 698 0006 8093 0000 		sts weak_mods,r24
+ 699               	/* epilogue start */
+ 183:./tmk_core/common/action_util.c **** void del_weak_mods(uint8_t mods) { weak_mods &= ~mods; }
+ 700               		.loc 1 183 1 view .LVU151
+ 701 000a 0895      		ret
+ 702               		.cfi_endproc
+ 703               	.LFE122:
+ 705               		.section	.text.del_weak_mods,"ax",@progbits
+ 706               	.global	del_weak_mods
+ 708               	del_weak_mods:
+ 709               	.LVL37:
+ 710               	.LFB123:
+ 184:./tmk_core/common/action_util.c **** void set_weak_mods(uint8_t mods) { weak_mods = mods; }
+ 711               		.loc 1 184 34 is_stmt 1 view -0
+ 712               		.cfi_startproc
+ 713               	/* prologue: function */
+ 714               	/* frame size = 0 */
+ 715               	/* stack size = 0 */
+ 716               	.L__stack_usage = 0
+ 184:./tmk_core/common/action_util.c **** void set_weak_mods(uint8_t mods) { weak_mods = mods; }
+ 717               		.loc 1 184 36 view .LVU153
+ 184:./tmk_core/common/action_util.c **** void set_weak_mods(uint8_t mods) { weak_mods = mods; }
+ 718               		.loc 1 184 46 is_stmt 0 view .LVU154
+ 719 0000 8095      		com r24
+ 720               	.LVL38:
+ 184:./tmk_core/common/action_util.c **** void set_weak_mods(uint8_t mods) { weak_mods = mods; }
+ 721               		.loc 1 184 46 view .LVU155
+ 722 0002 9091 0000 		lds r25,weak_mods
+ 723 0006 9823      		and r25,r24
+ 724 0008 9093 0000 		sts weak_mods,r25
+ 725               	/* epilogue start */
+ 184:./tmk_core/common/action_util.c **** void set_weak_mods(uint8_t mods) { weak_mods = mods; }
+ 726               		.loc 1 184 1 view .LVU156
+ 727 000c 0895      		ret
+ 728               		.cfi_endproc
+ 729               	.LFE123:
+ 731               		.section	.text.set_weak_mods,"ax",@progbits
+ 732               	.global	set_weak_mods
+ 734               	set_weak_mods:
+ 735               	.LVL39:
+ 736               	.LFB124:
+ 185:./tmk_core/common/action_util.c **** void clear_weak_mods(void) { weak_mods = 0; }
+ 737               		.loc 1 185 34 is_stmt 1 view -0
+ 738               		.cfi_startproc
+ 739               	/* prologue: function */
+ 740               	/* frame size = 0 */
+ 741               	/* stack size = 0 */
+ 742               	.L__stack_usage = 0
+ 185:./tmk_core/common/action_util.c **** void clear_weak_mods(void) { weak_mods = 0; }
+ 743               		.loc 1 185 36 view .LVU158
+ 185:./tmk_core/common/action_util.c **** void clear_weak_mods(void) { weak_mods = 0; }
+ 744               		.loc 1 185 46 is_stmt 0 view .LVU159
+ 745 0000 8093 0000 		sts weak_mods,r24
+ 746               	/* epilogue start */
+ 185:./tmk_core/common/action_util.c **** void clear_weak_mods(void) { weak_mods = 0; }
+ 747               		.loc 1 185 1 view .LVU160
+ 748 0004 0895      		ret
+ 749               		.cfi_endproc
+ 750               	.LFE124:
+ 752               		.section	.text.clear_weak_mods,"ax",@progbits
+ 753               	.global	clear_weak_mods
+ 755               	clear_weak_mods:
+ 756               	.LFB125:
+ 186:./tmk_core/common/action_util.c **** 
+ 757               		.loc 1 186 28 is_stmt 1 view -0
+ 758               		.cfi_startproc
+ 759               	/* prologue: function */
+ 760               	/* frame size = 0 */
+ 761               	/* stack size = 0 */
+ 762               	.L__stack_usage = 0
+ 186:./tmk_core/common/action_util.c **** 
+ 763               		.loc 1 186 30 view .LVU162
+ 186:./tmk_core/common/action_util.c **** 
+ 764               		.loc 1 186 40 is_stmt 0 view .LVU163
+ 765 0000 1092 0000 		sts weak_mods,__zero_reg__
+ 766               	/* epilogue start */
+ 186:./tmk_core/common/action_util.c **** 
+ 767               		.loc 1 186 1 view .LVU164
+ 768 0004 0895      		ret
+ 769               		.cfi_endproc
+ 770               	.LFE125:
+ 772               		.section	.text.get_macro_mods,"ax",@progbits
+ 773               	.global	get_macro_mods
+ 775               	get_macro_mods:
+ 776               	.LFB126:
+ 189:./tmk_core/common/action_util.c **** void add_macro_mods(uint8_t mods) { macro_mods |= mods; }
+ 777               		.loc 1 189 30 is_stmt 1 view -0
+ 778               		.cfi_startproc
+ 779               	/* prologue: function */
+ 780               	/* frame size = 0 */
+ 781               	/* stack size = 0 */
+ 782               	.L__stack_usage = 0
+ 189:./tmk_core/common/action_util.c **** void add_macro_mods(uint8_t mods) { macro_mods |= mods; }
+ 783               		.loc 1 189 32 view .LVU166
+ 189:./tmk_core/common/action_util.c **** void add_macro_mods(uint8_t mods) { macro_mods |= mods; }
+ 784               		.loc 1 189 1 is_stmt 0 view .LVU167
+ 785 0000 8091 0000 		lds r24,macro_mods
+ 786               	/* epilogue start */
+ 787 0004 0895      		ret
+ 788               		.cfi_endproc
+ 789               	.LFE126:
+ 791               		.section	.text.add_macro_mods,"ax",@progbits
+ 792               	.global	add_macro_mods
+ 794               	add_macro_mods:
+ 795               	.LVL40:
+ 796               	.LFB127:
+ 190:./tmk_core/common/action_util.c **** void del_macro_mods(uint8_t mods) { macro_mods &= ~mods; }
+ 797               		.loc 1 190 35 is_stmt 1 view -0
+ 798               		.cfi_startproc
+ 799               	/* prologue: function */
+ 800               	/* frame size = 0 */
+ 801               	/* stack size = 0 */
+ 802               	.L__stack_usage = 0
+ 190:./tmk_core/common/action_util.c **** void del_macro_mods(uint8_t mods) { macro_mods &= ~mods; }
+ 803               		.loc 1 190 37 view .LVU169
+ 190:./tmk_core/common/action_util.c **** void del_macro_mods(uint8_t mods) { macro_mods &= ~mods; }
+ 804               		.loc 1 190 48 is_stmt 0 view .LVU170
+ 805 0000 9091 0000 		lds r25,macro_mods
+ 806 0004 892B      		or r24,r25
+ 807               	.LVL41:
+ 190:./tmk_core/common/action_util.c **** void del_macro_mods(uint8_t mods) { macro_mods &= ~mods; }
+ 808               		.loc 1 190 48 view .LVU171
+ 809 0006 8093 0000 		sts macro_mods,r24
+ 810               	/* epilogue start */
+ 190:./tmk_core/common/action_util.c **** void del_macro_mods(uint8_t mods) { macro_mods &= ~mods; }
+ 811               		.loc 1 190 1 view .LVU172
+ 812 000a 0895      		ret
+ 813               		.cfi_endproc
+ 814               	.LFE127:
+ 816               		.section	.text.del_macro_mods,"ax",@progbits
+ 817               	.global	del_macro_mods
+ 819               	del_macro_mods:
+ 820               	.LVL42:
+ 821               	.LFB128:
+ 191:./tmk_core/common/action_util.c **** void set_macro_mods(uint8_t mods) { macro_mods = mods; }
+ 822               		.loc 1 191 35 is_stmt 1 view -0
+ 823               		.cfi_startproc
+ 824               	/* prologue: function */
+ 825               	/* frame size = 0 */
+ 826               	/* stack size = 0 */
+ 827               	.L__stack_usage = 0
+ 191:./tmk_core/common/action_util.c **** void set_macro_mods(uint8_t mods) { macro_mods = mods; }
+ 828               		.loc 1 191 37 view .LVU174
+ 191:./tmk_core/common/action_util.c **** void set_macro_mods(uint8_t mods) { macro_mods = mods; }
+ 829               		.loc 1 191 48 is_stmt 0 view .LVU175
+ 830 0000 8095      		com r24
+ 831               	.LVL43:
+ 191:./tmk_core/common/action_util.c **** void set_macro_mods(uint8_t mods) { macro_mods = mods; }
+ 832               		.loc 1 191 48 view .LVU176
+ 833 0002 9091 0000 		lds r25,macro_mods
+ 834 0006 9823      		and r25,r24
+ 835 0008 9093 0000 		sts macro_mods,r25
+ 836               	/* epilogue start */
+ 191:./tmk_core/common/action_util.c **** void set_macro_mods(uint8_t mods) { macro_mods = mods; }
+ 837               		.loc 1 191 1 view .LVU177
+ 838 000c 0895      		ret
+ 839               		.cfi_endproc
+ 840               	.LFE128:
+ 842               		.section	.text.set_macro_mods,"ax",@progbits
+ 843               	.global	set_macro_mods
+ 845               	set_macro_mods:
+ 846               	.LVL44:
+ 847               	.LFB129:
+ 192:./tmk_core/common/action_util.c **** void clear_macro_mods(void) { macro_mods = 0; }
+ 848               		.loc 1 192 35 is_stmt 1 view -0
+ 849               		.cfi_startproc
+ 850               	/* prologue: function */
+ 851               	/* frame size = 0 */
+ 852               	/* stack size = 0 */
+ 853               	.L__stack_usage = 0
+ 192:./tmk_core/common/action_util.c **** void clear_macro_mods(void) { macro_mods = 0; }
+ 854               		.loc 1 192 37 view .LVU179
+ 192:./tmk_core/common/action_util.c **** void clear_macro_mods(void) { macro_mods = 0; }
+ 855               		.loc 1 192 48 is_stmt 0 view .LVU180
+ 856 0000 8093 0000 		sts macro_mods,r24
+ 857               	/* epilogue start */
+ 192:./tmk_core/common/action_util.c **** void clear_macro_mods(void) { macro_mods = 0; }
+ 858               		.loc 1 192 1 view .LVU181
+ 859 0004 0895      		ret
+ 860               		.cfi_endproc
+ 861               	.LFE129:
+ 863               		.section	.text.clear_macro_mods,"ax",@progbits
+ 864               	.global	clear_macro_mods
+ 866               	clear_macro_mods:
+ 867               	.LFB130:
+ 193:./tmk_core/common/action_util.c **** 
+ 868               		.loc 1 193 29 is_stmt 1 view -0
+ 869               		.cfi_startproc
+ 870               	/* prologue: function */
+ 871               	/* frame size = 0 */
+ 872               	/* stack size = 0 */
+ 873               	.L__stack_usage = 0
+ 193:./tmk_core/common/action_util.c **** 
+ 874               		.loc 1 193 31 view .LVU183
+ 193:./tmk_core/common/action_util.c **** 
+ 875               		.loc 1 193 42 is_stmt 0 view .LVU184
+ 876 0000 1092 0000 		sts macro_mods,__zero_reg__
+ 877               	/* epilogue start */
+ 193:./tmk_core/common/action_util.c **** 
+ 878               		.loc 1 193 1 view .LVU185
+ 879 0004 0895      		ret
+ 880               		.cfi_endproc
+ 881               	.LFE130:
+ 883               		.section	.text.set_oneshot_mods,"ax",@progbits
+ 884               	.global	set_oneshot_mods
+ 886               	set_oneshot_mods:
+ 887               	.LVL45:
+ 888               	.LFB131:
+ 198:./tmk_core/common/action_util.c ****     oneshot_mods = mods;
+ 889               		.loc 1 198 1 is_stmt 1 view -0
+ 890               		.cfi_startproc
+ 891               	/* prologue: function */
+ 892               	/* frame size = 0 */
+ 893               	/* stack size = 0 */
+ 894               	.L__stack_usage = 0
+ 199:./tmk_core/common/action_util.c **** #if (defined(ONESHOT_TIMEOUT) && (ONESHOT_TIMEOUT > 0))
+ 895               		.loc 1 199 5 view .LVU187
+ 199:./tmk_core/common/action_util.c **** #if (defined(ONESHOT_TIMEOUT) && (ONESHOT_TIMEOUT > 0))
+ 896               		.loc 1 199 18 is_stmt 0 view .LVU188
+ 897 0000 8093 0000 		sts oneshot_mods,r24
+ 898               	/* epilogue start */
+ 203:./tmk_core/common/action_util.c **** void clear_oneshot_mods(void)
+ 899               		.loc 1 203 1 view .LVU189
+ 900 0004 0895      		ret
+ 901               		.cfi_endproc
+ 902               	.LFE131:
+ 904               		.section	.text.clear_oneshot_mods,"ax",@progbits
+ 905               	.global	clear_oneshot_mods
+ 907               	clear_oneshot_mods:
+ 908               	.LFB132:
+ 205:./tmk_core/common/action_util.c ****     oneshot_mods = 0;
+ 909               		.loc 1 205 1 is_stmt 1 view -0
+ 910               		.cfi_startproc
+ 911               	/* prologue: function */
+ 912               	/* frame size = 0 */
+ 913               	/* stack size = 0 */
+ 914               	.L__stack_usage = 0
+ 206:./tmk_core/common/action_util.c **** #if (defined(ONESHOT_TIMEOUT) && (ONESHOT_TIMEOUT > 0))
+ 915               		.loc 1 206 5 view .LVU191
+ 206:./tmk_core/common/action_util.c **** #if (defined(ONESHOT_TIMEOUT) && (ONESHOT_TIMEOUT > 0))
+ 916               		.loc 1 206 18 is_stmt 0 view .LVU192
+ 917 0000 1092 0000 		sts oneshot_mods,__zero_reg__
+ 918               	/* epilogue start */
+ 210:./tmk_core/common/action_util.c **** uint8_t get_oneshot_mods(void)
+ 919               		.loc 1 210 1 view .LVU193
+ 920 0004 0895      		ret
+ 921               		.cfi_endproc
+ 922               	.LFE132:
+ 924               		.section	.text.get_oneshot_mods,"ax",@progbits
+ 925               	.global	get_oneshot_mods
+ 927               	get_oneshot_mods:
+ 928               	.LFB133:
+ 212:./tmk_core/common/action_util.c ****     return oneshot_mods;
+ 929               		.loc 1 212 1 is_stmt 1 view -0
+ 930               		.cfi_startproc
+ 931               	/* prologue: function */
+ 932               	/* frame size = 0 */
+ 933               	/* stack size = 0 */
+ 934               	.L__stack_usage = 0
+ 213:./tmk_core/common/action_util.c **** }
+ 935               		.loc 1 213 5 view .LVU195
+ 214:./tmk_core/common/action_util.c **** #endif
+ 936               		.loc 1 214 1 is_stmt 0 view .LVU196
+ 937 0000 8091 0000 		lds r24,oneshot_mods
+ 938               	/* epilogue start */
+ 939 0004 0895      		ret
+ 940               		.cfi_endproc
+ 941               	.LFE133:
+ 943               		.section	.text.has_anykey,"ax",@progbits
+ 944               	.global	has_anykey
+ 946               	has_anykey:
+ 947               	.LFB134:
+ 221:./tmk_core/common/action_util.c ****     uint8_t cnt = 0;
+ 948               		.loc 1 221 1 is_stmt 1 view -0
+ 949               		.cfi_startproc
+ 950               	/* prologue: function */
+ 951               	/* frame size = 0 */
+ 952               	/* stack size = 0 */
+ 953               	.L__stack_usage = 0
+ 222:./tmk_core/common/action_util.c ****     for (uint8_t i = 1; i < KEYBOARD_REPORT_SIZE; i++) {
+ 954               		.loc 1 222 5 view .LVU198
+ 955               	.LVL46:
+ 223:./tmk_core/common/action_util.c ****         if (keyboard_report->raw[i])
+ 956               		.loc 1 223 5 view .LVU199
+ 957               	.LBB35:
+ 223:./tmk_core/common/action_util.c ****         if (keyboard_report->raw[i])
+ 958               		.loc 1 223 10 view .LVU200
+ 224:./tmk_core/common/action_util.c ****             cnt++;
+ 959               		.loc 1 224 28 is_stmt 0 view .LVU201
+ 960 0000 2091 0000 		lds r18,keyboard_report
+ 961 0004 3091 0000 		lds r19,keyboard_report+1
+ 962 0008 F901      		movw r30,r18
+ 963 000a 3196      		adiw r30,1
+ 964 000c 205E      		subi r18,-32
+ 965 000e 3F4F      		sbci r19,-1
+ 966               	.LBE35:
+ 222:./tmk_core/common/action_util.c ****     for (uint8_t i = 1; i < KEYBOARD_REPORT_SIZE; i++) {
+ 967               		.loc 1 222 13 view .LVU202
+ 968 0010 80E0      		ldi r24,0
+ 969               	.LVL47:
+ 970               	.L61:
+ 971               	.LBB36:
+ 224:./tmk_core/common/action_util.c ****             cnt++;
+ 972               		.loc 1 224 9 is_stmt 1 view .LVU203
+ 224:./tmk_core/common/action_util.c ****             cnt++;
+ 973               		.loc 1 224 33 is_stmt 0 view .LVU204
+ 974 0012 9191      		ld r25,Z+
+ 975               	.LVL48:
+ 224:./tmk_core/common/action_util.c ****             cnt++;
+ 976               		.loc 1 224 12 view .LVU205
+ 977 0014 9111      		cpse r25,__zero_reg__
+ 225:./tmk_core/common/action_util.c ****     }
+ 978               		.loc 1 225 13 is_stmt 1 view .LVU206
+ 225:./tmk_core/common/action_util.c ****     }
+ 979               		.loc 1 225 16 is_stmt 0 view .LVU207
+ 980 0016 8F5F      		subi r24,lo8(-(1))
+ 981               	.LVL49:
+ 982               	.L60:
+ 223:./tmk_core/common/action_util.c ****         if (keyboard_report->raw[i])
+ 983               		.loc 1 223 5 discriminator 2 view .LVU208
+ 984 0018 E217      		cp r30,r18
+ 985 001a F307      		cpc r31,r19
+ 986 001c 01F4      		brne .L61
+ 987               	/* epilogue start */
+ 223:./tmk_core/common/action_util.c ****         if (keyboard_report->raw[i])
+ 988               		.loc 1 223 5 discriminator 2 view .LVU209
+ 989               	.LBE36:
+ 228:./tmk_core/common/action_util.c **** 
+ 990               		.loc 1 228 1 view .LVU210
+ 991 001e 0895      		ret
+ 992               		.cfi_endproc
+ 993               	.LFE134:
+ 995               		.section	.text.send_keyboard_report,"ax",@progbits
+ 996               	.global	send_keyboard_report
+ 998               	send_keyboard_report:
+ 999               	.LFB112:
+ 120:./tmk_core/common/action_util.c ****     keyboard_report->mods  = real_mods;
+ 1000               		.loc 1 120 33 is_stmt 1 view -0
+ 1001               		.cfi_startproc
+ 1002               	/* prologue: function */
+ 1003               	/* frame size = 0 */
+ 1004               	/* stack size = 0 */
+ 1005               	.L__stack_usage = 0
+ 121:./tmk_core/common/action_util.c ****     keyboard_report->mods |= weak_mods;
+ 1006               		.loc 1 121 5 view .LVU212
+ 121:./tmk_core/common/action_util.c ****     keyboard_report->mods |= weak_mods;
+ 1007               		.loc 1 121 20 is_stmt 0 view .LVU213
+ 1008 0000 E091 0000 		lds r30,keyboard_report
+ 1009 0004 F091 0000 		lds r31,keyboard_report+1
+ 121:./tmk_core/common/action_util.c ****     keyboard_report->mods |= weak_mods;
+ 1010               		.loc 1 121 28 view .LVU214
+ 1011 0008 8091 0000 		lds r24,real_mods
+ 1012 000c 8083      		st Z,r24
+ 122:./tmk_core/common/action_util.c ****     keyboard_report->mods |= macro_mods;
+ 1013               		.loc 1 122 5 is_stmt 1 view .LVU215
+ 122:./tmk_core/common/action_util.c ****     keyboard_report->mods |= macro_mods;
+ 1014               		.loc 1 122 27 is_stmt 0 view .LVU216
+ 1015 000e E091 0000 		lds r30,keyboard_report
+ 1016 0012 F091 0000 		lds r31,keyboard_report+1
+ 1017 0016 8081      		ld r24,Z
+ 1018 0018 9091 0000 		lds r25,weak_mods
+ 1019 001c 892B      		or r24,r25
+ 1020 001e 8083      		st Z,r24
+ 123:./tmk_core/common/action_util.c **** #ifndef NO_ACTION_ONESHOT
+ 1021               		.loc 1 123 5 is_stmt 1 view .LVU217
+ 123:./tmk_core/common/action_util.c **** #ifndef NO_ACTION_ONESHOT
+ 1022               		.loc 1 123 27 is_stmt 0 view .LVU218
+ 1023 0020 E091 0000 		lds r30,keyboard_report
+ 1024 0024 F091 0000 		lds r31,keyboard_report+1
+ 1025 0028 8081      		ld r24,Z
+ 1026 002a 9091 0000 		lds r25,macro_mods
+ 1027 002e 892B      		or r24,r25
+ 1028 0030 8083      		st Z,r24
+ 125:./tmk_core/common/action_util.c **** #if (defined(ONESHOT_TIMEOUT) && (ONESHOT_TIMEOUT > 0))
+ 1029               		.loc 1 125 5 is_stmt 1 view .LVU219
+ 125:./tmk_core/common/action_util.c **** #if (defined(ONESHOT_TIMEOUT) && (ONESHOT_TIMEOUT > 0))
+ 1030               		.loc 1 125 9 is_stmt 0 view .LVU220
+ 1031 0032 9091 0000 		lds r25,oneshot_mods
+ 125:./tmk_core/common/action_util.c **** #if (defined(ONESHOT_TIMEOUT) && (ONESHOT_TIMEOUT > 0))
+ 1032               		.loc 1 125 8 view .LVU221
+ 1033 0036 9923      		tst r25
+ 1034 0038 01F0      		breq .L68
+ 132:./tmk_core/common/action_util.c ****         if (has_anykey()) {
+ 1035               		.loc 1 132 9 is_stmt 1 view .LVU222
+ 132:./tmk_core/common/action_util.c ****         if (has_anykey()) {
+ 1036               		.loc 1 132 31 is_stmt 0 view .LVU223
+ 1037 003a E091 0000 		lds r30,keyboard_report
+ 1038 003e F091 0000 		lds r31,keyboard_report+1
+ 1039 0042 8081      		ld r24,Z
+ 1040 0044 892B      		or r24,r25
+ 1041 0046 8083      		st Z,r24
+ 133:./tmk_core/common/action_util.c ****             clear_oneshot_mods();
+ 1042               		.loc 1 133 9 is_stmt 1 view .LVU224
+ 133:./tmk_core/common/action_util.c ****             clear_oneshot_mods();
+ 1043               		.loc 1 133 13 is_stmt 0 view .LVU225
+ 1044 0048 0E94 0000 		call has_anykey
+ 1045               	.LVL50:
+ 133:./tmk_core/common/action_util.c ****             clear_oneshot_mods();
+ 1046               		.loc 1 133 12 view .LVU226
+ 1047 004c 8111      		cpse r24,__zero_reg__
+ 134:./tmk_core/common/action_util.c ****         }
+ 1048               		.loc 1 134 13 is_stmt 1 view .LVU227
+ 1049               	.LBB39:
+ 1050               	.LBI39:
+ 204:./tmk_core/common/action_util.c **** {
+ 1051               		.loc 1 204 6 view .LVU228
+ 1052               	.LBB40:
+ 206:./tmk_core/common/action_util.c **** #if (defined(ONESHOT_TIMEOUT) && (ONESHOT_TIMEOUT > 0))
+ 1053               		.loc 1 206 5 view .LVU229
+ 206:./tmk_core/common/action_util.c **** #if (defined(ONESHOT_TIMEOUT) && (ONESHOT_TIMEOUT > 0))
+ 1054               		.loc 1 206 18 is_stmt 0 view .LVU230
+ 1055 004e 1092 0000 		sts oneshot_mods,__zero_reg__
+ 1056               	.L68:
+ 1057               	.LBE40:
+ 1058               	.LBE39:
+ 139:./tmk_core/common/action_util.c **** }
+ 1059               		.loc 1 139 5 is_stmt 1 view .LVU231
+ 1060 0052 8091 0000 		lds r24,keyboard_report
+ 1061 0056 9091 0000 		lds r25,keyboard_report+1
+ 1062 005a 0C94 0000 		jmp host_keyboard_send
+ 1063               	.LVL51:
+ 1064               		.cfi_endproc
+ 1065               	.LFE112:
+ 1067               		.section	.text.has_anymod,"ax",@progbits
+ 1068               	.global	has_anymod
+ 1070               	has_anymod:
+ 1071               	.LFB135:
+ 231:./tmk_core/common/action_util.c ****     return bitpop(real_mods);
+ 1072               		.loc 1 231 1 view -0
+ 1073               		.cfi_startproc
+ 1074               	/* prologue: function */
+ 1075               	/* frame size = 0 */
+ 1076               	/* stack size = 0 */
+ 1077               	.L__stack_usage = 0
+ 232:./tmk_core/common/action_util.c **** }
+ 1078               		.loc 1 232 5 view .LVU233
+ 232:./tmk_core/common/action_util.c **** }
+ 1079               		.loc 1 232 12 is_stmt 0 view .LVU234
+ 1080 0000 8091 0000 		lds r24,real_mods
+ 1081 0004 0C94 0000 		jmp bitpop
+ 1082               	.LVL52:
+ 1083               		.cfi_endproc
+ 1084               	.LFE135:
+ 1086               		.section	.text.get_first_key,"ax",@progbits
+ 1087               	.global	get_first_key
+ 1089               	get_first_key:
+ 1090               	.LFB136:
+ 236:./tmk_core/common/action_util.c **** #ifdef NKRO_ENABLE
+ 1091               		.loc 1 236 1 is_stmt 1 view -0
+ 1092               		.cfi_startproc
+ 1093 0000 CF93      		push r28
+ 1094               	.LCFI0:
+ 1095               		.cfi_def_cfa_offset 3
+ 1096               		.cfi_offset 28, -2
+ 1097 0002 DF93      		push r29
+ 1098               	.LCFI1:
+ 1099               		.cfi_def_cfa_offset 4
+ 1100               		.cfi_offset 29, -3
+ 1101               	/* prologue: function */
+ 1102               	/* frame size = 0 */
+ 1103               	/* stack size = 2 */
+ 1104               	.L__stack_usage = 2
+ 238:./tmk_core/common/action_util.c ****         uint8_t i = 0;
+ 1105               		.loc 1 238 5 view .LVU236
+ 1106 0004 E091 0000 		lds r30,keyboard_report
+ 1107 0008 F091 0000 		lds r31,keyboard_report+1
+ 238:./tmk_core/common/action_util.c ****         uint8_t i = 0;
+ 1108               		.loc 1 238 8 is_stmt 0 view .LVU237
+ 1109 000c 8091 0000 		lds r24,keyboard_protocol
+ 1110 0010 8823      		tst r24
+ 1111 0012 01F0      		breq .L75
+ 238:./tmk_core/common/action_util.c ****         uint8_t i = 0;
+ 1112               		.loc 1 238 27 discriminator 1 view .LVU238
+ 1113 0014 8091 0000 		lds r24,keymap_config
+ 1114 0018 DF01      		movw r26,r30
+ 1115 001a 1196      		adiw r26,1
+ 1116               	.LBB41:
+ 239:./tmk_core/common/action_util.c ****         for (; i < KEYBOARD_REPORT_BITS && !keyboard_report->nkro.bits[i]; i++)
+ 1117               		.loc 1 239 17 discriminator 1 view .LVU239
+ 1118 001c C0E0      		ldi r28,0
+ 1119               	.LBE41:
+ 238:./tmk_core/common/action_util.c ****         uint8_t i = 0;
+ 1120               		.loc 1 238 27 discriminator 1 view .LVU240
+ 1121 001e 87FD      		sbrc r24,7
+ 1122 0020 00C0      		rjmp .L76
+ 1123               	.L75:
+ 255:./tmk_core/common/action_util.c **** #endif
+ 1124               		.loc 1 255 5 is_stmt 1 view .LVU241
+ 255:./tmk_core/common/action_util.c **** #endif
+ 1125               		.loc 1 255 33 is_stmt 0 view .LVU242
+ 1126 0022 8281      		ldd r24,Z+2
+ 1127 0024 00C0      		rjmp .L74
+ 1128               	.LVL53:
+ 1129               	.L78:
+ 1130               	.LBB42:
+ 241:./tmk_core/common/action_util.c ****         return i<<3 | biton(keyboard_report->nkro.bits[i]);
+ 1131               		.loc 1 241 13 is_stmt 1 discriminator 3 view .LVU243
+ 240:./tmk_core/common/action_util.c ****             ;
+ 1132               		.loc 1 240 77 is_stmt 0 discriminator 3 view .LVU244
+ 1133 0026 CF5F      		subi r28,lo8(-(1))
+ 1134               	.LVL54:
+ 240:./tmk_core/common/action_util.c ****             ;
+ 1135               		.loc 1 240 9 discriminator 3 view .LVU245
+ 1136 0028 CF31      		cpi r28,lo8(31)
+ 1137 002a 01F0      		breq .L77
+ 1138               	.LVL55:
+ 1139               	.L76:
+ 240:./tmk_core/common/action_util.c ****             ;
+ 1140               		.loc 1 240 71 discriminator 2 view .LVU246
+ 1141 002c 8D91      		ld r24,X+
+ 240:./tmk_core/common/action_util.c ****             ;
+ 1142               		.loc 1 240 41 discriminator 2 view .LVU247
+ 1143 002e 8823      		tst r24
+ 1144 0030 01F0      		breq .L78
+ 1145               	.L77:
+ 242:./tmk_core/common/action_util.c ****     }
+ 1146               		.loc 1 242 9 is_stmt 1 view .LVU248
+ 242:./tmk_core/common/action_util.c ****     }
+ 1147               		.loc 1 242 17 is_stmt 0 view .LVU249
+ 1148 0032 D0E0      		ldi r29,0
+ 242:./tmk_core/common/action_util.c ****     }
+ 1149               		.loc 1 242 23 view .LVU250
+ 1150 0034 EC0F      		add r30,r28
+ 1151 0036 FD1F      		adc r31,r29
+ 1152 0038 8181      		ldd r24,Z+1
+ 1153 003a 0E94 0000 		call biton
+ 1154               	.LVL56:
+ 242:./tmk_core/common/action_util.c ****     }
+ 1155               		.loc 1 242 17 view .LVU251
+ 1156 003e 93E0      		ldi r25,3
+ 1157               		1:
+ 1158 0040 CC0F      		lsl r28
+ 1159 0042 DD1F      		rol r29
+ 1160 0044 9A95      		dec r25
+ 1161 0046 01F4      		brne 1b
+ 1162               	.LVL57:
+ 242:./tmk_core/common/action_util.c ****     }
+ 1163               		.loc 1 242 21 view .LVU252
+ 1164 0048 8C2B      		or r24,r28
+ 1165               	.L74:
+ 1166               	/* epilogue start */
+ 242:./tmk_core/common/action_util.c ****     }
+ 1167               		.loc 1 242 21 view .LVU253
+ 1168               	.LBE42:
+ 257:./tmk_core/common/action_util.c **** 
+ 1169               		.loc 1 257 1 view .LVU254
+ 1170 004a DF91      		pop r29
+ 1171 004c CF91      		pop r28
+ 1172 004e 0895      		ret
+ 1173               		.cfi_endproc
+ 1174               	.LFE136:
+ 1176               		.section	.bss.oneshot_layer_data,"aw",@nobits
+ 1179               	oneshot_layer_data:
+ 1180 0000 00        		.zero	1
+ 1181               		.section	.bss.oneshot_locked_mods,"aw",@nobits
+ 1184               	oneshot_locked_mods:
+ 1185 0000 00        		.zero	1
+ 1186               		.section	.bss.oneshot_mods,"aw",@nobits
+ 1189               	oneshot_mods:
+ 1190 0000 00        		.zero	1
+ 1191               	.global	keyboard_report
+ 1192               		.section	.data.keyboard_report,"aw"
+ 1195               	keyboard_report:
+ 1196 0000 0000      		.word	__compound_literal.0
+ 1197               		.section	.bss.__compound_literal.0,"aw",@nobits
+ 1200               	__compound_literal.0:
+ 1201 0000 0000 0000 		.zero	32
+ 1201      0000 0000 
+ 1201      0000 0000 
+ 1201      0000 0000 
+ 1201      0000 0000 
+ 1202               		.section	.bss.macro_mods,"aw",@nobits
+ 1205               	macro_mods:
+ 1206 0000 00        		.zero	1
+ 1207               		.section	.bss.weak_mods,"aw",@nobits
+ 1210               	weak_mods:
+ 1211 0000 00        		.zero	1
+ 1212               		.section	.bss.real_mods,"aw",@nobits
+ 1215               	real_mods:
+ 1216 0000 00        		.zero	1
+ 1217               		.text
+ 1218               	.Letext0:
+ 1219               		.file 2 "/usr/avr/include/stdint.h"
+ 1220               		.file 3 "./tmk_core/protocol/lufa/LUFA-git/LUFA/Drivers/USB/Core/AVR8/../StdRequestType.h"
+ 1221               		.file 4 "./tmk_core/protocol/lufa/LUFA-git/LUFA/Drivers/USB/Core/AVR8/../DeviceStandardReq.h"
+ 1222               		.file 5 "./tmk_core/protocol/lufa/LUFA-git/LUFA/Drivers/USB/Core/USBTask.h"
+ 1223               		.file 6 "./tmk_core/protocol/lufa/LUFA-git/LUFA/Drivers/USB/Core/HostStandardReq.h"
+ 1224               		.file 7 "/usr/avr/include/stdio.h"
+ 1225               		.file 8 "./tmk_core/common/report.h"
+ 1226               		.file 9 "./tmk_core/common/host.h"
+ 1227               		.file 10 "./tmk_core/common/debug.h"
+ 1228               		.file 11 "./tmk_core/common/action_util.h"
+ 1229               		.file 12 "./tmk_core/common/action.h"
+ 1230               		.file 13 "./tmk_core/common/action_layer.h"
+ 1231               		.file 14 "./tmk_core/common/timer.h"
+ 1232               		.file 15 "./quantum/keycode_config.h"
+ 1233               		.file 16 "./tmk_core/common/util.h"
+DEFINED SYMBOLS
+                            *ABS*:0000000000000000 action_util.c
+     /tmp/cc6cjMVv.s:2      *ABS*:000000000000003e __SP_H__
+     /tmp/cc6cjMVv.s:3      *ABS*:000000000000003d __SP_L__
+     /tmp/cc6cjMVv.s:4      *ABS*:000000000000003f __SREG__
+     /tmp/cc6cjMVv.s:5      *ABS*:000000000000003b __RAMPZ__
+     /tmp/cc6cjMVv.s:6      *ABS*:0000000000000000 __tmp_reg__
+     /tmp/cc6cjMVv.s:7      *ABS*:0000000000000001 __zero_reg__
+     /tmp/cc6cjMVv.s:14     .text.get_oneshot_locked_mods:0000000000000000 get_oneshot_locked_mods
+     /tmp/cc6cjMVv.s:1184   .bss.oneshot_locked_mods:0000000000000000 oneshot_locked_mods
+     /tmp/cc6cjMVv.s:34     .text.set_oneshot_locked_mods:0000000000000000 set_oneshot_locked_mods
+     /tmp/cc6cjMVv.s:55     .text.clear_oneshot_locked_mods:0000000000000000 clear_oneshot_locked_mods
+     /tmp/cc6cjMVv.s:75     .text.get_oneshot_layer:0000000000000000 get_oneshot_layer
+     /tmp/cc6cjMVv.s:1179   .bss.oneshot_layer_data:0000000000000000 oneshot_layer_data
+     /tmp/cc6cjMVv.s:98     .text.get_oneshot_layer_state:0000000000000000 get_oneshot_layer_state
+     /tmp/cc6cjMVv.s:119    .text.set_oneshot_layer:0000000000000000 set_oneshot_layer
+     /tmp/cc6cjMVv.s:149    .text.reset_oneshot_layer:0000000000000000 reset_oneshot_layer
+     /tmp/cc6cjMVv.s:169    .text.clear_oneshot_layer_state:0000000000000000 clear_oneshot_layer_state
+     /tmp/cc6cjMVv.s:237    .text.is_oneshot_layer_active:0000000000000000 is_oneshot_layer_active
+     /tmp/cc6cjMVv.s:270    .text.add_key:0000000000000000 add_key
+     /tmp/cc6cjMVv.s:1195   .data.keyboard_report:0000000000000000 keyboard_report
+     /tmp/cc6cjMVv.s:399    .text.del_key:0000000000000000 del_key
+     /tmp/cc6cjMVv.s:507    .text.clear_keys:0000000000000000 clear_keys
+     /tmp/cc6cjMVv.s:553    .text.get_mods:0000000000000000 get_mods
+     /tmp/cc6cjMVv.s:1215   .bss.real_mods:0000000000000000 real_mods
+     /tmp/cc6cjMVv.s:572    .text.add_mods:0000000000000000 add_mods
+     /tmp/cc6cjMVv.s:597    .text.del_mods:0000000000000000 del_mods
+     /tmp/cc6cjMVv.s:623    .text.set_mods:0000000000000000 set_mods
+     /tmp/cc6cjMVv.s:644    .text.clear_mods:0000000000000000 clear_mods
+     /tmp/cc6cjMVv.s:664    .text.get_weak_mods:0000000000000000 get_weak_mods
+     /tmp/cc6cjMVv.s:1210   .bss.weak_mods:0000000000000000 weak_mods
+     /tmp/cc6cjMVv.s:683    .text.add_weak_mods:0000000000000000 add_weak_mods
+     /tmp/cc6cjMVv.s:708    .text.del_weak_mods:0000000000000000 del_weak_mods
+     /tmp/cc6cjMVv.s:734    .text.set_weak_mods:0000000000000000 set_weak_mods
+     /tmp/cc6cjMVv.s:755    .text.clear_weak_mods:0000000000000000 clear_weak_mods
+     /tmp/cc6cjMVv.s:775    .text.get_macro_mods:0000000000000000 get_macro_mods
+     /tmp/cc6cjMVv.s:1205   .bss.macro_mods:0000000000000000 macro_mods
+     /tmp/cc6cjMVv.s:794    .text.add_macro_mods:0000000000000000 add_macro_mods
+     /tmp/cc6cjMVv.s:819    .text.del_macro_mods:0000000000000000 del_macro_mods
+     /tmp/cc6cjMVv.s:845    .text.set_macro_mods:0000000000000000 set_macro_mods
+     /tmp/cc6cjMVv.s:866    .text.clear_macro_mods:0000000000000000 clear_macro_mods
+     /tmp/cc6cjMVv.s:886    .text.set_oneshot_mods:0000000000000000 set_oneshot_mods
+     /tmp/cc6cjMVv.s:1189   .bss.oneshot_mods:0000000000000000 oneshot_mods
+     /tmp/cc6cjMVv.s:907    .text.clear_oneshot_mods:0000000000000000 clear_oneshot_mods
+     /tmp/cc6cjMVv.s:927    .text.get_oneshot_mods:0000000000000000 get_oneshot_mods
+     /tmp/cc6cjMVv.s:946    .text.has_anykey:0000000000000000 has_anykey
+     /tmp/cc6cjMVv.s:998    .text.send_keyboard_report:0000000000000000 send_keyboard_report
+     /tmp/cc6cjMVv.s:1070   .text.has_anymod:0000000000000000 has_anymod
+     /tmp/cc6cjMVv.s:1089   .text.get_first_key:0000000000000000 get_first_key
+     /tmp/cc6cjMVv.s:1200   .bss.__compound_literal.0:0000000000000000 __compound_literal.0
+
+UNDEFINED SYMBOLS
+layer_on
+layer_off
+keyboard_protocol
+keymap_config
+host_keyboard_send
+bitpop
+biton
+__do_copy_data
+__do_clear_bss
