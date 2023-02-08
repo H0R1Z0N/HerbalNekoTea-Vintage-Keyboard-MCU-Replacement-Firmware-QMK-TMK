@@ -142,17 +142,17 @@
  113 0002 80E0      		ldi r24,0
  114 0004 0E94 0000 		call eeprom_read_word
  115               	.LVL7:
- 116               		.loc 1 36 46 view .LVU13
- 117 0008 21E0      		ldi r18,lo8(1)
- 118 000a 8D3E      		cpi r24,-19
- 119 000c 9E4F      		sbci r25,-2
- 120 000e 01F0      		breq .L5
- 121 0010 20E0      		ldi r18,0
- 122               	.L5:
+ 116 0008 9C01      		movw r18,r24
+ 117               		.loc 1 36 46 view .LVU13
+ 118 000a 81E0      		ldi r24,lo8(1)
+ 119 000c 2D3E      		cpi r18,-19
+ 120 000e 3E4F      		sbci r19,-2
+ 121 0010 01F0      		breq .L5
+ 122 0012 80E0      		ldi r24,0
+ 123               	.L5:
+ 124               	/* epilogue start */
   37:./tmk_core/common/eeconfig.c **** }
- 123               		.loc 1 37 1 view .LVU14
- 124 0012 822F      		mov r24,r18
- 125               	/* epilogue start */
+ 125               		.loc 1 37 1 view .LVU14
  126 0014 0895      		ret
  127               		.cfi_endproc
  128               	.LFE3:
@@ -188,125 +188,128 @@
  159               	/* frame size = 0 */
  160               	/* stack size = 0 */
  161               	.L__stack_usage = 0
- 162               		.loc 1 40 43 view .LVU19
+ 162               		.loc 1 40 41 is_stmt 0 view .LVU19
  163 0000 682F      		mov r22,r24
- 164 0002 82E0      		ldi r24,lo8(2)
- 165 0004 90E0      		ldi r25,0
- 166               	.LVL10:
- 167               		.loc 1 40 43 is_stmt 0 view .LVU20
- 168 0006 0C94 0000 		jmp eeprom_update_byte
- 169               	.LVL11:
- 170               		.loc 1 40 43 view .LVU21
- 171               		.cfi_endproc
- 172               	.LFE5:
- 174               		.section	.text.eeconfig_read_default_layer,"ax",@progbits
- 175               	.global	eeconfig_read_default_layer
- 177               	eeconfig_read_default_layer:
- 178               	.LFB6:
+ 164               		.loc 1 40 43 is_stmt 1 view .LVU20
+ 165 0002 82E0      		ldi r24,lo8(2)
+ 166 0004 90E0      		ldi r25,0
+ 167               	.LVL10:
+ 168               		.loc 1 40 43 is_stmt 0 view .LVU21
+ 169 0006 0C94 0000 		jmp eeprom_update_byte
+ 170               	.LVL11:
+ 171               		.loc 1 40 43 view .LVU22
+ 172               		.cfi_endproc
+ 173               	.LFE5:
+ 175               		.section	.text.eeconfig_read_default_layer,"ax",@progbits
+ 176               	.global	eeconfig_read_default_layer
+ 178               	eeconfig_read_default_layer:
+ 179               	.LFB6:
   41:./tmk_core/common/eeconfig.c **** 
   42:./tmk_core/common/eeconfig.c **** uint8_t eeconfig_read_default_layer(void)      { return eeprom_read_byte(EECONFIG_DEFAULT_LAYER); }
- 179               		.loc 1 42 48 is_stmt 1 view -0
- 180               		.cfi_startproc
- 181               	/* prologue: function */
- 182               	/* frame size = 0 */
- 183               	/* stack size = 0 */
- 184               	.L__stack_usage = 0
- 185               		.loc 1 42 50 view .LVU23
- 186               		.loc 1 42 57 is_stmt 0 view .LVU24
- 187 0000 83E0      		ldi r24,lo8(3)
- 188 0002 90E0      		ldi r25,0
- 189 0004 0C94 0000 		jmp eeprom_read_byte
- 190               	.LVL12:
- 191               		.cfi_endproc
- 192               	.LFE6:
- 194               		.section	.text.eeconfig_update_default_layer,"ax",@progbits
- 195               	.global	eeconfig_update_default_layer
- 197               	eeconfig_update_default_layer:
- 198               	.LVL13:
- 199               	.LFB7:
+ 180               		.loc 1 42 48 is_stmt 1 view -0
+ 181               		.cfi_startproc
+ 182               	/* prologue: function */
+ 183               	/* frame size = 0 */
+ 184               	/* stack size = 0 */
+ 185               	.L__stack_usage = 0
+ 186               		.loc 1 42 50 view .LVU24
+ 187               		.loc 1 42 57 is_stmt 0 view .LVU25
+ 188 0000 83E0      		ldi r24,lo8(3)
+ 189 0002 90E0      		ldi r25,0
+ 190 0004 0C94 0000 		jmp eeprom_read_byte
+ 191               	.LVL12:
+ 192               		.cfi_endproc
+ 193               	.LFE6:
+ 195               		.section	.text.eeconfig_update_default_layer,"ax",@progbits
+ 196               	.global	eeconfig_update_default_layer
+ 198               	eeconfig_update_default_layer:
+ 199               	.LVL13:
+ 200               	.LFB7:
   43:./tmk_core/common/eeconfig.c **** void eeconfig_update_default_layer(uint8_t val) { eeprom_update_byte(EECONFIG_DEFAULT_LAYER, val); 
- 200               		.loc 1 43 49 is_stmt 1 view -0
- 201               		.cfi_startproc
- 202               	/* prologue: function */
- 203               	/* frame size = 0 */
- 204               	/* stack size = 0 */
- 205               	.L__stack_usage = 0
- 206               		.loc 1 43 51 view .LVU26
- 207 0000 682F      		mov r22,r24
- 208 0002 83E0      		ldi r24,lo8(3)
- 209 0004 90E0      		ldi r25,0
- 210               	.LVL14:
- 211               		.loc 1 43 51 is_stmt 0 view .LVU27
- 212 0006 0C94 0000 		jmp eeprom_update_byte
- 213               	.LVL15:
- 214               		.loc 1 43 51 view .LVU28
- 215               		.cfi_endproc
- 216               	.LFE7:
- 218               		.section	.text.eeconfig_read_keymap,"ax",@progbits
- 219               	.global	eeconfig_read_keymap
- 221               	eeconfig_read_keymap:
- 222               	.LFB8:
+ 201               		.loc 1 43 49 is_stmt 1 view -0
+ 202               		.cfi_startproc
+ 203               	/* prologue: function */
+ 204               	/* frame size = 0 */
+ 205               	/* stack size = 0 */
+ 206               	.L__stack_usage = 0
+ 207               		.loc 1 43 49 is_stmt 0 view .LVU27
+ 208 0000 682F      		mov r22,r24
+ 209               		.loc 1 43 51 is_stmt 1 view .LVU28
+ 210 0002 83E0      		ldi r24,lo8(3)
+ 211 0004 90E0      		ldi r25,0
+ 212               	.LVL14:
+ 213               		.loc 1 43 51 is_stmt 0 view .LVU29
+ 214 0006 0C94 0000 		jmp eeprom_update_byte
+ 215               	.LVL15:
+ 216               		.loc 1 43 51 view .LVU30
+ 217               		.cfi_endproc
+ 218               	.LFE7:
+ 220               		.section	.text.eeconfig_read_keymap,"ax",@progbits
+ 221               	.global	eeconfig_read_keymap
+ 223               	eeconfig_read_keymap:
+ 224               	.LFB8:
   44:./tmk_core/common/eeconfig.c **** 
   45:./tmk_core/common/eeconfig.c **** uint8_t eeconfig_read_keymap(void)      { return eeprom_read_byte(EECONFIG_KEYMAP); }
- 223               		.loc 1 45 41 is_stmt 1 view -0
- 224               		.cfi_startproc
- 225               	/* prologue: function */
- 226               	/* frame size = 0 */
- 227               	/* stack size = 0 */
- 228               	.L__stack_usage = 0
- 229               		.loc 1 45 43 view .LVU30
- 230               		.loc 1 45 50 is_stmt 0 view .LVU31
- 231 0000 84E0      		ldi r24,lo8(4)
- 232 0002 90E0      		ldi r25,0
- 233 0004 0C94 0000 		jmp eeprom_read_byte
- 234               	.LVL16:
- 235               		.cfi_endproc
- 236               	.LFE8:
- 238               		.section	.text.eeconfig_update_keymap,"ax",@progbits
- 239               	.global	eeconfig_update_keymap
- 241               	eeconfig_update_keymap:
- 242               	.LVL17:
- 243               	.LFB9:
+ 225               		.loc 1 45 41 is_stmt 1 view -0
+ 226               		.cfi_startproc
+ 227               	/* prologue: function */
+ 228               	/* frame size = 0 */
+ 229               	/* stack size = 0 */
+ 230               	.L__stack_usage = 0
+ 231               		.loc 1 45 43 view .LVU32
+ 232               		.loc 1 45 50 is_stmt 0 view .LVU33
+ 233 0000 84E0      		ldi r24,lo8(4)
+ 234 0002 90E0      		ldi r25,0
+ 235 0004 0C94 0000 		jmp eeprom_read_byte
+ 236               	.LVL16:
+ 237               		.cfi_endproc
+ 238               	.LFE8:
+ 240               		.section	.text.eeconfig_update_keymap,"ax",@progbits
+ 241               	.global	eeconfig_update_keymap
+ 243               	eeconfig_update_keymap:
+ 244               	.LVL17:
+ 245               	.LFB9:
   46:./tmk_core/common/eeconfig.c **** void eeconfig_update_keymap(uint8_t val) { eeprom_update_byte(EECONFIG_KEYMAP, val); }
- 244               		.loc 1 46 42 is_stmt 1 view -0
- 245               		.cfi_startproc
- 246               	/* prologue: function */
- 247               	/* frame size = 0 */
- 248               	/* stack size = 0 */
- 249               	.L__stack_usage = 0
- 250               		.loc 1 46 44 view .LVU33
- 251 0000 682F      		mov r22,r24
- 252 0002 84E0      		ldi r24,lo8(4)
- 253 0004 90E0      		ldi r25,0
- 254               	.LVL18:
- 255               		.loc 1 46 44 is_stmt 0 view .LVU34
- 256 0006 0C94 0000 		jmp eeprom_update_byte
- 257               	.LVL19:
- 258               		.loc 1 46 44 view .LVU35
- 259               		.cfi_endproc
- 260               	.LFE9:
- 262               		.text
- 263               	.Letext0:
- 264               		.file 2 "/usr/avr/include/stdint.h"
- 265               		.file 3 "/usr/avr/include/avr/eeprom.h"
+ 246               		.loc 1 46 42 is_stmt 1 view -0
+ 247               		.cfi_startproc
+ 248               	/* prologue: function */
+ 249               	/* frame size = 0 */
+ 250               	/* stack size = 0 */
+ 251               	.L__stack_usage = 0
+ 252               		.loc 1 46 42 is_stmt 0 view .LVU35
+ 253 0000 682F      		mov r22,r24
+ 254               		.loc 1 46 44 is_stmt 1 view .LVU36
+ 255 0002 84E0      		ldi r24,lo8(4)
+ 256 0004 90E0      		ldi r25,0
+ 257               	.LVL18:
+ 258               		.loc 1 46 44 is_stmt 0 view .LVU37
+ 259 0006 0C94 0000 		jmp eeprom_update_byte
+ 260               	.LVL19:
+ 261               		.loc 1 46 44 view .LVU38
+ 262               		.cfi_endproc
+ 263               	.LFE9:
+ 265               		.text
+ 266               	.Letext0:
+ 267               		.file 2 "/usr/avr/include/stdint.h"
+ 268               		.file 3 "/usr/avr/include/avr/eeprom.h"
 DEFINED SYMBOLS
                             *ABS*:0000000000000000 eeconfig.c
-     /tmp/ccgBrIkD.s:2      *ABS*:000000000000003e __SP_H__
-     /tmp/ccgBrIkD.s:3      *ABS*:000000000000003d __SP_L__
-     /tmp/ccgBrIkD.s:4      *ABS*:000000000000003f __SREG__
-     /tmp/ccgBrIkD.s:5      *ABS*:000000000000003b __RAMPZ__
-     /tmp/ccgBrIkD.s:6      *ABS*:0000000000000000 __tmp_reg__
-     /tmp/ccgBrIkD.s:7      *ABS*:0000000000000001 __zero_reg__
-     /tmp/ccgBrIkD.s:14     .text.eeconfig_init:0000000000000000 eeconfig_init
-     /tmp/ccgBrIkD.s:60     .text.eeconfig_enable:0000000000000000 eeconfig_enable
-     /tmp/ccgBrIkD.s:81     .text.eeconfig_disable:0000000000000000 eeconfig_disable
-     /tmp/ccgBrIkD.s:102    .text.eeconfig_is_enabled:0000000000000000 eeconfig_is_enabled
-     /tmp/ccgBrIkD.s:133    .text.eeconfig_read_debug:0000000000000000 eeconfig_read_debug
-     /tmp/ccgBrIkD.s:153    .text.eeconfig_update_debug:0000000000000000 eeconfig_update_debug
-     /tmp/ccgBrIkD.s:177    .text.eeconfig_read_default_layer:0000000000000000 eeconfig_read_default_layer
-     /tmp/ccgBrIkD.s:197    .text.eeconfig_update_default_layer:0000000000000000 eeconfig_update_default_layer
-     /tmp/ccgBrIkD.s:221    .text.eeconfig_read_keymap:0000000000000000 eeconfig_read_keymap
-     /tmp/ccgBrIkD.s:241    .text.eeconfig_update_keymap:0000000000000000 eeconfig_update_keymap
+     /tmp/ccleiseD.s:2      *ABS*:000000000000003e __SP_H__
+     /tmp/ccleiseD.s:3      *ABS*:000000000000003d __SP_L__
+     /tmp/ccleiseD.s:4      *ABS*:000000000000003f __SREG__
+     /tmp/ccleiseD.s:5      *ABS*:000000000000003b __RAMPZ__
+     /tmp/ccleiseD.s:6      *ABS*:0000000000000000 __tmp_reg__
+     /tmp/ccleiseD.s:7      *ABS*:0000000000000001 __zero_reg__
+     /tmp/ccleiseD.s:14     .text.eeconfig_init:0000000000000000 eeconfig_init
+     /tmp/ccleiseD.s:60     .text.eeconfig_enable:0000000000000000 eeconfig_enable
+     /tmp/ccleiseD.s:81     .text.eeconfig_disable:0000000000000000 eeconfig_disable
+     /tmp/ccleiseD.s:102    .text.eeconfig_is_enabled:0000000000000000 eeconfig_is_enabled
+     /tmp/ccleiseD.s:133    .text.eeconfig_read_debug:0000000000000000 eeconfig_read_debug
+     /tmp/ccleiseD.s:153    .text.eeconfig_update_debug:0000000000000000 eeconfig_update_debug
+     /tmp/ccleiseD.s:178    .text.eeconfig_read_default_layer:0000000000000000 eeconfig_read_default_layer
+     /tmp/ccleiseD.s:198    .text.eeconfig_update_default_layer:0000000000000000 eeconfig_update_default_layer
+     /tmp/ccleiseD.s:223    .text.eeconfig_read_keymap:0000000000000000 eeconfig_read_keymap
+     /tmp/ccleiseD.s:243    .text.eeconfig_update_keymap:0000000000000000 eeconfig_update_keymap
 
 UNDEFINED SYMBOLS
 eeprom_update_word

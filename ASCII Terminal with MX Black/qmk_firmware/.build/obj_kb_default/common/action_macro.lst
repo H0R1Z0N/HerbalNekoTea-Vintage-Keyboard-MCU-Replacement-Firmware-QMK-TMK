@@ -12,7 +12,7 @@
   12               	.global	action_macro_play
   14               	action_macro_play:
   15               	.LVL0:
-  16               	.LFB103:
+  16               	.LFB107:
   17               		.file 1 "./tmk_core/common/action_macro.c"
    1:./tmk_core/common/action_macro.c **** /*
    2:./tmk_core/common/action_macro.c **** Copyright 2013 Jun Wako <wakojun@gmail.com>
@@ -100,7 +100,17 @@
   42:./tmk_core/common/action_macro.c ****                 dprintf("KEY_DOWN(%02X)\n", macro);
   43:./tmk_core/common/action_macro.c ****                 if (IS_MOD(macro)) {
   44:./tmk_core/common/action_macro.c ****                     add_macro_mods(MOD_BIT(macro));
-  59               		.loc 1 44 36 view .LVU7
+  45:./tmk_core/common/action_macro.c ****                     send_keyboard_report();
+  46:./tmk_core/common/action_macro.c ****                 } else {
+  47:./tmk_core/common/action_macro.c ****                     register_code(macro);
+  48:./tmk_core/common/action_macro.c ****                 }
+  49:./tmk_core/common/action_macro.c ****                 break;
+  50:./tmk_core/common/action_macro.c ****             case KEY_UP:
+  51:./tmk_core/common/action_macro.c ****                 MACRO_READ();
+  52:./tmk_core/common/action_macro.c ****                 dprintf("KEY_UP(%02X)\n", macro);
+  53:./tmk_core/common/action_macro.c ****                 if (IS_MOD(macro)) {
+  54:./tmk_core/common/action_macro.c ****                     del_macro_mods(MOD_BIT(macro));
+  59               		.loc 1 54 36 view .LVU7
   60 0014 EE24      		clr r14
   61 0016 E394      		inc r14
   62               	.LVL2:
@@ -109,7 +119,7 @@
   64               		.loc 1 38 5 is_stmt 1 view .LVU8
   39:./tmk_core/common/action_macro.c ****             case KEY_DOWN:
   65               		.loc 1 39 9 view .LVU9
-  66               	.LBB13:
+  66               	.LBB28:
   39:./tmk_core/common/action_macro.c ****             case KEY_DOWN:
   67               		.loc 1 39 17 view .LVU10
   68 0018 E801      		movw r28,r16
@@ -131,33 +141,24 @@
   39:./tmk_core/common/action_macro.c ****             case KEY_DOWN:
   81               		.loc 1 39 17 is_stmt 0 view .LVU14
   82               	/* #NOAPP */
-  83               	.LBE13:
+  83               	.LBE28:
   39:./tmk_core/common/action_macro.c ****             case KEY_DOWN:
   84               		.loc 1 39 9 view .LVU15
   85 0020 8437      		cpi r24,lo8(116)
-  86 0022 00F4      		brsh .L3
+  86 0022 01F4      		brne .+2
+  87 0024 00C0      		rjmp .L3
   39:./tmk_core/common/action_macro.c ****             case KEY_DOWN:
-  87               		.loc 1 39 9 view .LVU16
-  88 0024 8430      		cpi r24,lo8(4)
-  89 0026 00F0      		brlo .+2
-  90 0028 00C0      		rjmp .L4
-  91 002a 8130      		cpi r24,lo8(1)
-  92 002c 01F0      		breq .L5
-  93 002e 8230      		cpi r24,lo8(2)
-  94 0030 01F0      		breq .L6
-  95               	.LVL5:
-  96               	.L1:
-  97               	/* epilogue start */
-  45:./tmk_core/common/action_macro.c ****                     send_keyboard_report();
-  46:./tmk_core/common/action_macro.c ****                 } else {
-  47:./tmk_core/common/action_macro.c ****                     register_code(macro);
-  48:./tmk_core/common/action_macro.c ****                 }
-  49:./tmk_core/common/action_macro.c ****                 break;
-  50:./tmk_core/common/action_macro.c ****             case KEY_UP:
-  51:./tmk_core/common/action_macro.c ****                 MACRO_READ();
-  52:./tmk_core/common/action_macro.c ****                 dprintf("KEY_UP(%02X)\n", macro);
-  53:./tmk_core/common/action_macro.c ****                 if (IS_MOD(macro)) {
-  54:./tmk_core/common/action_macro.c ****                     del_macro_mods(MOD_BIT(macro));
+  88               		.loc 1 39 9 view .LVU16
+  89 0026 00F4      		brsh .L4
+  90 0028 8230      		cpi r24,lo8(2)
+  91 002a 01F4      		brne .+2
+  92 002c 00C0      		rjmp .L5
+  93 002e 00F4      		brsh .L6
+  94 0030 8130      		cpi r24,lo8(1)
+  95 0032 01F0      		breq .L7
+  96               	.LVL5:
+  97               	.L1:
+  98               	/* epilogue start */
   55:./tmk_core/common/action_macro.c ****                     send_keyboard_report();
   56:./tmk_core/common/action_macro.c ****                 } else {
   57:./tmk_core/common/action_macro.c ****                     unregister_code(macro);
@@ -188,133 +189,166 @@
   82:./tmk_core/common/action_macro.c ****         { uint8_t ms = interval; while (ms--) wait_ms(1); }
   83:./tmk_core/common/action_macro.c ****     }
   84:./tmk_core/common/action_macro.c **** }
-  98               		.loc 1 84 1 view .LVU17
-  99 0032 DF91      		pop r29
- 100 0034 CF91      		pop r28
- 101 0036 1F91      		pop r17
- 102 0038 0F91      		pop r16
- 103 003a FF90      		pop r15
- 104 003c EF90      		pop r14
- 105 003e 0895      		ret
- 106               	.LVL6:
- 107               	.L3:
+  99               		.loc 1 84 1 view .LVU17
+ 100 0034 DF91      		pop r29
+ 101 0036 CF91      		pop r28
+ 102 0038 1F91      		pop r17
+ 103 003a 0F91      		pop r16
+ 104 003c FF90      		pop r15
+ 105 003e EF90      		pop r14
+ 106 0040 0895      		ret
+ 107               	.LVL6:
+ 108               	.L6:
   39:./tmk_core/common/action_macro.c ****             case KEY_DOWN:
- 108               		.loc 1 39 9 view .LVU18
- 109 0040 8537      		cpi r24,lo8(117)
- 110 0042 01F4      		brne .+2
- 111 0044 00C0      		rjmp .L7
- 112 0046 00F4      		brsh .+2
- 113 0048 00C0      		rjmp .L8
- 114 004a 9CE7      		ldi r25,lo8(124)
- 115 004c 980F      		add r25,r24
- 116 004e 9037      		cpi r25,lo8(112)
- 117 0050 00F4      		brsh .L1
+ 109               		.loc 1 39 9 view .LVU18
+ 110 0042 9CEF      		ldi r25,lo8(-4)
+ 111 0044 980F      		add r25,r24
+ 112 0046 9037      		cpi r25,lo8(112)
+ 113 0048 00F4      		brsh .L1
+  70:./tmk_core/common/action_macro.c ****                 register_code(macro);
+ 114               		.loc 1 70 47 is_stmt 1 view .LVU19
+  71:./tmk_core/common/action_macro.c ****                 break;
+ 115               		.loc 1 71 17 view .LVU20
+ 116 004a 0E94 0000 		call register_code
+ 117               	.LVL7:
+  71:./tmk_core/common/action_macro.c ****                 break;
+ 118               		.loc 1 71 17 is_stmt 0 view .LVU21
+ 119 004e 00C0      		rjmp .L23
+ 120               	.LVL8:
+ 121               	.L4:
+  39:./tmk_core/common/action_macro.c ****             case KEY_DOWN:
+ 122               		.loc 1 39 9 view .LVU22
+ 123 0050 8537      		cpi r24,lo8(117)
+ 124 0052 01F4      		brne .+2
+ 125 0054 00C0      		rjmp .L9
+ 126 0056 9CE7      		ldi r25,lo8(124)
+ 127 0058 980F      		add r25,r24
+ 128 005a 9037      		cpi r25,lo8(112)
+ 129 005c 00F4      		brsh .L1
   74:./tmk_core/common/action_macro.c ****                 unregister_code(macro&0x7F);
- 118               		.loc 1 74 45 is_stmt 1 view .LVU19
+ 130               		.loc 1 74 45 is_stmt 1 view .LVU23
   75:./tmk_core/common/action_macro.c ****                 break;
- 119               		.loc 1 75 17 view .LVU20
- 120 0052 8F77      		andi r24,lo8(127)
- 121               	.LVL7:
+ 131               		.loc 1 75 17 view .LVU24
+ 132 005e 8F77      		andi r24,lo8(127)
+ 133               	.LVL9:
   75:./tmk_core/common/action_macro.c ****                 break;
- 122               		.loc 1 75 17 is_stmt 0 view .LVU21
- 123 0054 0E94 0000 		call unregister_code
- 124               	.LVL8:
- 125 0058 00C0      		rjmp .L23
- 126               	.LVL9:
- 127               	.L5:
+ 134               		.loc 1 75 17 is_stmt 0 view .LVU25
+ 135 0060 0E94 0000 		call unregister_code
+ 136               	.LVL10:
+  76:./tmk_core/common/action_macro.c ****             case END:
+ 137               		.loc 1 76 17 is_stmt 1 view .LVU26
+ 138               	.L23:
+  72:./tmk_core/common/action_macro.c ****             case 0x84 ... 0xF3:
+ 139               		.loc 1 72 17 view .LVU27
+ 140               	.LBB29:
+  39:./tmk_core/common/action_macro.c ****             case KEY_DOWN:
+ 141               		.loc 1 39 17 is_stmt 0 view .LVU28
+ 142 0064 8E01      		movw r16,r28
+ 143               	.LVL11:
+  39:./tmk_core/common/action_macro.c ****             case KEY_DOWN:
+ 144               		.loc 1 39 17 view .LVU29
+ 145               	.LBE29:
+  72:./tmk_core/common/action_macro.c ****             case 0x84 ... 0xF3:
+ 146               		.loc 1 72 17 view .LVU30
+ 147 0066 00C0      		rjmp .L10
+ 148               	.LVL12:
+ 149               	.L7:
   41:./tmk_core/common/action_macro.c ****                 dprintf("KEY_DOWN(%02X)\n", macro);
- 128               		.loc 1 41 17 is_stmt 1 view .LVU22
- 129               	.LBB14:
+ 150               		.loc 1 41 17 is_stmt 1 view .LVU31
+ 151               	.LBB30:
   41:./tmk_core/common/action_macro.c ****                 dprintf("KEY_DOWN(%02X)\n", macro);
- 130               		.loc 1 41 17 view .LVU23
- 131 005a 0E5F      		subi r16,-2
- 132 005c 1F4F      		sbci r17,-1
- 133               	.LVL10:
+ 152               		.loc 1 41 17 view .LVU32
+ 153 0068 0E5F      		subi r16,-2
+ 154 006a 1F4F      		sbci r17,-1
+ 155               	.LVL13:
   41:./tmk_core/common/action_macro.c ****                 dprintf("KEY_DOWN(%02X)\n", macro);
- 134               		.loc 1 41 17 view .LVU24
+ 156               		.loc 1 41 17 view .LVU33
   41:./tmk_core/common/action_macro.c ****                 dprintf("KEY_DOWN(%02X)\n", macro);
- 135               		.loc 1 41 17 view .LVU25
- 136 005e FE01      		movw r30,r28
- 137               	.LVL11:
+ 157               		.loc 1 41 17 view .LVU34
+ 158 006c FE01      		movw r30,r28
+ 159               	.LVL14:
   41:./tmk_core/common/action_macro.c ****                 dprintf("KEY_DOWN(%02X)\n", macro);
- 138               		.loc 1 41 17 is_stmt 0 view .LVU26
- 139               	/* #APP */
- 140               	 ;  41 "./tmk_core/common/action_macro.c" 1
- 141 0060 8491      		lpm r24, Z
- 142               		
- 143               	 ;  0 "" 2
- 144               	.LVL12:
+ 160               		.loc 1 41 17 is_stmt 0 view .LVU35
+ 161               	/* #APP */
+ 162               	 ;  41 "./tmk_core/common/action_macro.c" 1
+ 163 006e 8491      		lpm r24, Z
+ 164               		
+ 165               	 ;  0 "" 2
+ 166               	.LVL15:
   41:./tmk_core/common/action_macro.c ****                 dprintf("KEY_DOWN(%02X)\n", macro);
- 145               		.loc 1 41 17 is_stmt 1 view .LVU27
+ 167               		.loc 1 41 17 is_stmt 1 view .LVU36
   41:./tmk_core/common/action_macro.c ****                 dprintf("KEY_DOWN(%02X)\n", macro);
- 146               		.loc 1 41 17 is_stmt 0 view .LVU28
- 147               	/* #NOAPP */
- 148               	.LBE14:
+ 168               		.loc 1 41 17 is_stmt 0 view .LVU37
+ 169               	/* #NOAPP */
+ 170               	.LBE30:
   42:./tmk_core/common/action_macro.c ****                 if (IS_MOD(macro)) {
- 149               		.loc 1 42 51 is_stmt 1 view .LVU29
+ 171               		.loc 1 42 51 is_stmt 1 view .LVU38
   43:./tmk_core/common/action_macro.c ****                     add_macro_mods(MOD_BIT(macro));
- 150               		.loc 1 43 17 view .LVU30
+ 172               		.loc 1 43 17 view .LVU39
   43:./tmk_core/common/action_macro.c ****                     add_macro_mods(MOD_BIT(macro));
- 151               		.loc 1 43 21 is_stmt 0 view .LVU31
- 152 0062 90E2      		ldi r25,lo8(32)
- 153 0064 980F      		add r25,r24
+ 173               		.loc 1 43 21 is_stmt 0 view .LVU40
+ 174 0070 90E2      		ldi r25,lo8(32)
+ 175 0072 980F      		add r25,r24
   43:./tmk_core/common/action_macro.c ****                     add_macro_mods(MOD_BIT(macro));
- 154               		.loc 1 43 20 view .LVU32
- 155 0066 9830      		cpi r25,lo8(8)
- 156 0068 00F4      		brsh .L10
+ 176               		.loc 1 43 20 view .LVU41
+ 177 0074 9830      		cpi r25,lo8(8)
+ 178 0076 00F4      		brsh .L11
   44:./tmk_core/common/action_macro.c ****                     send_keyboard_report();
- 157               		.loc 1 44 21 is_stmt 1 view .LVU33
+ 179               		.loc 1 44 21 is_stmt 1 view .LVU42
   44:./tmk_core/common/action_macro.c ****                     send_keyboard_report();
- 158               		.loc 1 44 36 is_stmt 0 view .LVU34
- 159 006a 8770      		andi r24,lo8(7)
- 160               	.LVL13:
+ 180               		.loc 1 44 36 is_stmt 0 view .LVU43
+ 181 0078 8770      		andi r24,lo8(7)
+ 182               	.LVL16:
   44:./tmk_core/common/action_macro.c ****                     send_keyboard_report();
- 161               		.loc 1 44 21 view .LVU35
- 162 006c FE2D      		mov r31,r14
- 163 006e 00C0      		rjmp 2f
- 164               		1:
- 165 0070 FF0F      		lsl r31
- 166               		2:
- 167 0072 8A95      		dec r24
- 168 0074 02F4      		brpl 1b
- 169 0076 8F2F      		mov r24,r31
- 170 0078 0E94 0000 		call add_macro_mods
- 171               	.LVL14:
+ 183               		.loc 1 44 21 view .LVU44
+ 184 007a FE2D      		mov r31,r14
+ 185 007c 00C0      		rjmp 2f
+ 186               		1:
+ 187 007e FF0F      		lsl r31
+ 188               		2:
+ 189 0080 8A95      		dec r24
+ 190 0082 02F4      		brpl 1b
+ 191 0084 8F2F      		mov r24,r31
+ 192 0086 0E94 0000 		call add_macro_mods
+ 193               	.LVL17:
   45:./tmk_core/common/action_macro.c ****                 } else {
- 172               		.loc 1 45 21 is_stmt 1 view .LVU36
- 173               	.L22:
+ 194               		.loc 1 45 21 is_stmt 1 view .LVU45
+ 195               	.L22:
   55:./tmk_core/common/action_macro.c ****                 } else {
- 174               		.loc 1 55 21 view .LVU37
- 175 007c 0E94 0000 		call send_keyboard_report
- 176               	.LVL15:
- 177 0080 00C0      		rjmp .L11
- 178               	.LVL16:
- 179               	.L10:
+ 196               		.loc 1 55 21 view .LVU46
+ 197 008a 0E94 0000 		call send_keyboard_report
+ 198               	.LVL18:
+ 199 008e 00C0      		rjmp .L10
+ 200               	.LVL19:
+ 201               	.L11:
   47:./tmk_core/common/action_macro.c ****                 }
- 180               		.loc 1 47 21 view .LVU38
- 181 0082 0E94 0000 		call register_code
- 182               	.LVL17:
- 183               	.L11:
- 184               	.LBB15:
+ 202               		.loc 1 47 21 view .LVU47
+ 203 0090 0E94 0000 		call register_code
+ 204               	.LVL20:
+ 205               	.L10:
+ 206               	.LBB31:
   82:./tmk_core/common/action_macro.c ****     }
- 185               		.loc 1 82 11 view .LVU39
+ 207               		.loc 1 82 11 view .LVU48
   82:./tmk_core/common/action_macro.c ****     }
- 186               		.loc 1 82 34 view .LVU40
+ 208               		.loc 1 82 34 view .LVU49
   82:./tmk_core/common/action_macro.c ****     }
- 187               		.loc 1 82 19 is_stmt 0 view .LVU41
- 188 0086 8F2D      		mov r24,r15
- 189               	.LVL18:
- 190               	.L15:
+ 209               		.loc 1 82 40 is_stmt 0 view .LVU50
+ 210 0094 8F2D      		mov r24,r15
+ 211               	.LVL21:
+ 212               	.L15:
   82:./tmk_core/common/action_macro.c ****     }
- 191               		.loc 1 82 43 discriminator 1 view .LVU42
- 192               	.LVL19:
- 193 0088 8150      		subi r24,1
- 194 008a 00F0      		brcs .L17
+ 213               		.loc 1 82 41 is_stmt 1 discriminator 1 view .LVU51
   82:./tmk_core/common/action_macro.c ****     }
- 195               		.loc 1 82 47 is_stmt 1 view .LVU43
- 196               	.LBB16:
- 197               	.LBI16:
- 198               		.file 2 "/usr/avr/include/util/delay.h"
+ 214               		.loc 1 82 41 is_stmt 0 discriminator 1 view .LVU52
+ 215 0096 8823      		tst r24
+ 216 0098 01F4      		brne .+2
+ 217 009a 00C0      		rjmp .L17
+  82:./tmk_core/common/action_macro.c ****     }
+ 218               		.loc 1 82 47 is_stmt 1 view .LVU53
+ 219               	.LVL22:
+ 220               	.LBB32:
+ 221               	.LBI32:
+ 222               		.file 2 "/usr/avr/include/util/delay.h"
    1:/usr/avr/include/util/delay.h **** /* Copyright (c) 2002, Marek Michalkiewicz
    2:/usr/avr/include/util/delay.h ****    Copyright (c) 2004,2005,2007 Joerg Wunsch
    3:/usr/avr/include/util/delay.h ****    Copyright (c) 2007  Florin-Viorel Petrov
@@ -347,7 +381,7 @@
   30:/usr/avr/include/util/delay.h ****   ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
   31:/usr/avr/include/util/delay.h ****   POSSIBILITY OF SUCH DAMAGE. */
   32:/usr/avr/include/util/delay.h **** 
-  33:/usr/avr/include/util/delay.h **** /* $Id: delay.h.in 2506 2016-02-08 10:05:45Z joerg_wunsch $ */
+  33:/usr/avr/include/util/delay.h **** /* $Id: delay.h.in 2551 2020-10-10 20:33:35Z joerg_wunsch $ */
   34:/usr/avr/include/util/delay.h **** 
   35:/usr/avr/include/util/delay.h **** #ifndef _UTIL_DELAY_H_
   36:/usr/avr/include/util/delay.h **** #define _UTIL_DELAY_H_ 1
@@ -481,20 +515,20 @@
  164:/usr/avr/include/util/delay.h ****  */
  165:/usr/avr/include/util/delay.h **** void
  166:/usr/avr/include/util/delay.h **** _delay_ms(double __ms)
- 199               		.loc 2 166 1 view .LVU44
- 200               	.LBB17:
+ 223               		.loc 2 166 1 view .LVU54
+ 224               	.LBB33:
  167:/usr/avr/include/util/delay.h **** {
  168:/usr/avr/include/util/delay.h **** 	double __tmp ;
- 201               		.loc 2 168 2 view .LVU45
+ 225               		.loc 2 168 2 view .LVU55
  169:/usr/avr/include/util/delay.h **** #if __HAS_DELAY_CYCLES && defined(__OPTIMIZE__) && \
  170:/usr/avr/include/util/delay.h ****   !defined(__DELAY_BACKWARD_COMPATIBLE__) &&	   \
  171:/usr/avr/include/util/delay.h ****   __STDC_HOSTED__
  172:/usr/avr/include/util/delay.h **** 	uint32_t __ticks_dc;
- 202               		.loc 2 172 2 view .LVU46
+ 226               		.loc 2 172 2 view .LVU56
  173:/usr/avr/include/util/delay.h **** 	extern void __builtin_avr_delay_cycles(unsigned long);
- 203               		.loc 2 173 2 view .LVU47
+ 227               		.loc 2 173 2 view .LVU57
  174:/usr/avr/include/util/delay.h **** 	__tmp = ((F_CPU) / 1e3) * __ms;
- 204               		.loc 2 174 2 view .LVU48
+ 228               		.loc 2 174 2 view .LVU58
  175:/usr/avr/include/util/delay.h **** 
  176:/usr/avr/include/util/delay.h **** 	#if defined(__DELAY_ROUND_DOWN__)
  177:/usr/avr/include/util/delay.h **** 		__ticks_dc = (uint32_t)fabs(__tmp);
@@ -505,252 +539,254 @@
  182:/usr/avr/include/util/delay.h **** 	#else
  183:/usr/avr/include/util/delay.h **** 		//round up by default
  184:/usr/avr/include/util/delay.h **** 		__ticks_dc = (uint32_t)(ceil(fabs(__tmp)));
- 205               		.loc 2 184 3 view .LVU49
+ 229               		.loc 2 184 3 view .LVU59
  185:/usr/avr/include/util/delay.h **** 	#endif
  186:/usr/avr/include/util/delay.h **** 
  187:/usr/avr/include/util/delay.h **** 	__builtin_avr_delay_cycles(__ticks_dc);
- 206               		.loc 2 187 2 view .LVU50
- 207 008c EFE9      		ldi r30,lo8(3999)
- 208 008e FFE0      		ldi r31,hi8(3999)
- 209 0090 3197      	1:	sbiw r30,1
- 210 0092 01F4      		brne 1b
- 211 0094 00C0      		rjmp .
- 212 0096 0000      		nop
- 213 0098 00C0      		rjmp .L15
- 214               	.LVL20:
- 215               	.L6:
- 216               		.loc 2 187 2 is_stmt 0 view .LVU51
- 217               	.LBE17:
- 218               	.LBE16:
- 219               	.LBE15:
+ 230               		.loc 2 187 2 view .LVU60
+ 231 009c EFE9      		ldi r30,lo8(3999)
+ 232 009e FFE0      		ldi r31,hi8(3999)
+ 233 00a0 3197      	1:	sbiw r30,1
+ 234 00a2 01F4      		brne 1b
+ 235 00a4 00C0      		rjmp .
+ 236 00a6 0000      		nop
+ 237 00a8 8150      		subi r24,lo8(-(-1))
+ 238               	.LVL23:
+ 188:/usr/avr/include/util/delay.h **** 
+ 189:/usr/avr/include/util/delay.h **** #else
+ 190:/usr/avr/include/util/delay.h **** 	uint16_t __ticks;
+ 191:/usr/avr/include/util/delay.h **** 	__tmp = ((F_CPU) / 4e3) * __ms;
+ 192:/usr/avr/include/util/delay.h **** 	if (__tmp < 1.0)
+ 193:/usr/avr/include/util/delay.h **** 		__ticks = 1;
+ 194:/usr/avr/include/util/delay.h **** 	else if (__tmp > 65535)
+ 195:/usr/avr/include/util/delay.h **** 	{
+ 196:/usr/avr/include/util/delay.h **** 		//	__ticks = requested delay in 1/10 ms
+ 197:/usr/avr/include/util/delay.h **** 		__ticks = (uint16_t) (__ms * 10.0);
+ 198:/usr/avr/include/util/delay.h **** 		while(__ticks)
+ 199:/usr/avr/include/util/delay.h **** 		{
+ 200:/usr/avr/include/util/delay.h **** 			// wait 1/10 ms
+ 201:/usr/avr/include/util/delay.h **** 			_delay_loop_2(((F_CPU) / 4e3) / 10);
+ 202:/usr/avr/include/util/delay.h **** 			__ticks --;
+ 203:/usr/avr/include/util/delay.h **** 		}
+ 204:/usr/avr/include/util/delay.h **** 		return;
+ 205:/usr/avr/include/util/delay.h **** 	}
+ 206:/usr/avr/include/util/delay.h **** 	else
+ 207:/usr/avr/include/util/delay.h **** 		__ticks = (uint16_t)__tmp;
+ 208:/usr/avr/include/util/delay.h **** 	_delay_loop_2(__ticks);
+ 209:/usr/avr/include/util/delay.h **** #endif
+ 210:/usr/avr/include/util/delay.h **** }
+ 239               		.loc 2 210 1 is_stmt 0 view .LVU61
+ 240 00aa 00C0      		rjmp .L15
+ 241               	.LVL24:
+ 242               	.L5:
+ 243               		.loc 2 210 1 view .LVU62
+ 244               	.LBE33:
+ 245               	.LBE32:
+ 246               	.LBE31:
   51:./tmk_core/common/action_macro.c ****                 dprintf("KEY_UP(%02X)\n", macro);
- 220               		.loc 1 51 17 is_stmt 1 view .LVU52
- 221               	.LBB18:
+ 247               		.loc 1 51 17 is_stmt 1 view .LVU63
+ 248               	.LBB34:
   51:./tmk_core/common/action_macro.c ****                 dprintf("KEY_UP(%02X)\n", macro);
- 222               		.loc 1 51 17 view .LVU53
- 223 009a 0E5F      		subi r16,-2
- 224 009c 1F4F      		sbci r17,-1
- 225               	.LVL21:
+ 249               		.loc 1 51 17 view .LVU64
+ 250 00ac 0E5F      		subi r16,-2
+ 251 00ae 1F4F      		sbci r17,-1
+ 252               	.LVL25:
   51:./tmk_core/common/action_macro.c ****                 dprintf("KEY_UP(%02X)\n", macro);
- 226               		.loc 1 51 17 view .LVU54
+ 253               		.loc 1 51 17 view .LVU65
   51:./tmk_core/common/action_macro.c ****                 dprintf("KEY_UP(%02X)\n", macro);
- 227               		.loc 1 51 17 view .LVU55
- 228 009e FE01      		movw r30,r28
- 229               	.LVL22:
+ 254               		.loc 1 51 17 view .LVU66
+ 255 00b0 FE01      		movw r30,r28
+ 256               	.LVL26:
   51:./tmk_core/common/action_macro.c ****                 dprintf("KEY_UP(%02X)\n", macro);
- 230               		.loc 1 51 17 is_stmt 0 view .LVU56
- 231               	/* #APP */
- 232               	 ;  51 "./tmk_core/common/action_macro.c" 1
- 233 00a0 8491      		lpm r24, Z
- 234               		
- 235               	 ;  0 "" 2
- 236               	.LVL23:
+ 257               		.loc 1 51 17 is_stmt 0 view .LVU67
+ 258               	/* #APP */
+ 259               	 ;  51 "./tmk_core/common/action_macro.c" 1
+ 260 00b2 8491      		lpm r24, Z
+ 261               		
+ 262               	 ;  0 "" 2
+ 263               	.LVL27:
   51:./tmk_core/common/action_macro.c ****                 dprintf("KEY_UP(%02X)\n", macro);
- 237               		.loc 1 51 17 is_stmt 1 view .LVU57
+ 264               		.loc 1 51 17 is_stmt 1 view .LVU68
   51:./tmk_core/common/action_macro.c ****                 dprintf("KEY_UP(%02X)\n", macro);
- 238               		.loc 1 51 17 is_stmt 0 view .LVU58
- 239               	/* #NOAPP */
- 240               	.LBE18:
+ 265               		.loc 1 51 17 is_stmt 0 view .LVU69
+ 266               	/* #NOAPP */
+ 267               	.LBE34:
   52:./tmk_core/common/action_macro.c ****                 if (IS_MOD(macro)) {
- 241               		.loc 1 52 49 is_stmt 1 view .LVU59
+ 268               		.loc 1 52 49 is_stmt 1 view .LVU70
   53:./tmk_core/common/action_macro.c ****                     del_macro_mods(MOD_BIT(macro));
- 242               		.loc 1 53 17 view .LVU60
+ 269               		.loc 1 53 17 view .LVU71
   53:./tmk_core/common/action_macro.c ****                     del_macro_mods(MOD_BIT(macro));
- 243               		.loc 1 53 21 is_stmt 0 view .LVU61
- 244 00a2 90E2      		ldi r25,lo8(32)
- 245 00a4 980F      		add r25,r24
+ 270               		.loc 1 53 21 is_stmt 0 view .LVU72
+ 271 00b4 90E2      		ldi r25,lo8(32)
+ 272 00b6 980F      		add r25,r24
   53:./tmk_core/common/action_macro.c ****                     del_macro_mods(MOD_BIT(macro));
- 246               		.loc 1 53 20 view .LVU62
- 247 00a6 9830      		cpi r25,lo8(8)
- 248 00a8 00F4      		brsh .L12
+ 273               		.loc 1 53 20 view .LVU73
+ 274 00b8 9830      		cpi r25,lo8(8)
+ 275 00ba 00F4      		brsh .L12
   54:./tmk_core/common/action_macro.c ****                     send_keyboard_report();
- 249               		.loc 1 54 21 is_stmt 1 view .LVU63
+ 276               		.loc 1 54 21 is_stmt 1 view .LVU74
   54:./tmk_core/common/action_macro.c ****                     send_keyboard_report();
- 250               		.loc 1 54 36 is_stmt 0 view .LVU64
- 251 00aa 8770      		andi r24,lo8(7)
- 252               	.LVL24:
+ 277               		.loc 1 54 36 is_stmt 0 view .LVU75
+ 278 00bc 8770      		andi r24,lo8(7)
+ 279               	.LVL28:
   54:./tmk_core/common/action_macro.c ****                     send_keyboard_report();
- 253               		.loc 1 54 21 view .LVU65
- 254 00ac FE2D      		mov r31,r14
- 255 00ae 00C0      		rjmp 2f
- 256               		1:
- 257 00b0 FF0F      		lsl r31
- 258               		2:
- 259 00b2 8A95      		dec r24
- 260 00b4 02F4      		brpl 1b
- 261 00b6 8F2F      		mov r24,r31
- 262 00b8 0E94 0000 		call del_macro_mods
- 263               	.LVL25:
- 264 00bc 00C0      		rjmp .L22
- 265               	.LVL26:
- 266               	.L12:
+ 280               		.loc 1 54 21 view .LVU76
+ 281 00be FE2D      		mov r31,r14
+ 282 00c0 00C0      		rjmp 2f
+ 283               		1:
+ 284 00c2 FF0F      		lsl r31
+ 285               		2:
+ 286 00c4 8A95      		dec r24
+ 287 00c6 02F4      		brpl 1b
+ 288 00c8 8F2F      		mov r24,r31
+ 289 00ca 0E94 0000 		call del_macro_mods
+ 290               	.LVL29:
+ 291 00ce 00C0      		rjmp .L22
+ 292               	.LVL30:
+ 293               	.L12:
   57:./tmk_core/common/action_macro.c ****                 }
- 267               		.loc 1 57 21 is_stmt 1 view .LVU66
- 268 00be 0E94 0000 		call unregister_code
- 269               	.LVL27:
+ 294               		.loc 1 57 21 is_stmt 1 view .LVU77
+ 295 00d0 0E94 0000 		call unregister_code
+ 296               	.LVL31:
   57:./tmk_core/common/action_macro.c ****                 }
- 270               		.loc 1 57 21 is_stmt 0 view .LVU67
- 271 00c2 00C0      		rjmp .L11
- 272               	.LVL28:
- 273               	.L8:
+ 297               		.loc 1 57 21 is_stmt 0 view .LVU78
+ 298 00d4 00C0      		rjmp .L10
+ 299               	.LVL32:
+ 300               	.L3:
   61:./tmk_core/common/action_macro.c ****                 dprintf("WAIT(%u)\n", macro);
- 274               		.loc 1 61 17 is_stmt 1 view .LVU68
- 275               	.LBB19:
+ 301               		.loc 1 61 17 is_stmt 1 view .LVU79
+ 302               	.LBB35:
   61:./tmk_core/common/action_macro.c ****                 dprintf("WAIT(%u)\n", macro);
- 276               		.loc 1 61 17 view .LVU69
- 277 00c4 0E5F      		subi r16,-2
- 278 00c6 1F4F      		sbci r17,-1
- 279               	.LVL29:
+ 303               		.loc 1 61 17 view .LVU80
+ 304 00d6 0E5F      		subi r16,-2
+ 305 00d8 1F4F      		sbci r17,-1
+ 306               	.LVL33:
   61:./tmk_core/common/action_macro.c ****                 dprintf("WAIT(%u)\n", macro);
- 280               		.loc 1 61 17 view .LVU70
+ 307               		.loc 1 61 17 view .LVU81
   61:./tmk_core/common/action_macro.c ****                 dprintf("WAIT(%u)\n", macro);
- 281               		.loc 1 61 17 view .LVU71
- 282 00c8 FE01      		movw r30,r28
- 283               	.LVL30:
+ 308               		.loc 1 61 17 view .LVU82
+ 309 00da FE01      		movw r30,r28
+ 310               	.LVL34:
   61:./tmk_core/common/action_macro.c ****                 dprintf("WAIT(%u)\n", macro);
- 284               		.loc 1 61 17 is_stmt 0 view .LVU72
- 285               	/* #APP */
- 286               	 ;  61 "./tmk_core/common/action_macro.c" 1
- 287 00ca C491      		lpm r28, Z
- 288               		
- 289               	 ;  0 "" 2
- 290               	.LVL31:
+ 311               		.loc 1 61 17 is_stmt 0 view .LVU83
+ 312               	/* #APP */
+ 313               	 ;  61 "./tmk_core/common/action_macro.c" 1
+ 314 00dc C491      		lpm r28, Z
+ 315               		
+ 316               	 ;  0 "" 2
+ 317               	.LVL35:
   61:./tmk_core/common/action_macro.c ****                 dprintf("WAIT(%u)\n", macro);
- 291               		.loc 1 61 17 is_stmt 1 view .LVU73
+ 318               		.loc 1 61 17 is_stmt 1 view .LVU84
   61:./tmk_core/common/action_macro.c ****                 dprintf("WAIT(%u)\n", macro);
- 292               		.loc 1 61 17 is_stmt 0 view .LVU74
- 293               	/* #NOAPP */
- 294               	.LBE19:
+ 319               		.loc 1 61 17 is_stmt 0 view .LVU85
+ 320               	/* #NOAPP */
+ 321               	.LBE35:
   62:./tmk_core/common/action_macro.c ****                 { uint8_t ms = macro; while (ms--) wait_ms(1); }
- 295               		.loc 1 62 45 is_stmt 1 view .LVU75
- 296               	.LBB20:
+ 322               		.loc 1 62 45 is_stmt 1 view .LVU86
+ 323               	.LBB36:
   63:./tmk_core/common/action_macro.c ****                 break;
- 297               		.loc 1 63 19 view .LVU76
+ 324               		.loc 1 63 19 view .LVU87
   63:./tmk_core/common/action_macro.c ****                 break;
- 298               		.loc 1 63 39 view .LVU77
- 299               	.L13:
+ 325               		.loc 1 63 39 view .LVU88
+ 326               	.L13:
   63:./tmk_core/common/action_macro.c ****                 break;
- 300               		.loc 1 63 48 is_stmt 0 discriminator 1 view .LVU78
- 301               	.LVL32:
- 302 00cc C150      		subi r28,1
- 303 00ce 00F0      		brcs .L11
+ 327               		.loc 1 63 46 discriminator 1 view .LVU89
   63:./tmk_core/common/action_macro.c ****                 break;
- 304               		.loc 1 63 52 is_stmt 1 view .LVU79
- 305               	.LBB21:
- 306               	.LBI21:
+ 328               		.loc 1 63 46 is_stmt 0 discriminator 1 view .LVU90
+ 329 00de CC23      		tst r28
+ 330 00e0 01F0      		breq .L10
+  63:./tmk_core/common/action_macro.c ****                 break;
+ 331               		.loc 1 63 52 is_stmt 1 view .LVU91
+ 332               	.LVL36:
+ 333               	.LBB37:
+ 334               	.LBI37:
  166:/usr/avr/include/util/delay.h **** {
- 307               		.loc 2 166 1 view .LVU80
- 308               	.LBB22:
+ 335               		.loc 2 166 1 view .LVU92
+ 336               	.LBB38:
  168:/usr/avr/include/util/delay.h **** #if __HAS_DELAY_CYCLES && defined(__OPTIMIZE__) && \
- 309               		.loc 2 168 2 view .LVU81
+ 337               		.loc 2 168 2 view .LVU93
  172:/usr/avr/include/util/delay.h **** 	extern void __builtin_avr_delay_cycles(unsigned long);
- 310               		.loc 2 172 2 view .LVU82
+ 338               		.loc 2 172 2 view .LVU94
  173:/usr/avr/include/util/delay.h **** 	__tmp = ((F_CPU) / 1e3) * __ms;
- 311               		.loc 2 173 2 view .LVU83
+ 339               		.loc 2 173 2 view .LVU95
  174:/usr/avr/include/util/delay.h **** 
- 312               		.loc 2 174 2 view .LVU84
+ 340               		.loc 2 174 2 view .LVU96
  184:/usr/avr/include/util/delay.h **** 	#endif
- 313               		.loc 2 184 3 view .LVU85
- 314               		.loc 2 187 2 view .LVU86
- 315 00d0 8FE9      		ldi r24,lo8(3999)
- 316 00d2 9FE0      		ldi r25,hi8(3999)
- 317 00d4 0197      	1:	sbiw r24,1
- 318 00d6 01F4      		brne 1b
- 319 00d8 00C0      		rjmp .
- 320 00da 0000      		nop
- 321 00dc 00C0      		rjmp .L13
- 322               	.LVL33:
- 323               	.L7:
- 324               		.loc 2 187 2 is_stmt 0 view .LVU87
- 325               	.LBE22:
- 326               	.LBE21:
- 327               	.LBE20:
+ 341               		.loc 2 184 3 view .LVU97
+ 187:/usr/avr/include/util/delay.h **** 
+ 342               		.loc 2 187 2 view .LVU98
+ 343 00e2 8FE9      		ldi r24,lo8(3999)
+ 344 00e4 9FE0      		ldi r25,hi8(3999)
+ 345 00e6 0197      	1:	sbiw r24,1
+ 346 00e8 01F4      		brne 1b
+ 347 00ea 00C0      		rjmp .
+ 348 00ec 0000      		nop
+ 349 00ee C150      		subi r28,lo8(-(-1))
+ 350               	.LVL37:
+ 351               		.loc 2 210 1 is_stmt 0 view .LVU99
+ 352 00f0 00C0      		rjmp .L13
+ 353               	.LVL38:
+ 354               	.L9:
+ 355               		.loc 2 210 1 view .LVU100
+ 356               	.LBE38:
+ 357               	.LBE37:
+ 358               	.LBE36:
   66:./tmk_core/common/action_macro.c ****                 dprintf("INTERVAL(%u)\n", interval);
- 328               		.loc 1 66 17 is_stmt 1 view .LVU88
- 329               	.LBB23:
+ 359               		.loc 1 66 17 is_stmt 1 view .LVU101
+ 360               	.LBB39:
   66:./tmk_core/common/action_macro.c ****                 dprintf("INTERVAL(%u)\n", interval);
- 330               		.loc 1 66 28 view .LVU89
- 331 00de 0E5F      		subi r16,-2
- 332 00e0 1F4F      		sbci r17,-1
- 333               	.LVL34:
-  66:./tmk_core/common/action_macro.c ****                 dprintf("INTERVAL(%u)\n", interval);
- 334               		.loc 1 66 28 view .LVU90
-  66:./tmk_core/common/action_macro.c ****                 dprintf("INTERVAL(%u)\n", interval);
- 335               		.loc 1 66 28 view .LVU91
- 336 00e2 FE01      		movw r30,r28
- 337               	.LVL35:
-  66:./tmk_core/common/action_macro.c ****                 dprintf("INTERVAL(%u)\n", interval);
- 338               		.loc 1 66 28 is_stmt 0 view .LVU92
- 339               	/* #APP */
- 340               	 ;  66 "./tmk_core/common/action_macro.c" 1
- 341 00e4 F490      		lpm r15, Z
- 342               		
- 343               	 ;  0 "" 2
- 344               	.LVL36:
-  66:./tmk_core/common/action_macro.c ****                 dprintf("INTERVAL(%u)\n", interval);
- 345               		.loc 1 66 28 is_stmt 1 view .LVU93
-  66:./tmk_core/common/action_macro.c ****                 dprintf("INTERVAL(%u)\n", interval);
- 346               		.loc 1 66 28 is_stmt 0 view .LVU94
- 347               	/* #NOAPP */
- 348               	.LBE23:
-  67:./tmk_core/common/action_macro.c ****                 break;
- 349               		.loc 1 67 52 is_stmt 1 view .LVU95
-  68:./tmk_core/common/action_macro.c ****             case 0x04 ... 0x73:
- 350               		.loc 1 68 17 view .LVU96
- 351 00e6 00C0      		rjmp .L11
- 352               	.LVL37:
- 353               	.L4:
-  70:./tmk_core/common/action_macro.c ****                 register_code(macro);
- 354               		.loc 1 70 47 view .LVU97
-  71:./tmk_core/common/action_macro.c ****                 break;
- 355               		.loc 1 71 17 view .LVU98
- 356 00e8 0E94 0000 		call register_code
- 357               	.LVL38:
-  72:./tmk_core/common/action_macro.c ****             case 0x84 ... 0xF3:
- 358               		.loc 1 72 17 view .LVU99
- 359               	.L23:
-  76:./tmk_core/common/action_macro.c ****             case END:
- 360               		.loc 1 76 17 view .LVU100
- 361               	.LBB24:
-  39:./tmk_core/common/action_macro.c ****             case KEY_DOWN:
- 362               		.loc 1 39 17 is_stmt 0 view .LVU101
- 363 00ec 8E01      		movw r16,r28
+ 361               		.loc 1 66 28 view .LVU102
+ 362 00f2 0E5F      		subi r16,-2
+ 363 00f4 1F4F      		sbci r17,-1
  364               	.LVL39:
-  39:./tmk_core/common/action_macro.c ****             case KEY_DOWN:
- 365               		.loc 1 39 17 view .LVU102
- 366               	.LBE24:
-  76:./tmk_core/common/action_macro.c ****             case END:
- 367               		.loc 1 76 17 view .LVU103
- 368 00ee 00C0      		rjmp .L11
- 369               		.cfi_endproc
- 370               	.LFE103:
- 372               		.text
- 373               	.Letext0:
- 374               		.file 3 "/usr/avr/include/stdint.h"
- 375               		.file 4 "./tmk_core/common/action_macro.h"
- 376               		.file 5 "./tmk_core/common/keycode.h"
- 377               		.file 6 "./tmk_core/protocol/lufa/LUFA-git/LUFA/Drivers/USB/Core/AVR8/../StdRequestType.h"
- 378               		.file 7 "./tmk_core/common/action.h"
- 379               		.file 8 "./tmk_core/protocol/lufa/LUFA-git/LUFA/Drivers/USB/Core/AVR8/../DeviceStandardReq.h"
- 380               		.file 9 "./tmk_core/protocol/lufa/LUFA-git/LUFA/Drivers/USB/Core/USBTask.h"
- 381               		.file 10 "./tmk_core/protocol/lufa/LUFA-git/LUFA/Drivers/USB/Core/HostStandardReq.h"
- 382               		.file 11 "/usr/avr/include/stdio.h"
- 383               		.file 12 "./tmk_core/common/report.h"
- 384               		.file 13 "./tmk_core/common/action_util.h"
- 385               		.file 14 "./tmk_core/common/debug.h"
+  66:./tmk_core/common/action_macro.c ****                 dprintf("INTERVAL(%u)\n", interval);
+ 365               		.loc 1 66 28 view .LVU103
+  66:./tmk_core/common/action_macro.c ****                 dprintf("INTERVAL(%u)\n", interval);
+ 366               		.loc 1 66 28 view .LVU104
+ 367 00f6 FE01      		movw r30,r28
+ 368               	.LVL40:
+  66:./tmk_core/common/action_macro.c ****                 dprintf("INTERVAL(%u)\n", interval);
+ 369               		.loc 1 66 28 is_stmt 0 view .LVU105
+ 370               	/* #APP */
+ 371               	 ;  66 "./tmk_core/common/action_macro.c" 1
+ 372 00f8 F490      		lpm r15, Z
+ 373               		
+ 374               	 ;  0 "" 2
+ 375               	.LVL41:
+  66:./tmk_core/common/action_macro.c ****                 dprintf("INTERVAL(%u)\n", interval);
+ 376               		.loc 1 66 28 is_stmt 1 view .LVU106
+  66:./tmk_core/common/action_macro.c ****                 dprintf("INTERVAL(%u)\n", interval);
+ 377               		.loc 1 66 28 is_stmt 0 view .LVU107
+ 378               	/* #NOAPP */
+ 379               	.LBE39:
+  67:./tmk_core/common/action_macro.c ****                 break;
+ 380               		.loc 1 67 52 is_stmt 1 view .LVU108
+  68:./tmk_core/common/action_macro.c ****             case 0x04 ... 0x73:
+ 381               		.loc 1 68 17 view .LVU109
+ 382 00fa 00C0      		rjmp .L10
+ 383               		.cfi_endproc
+ 384               	.LFE107:
+ 386               		.text
+ 387               	.Letext0:
+ 388               		.file 3 "/usr/avr/include/stdint.h"
+ 389               		.file 4 "./tmk_core/common/action_macro.h"
+ 390               		.file 5 "./tmk_core/common/keycode.h"
+ 391               		.file 6 "./tmk_core/common/action.h"
+ 392               		.file 7 "./tmk_core/common/action_util.h"
+ 393               		.file 8 "/usr/avr/include/math.h"
 DEFINED SYMBOLS
                             *ABS*:0000000000000000 action_macro.c
-     /tmp/ccNC20wu.s:2      *ABS*:000000000000003e __SP_H__
-     /tmp/ccNC20wu.s:3      *ABS*:000000000000003d __SP_L__
-     /tmp/ccNC20wu.s:4      *ABS*:000000000000003f __SREG__
-     /tmp/ccNC20wu.s:5      *ABS*:000000000000003b __RAMPZ__
-     /tmp/ccNC20wu.s:6      *ABS*:0000000000000000 __tmp_reg__
-     /tmp/ccNC20wu.s:7      *ABS*:0000000000000001 __zero_reg__
-     /tmp/ccNC20wu.s:14     .text.action_macro_play:0000000000000000 action_macro_play
+     /tmp/ccYzoVZD.s:2      *ABS*:000000000000003e __SP_H__
+     /tmp/ccYzoVZD.s:3      *ABS*:000000000000003d __SP_L__
+     /tmp/ccYzoVZD.s:4      *ABS*:000000000000003f __SREG__
+     /tmp/ccYzoVZD.s:5      *ABS*:000000000000003b __RAMPZ__
+     /tmp/ccYzoVZD.s:6      *ABS*:0000000000000000 __tmp_reg__
+     /tmp/ccYzoVZD.s:7      *ABS*:0000000000000001 __zero_reg__
+     /tmp/ccYzoVZD.s:14     .text.action_macro_play:0000000000000000 action_macro_play
 
 UNDEFINED SYMBOLS
+register_code
 unregister_code
 add_macro_mods
 send_keyboard_report
-register_code
 del_macro_mods
