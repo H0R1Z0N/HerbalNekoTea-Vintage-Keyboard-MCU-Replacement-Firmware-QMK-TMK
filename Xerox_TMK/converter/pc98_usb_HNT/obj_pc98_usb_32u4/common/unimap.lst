@@ -1,0 +1,280 @@
+   1               		.file	"unimap.c"
+   2               	__SP_H__ = 0x3e
+   3               	__SP_L__ = 0x3d
+   4               	__SREG__ = 0x3f
+   5               	__tmp_reg__ = 0
+   6               	__zero_reg__ = 1
+   7               		.text
+   8               	.Ltext0:
+   9               		.cfi_sections	.debug_frame
+  10               		.section	.text.unimap_translate,"ax",@progbits
+  11               	.global	unimap_translate
+  13               	unimap_translate:
+  14               	.LVL0:
+  15               	.LFB4:
+  16               		.file 1 "../../tmk_core/common/unimap.c"
+   1:../../tmk_core/common/unimap.c **** #include "keyboard.h"
+   2:../../tmk_core/common/unimap.c **** #include "action.h"
+   3:../../tmk_core/common/unimap.c **** #include "unimap.h"
+   4:../../tmk_core/common/unimap.c **** #include "print.h"
+   5:../../tmk_core/common/unimap.c **** #if defined(__AVR__)
+   6:../../tmk_core/common/unimap.c **** #   include <avr/pgmspace.h>
+   7:../../tmk_core/common/unimap.c **** #endif
+   8:../../tmk_core/common/unimap.c **** 
+   9:../../tmk_core/common/unimap.c **** 
+  10:../../tmk_core/common/unimap.c **** /* Keymapping with 16bit action codes */
+  11:../../tmk_core/common/unimap.c **** extern const action_t actionmaps[][UNIMAP_ROWS][UNIMAP_COLS];
+  12:../../tmk_core/common/unimap.c **** 
+  13:../../tmk_core/common/unimap.c **** // table translates matrix to universal keymap
+  14:../../tmk_core/common/unimap.c **** extern const uint8_t unimap_trans[MATRIX_ROWS][MATRIX_COLS];
+  15:../../tmk_core/common/unimap.c **** 
+  16:../../tmk_core/common/unimap.c **** 
+  17:../../tmk_core/common/unimap.c **** 
+  18:../../tmk_core/common/unimap.c **** // translates raw matrix to universal map
+  19:../../tmk_core/common/unimap.c **** keypos_t unimap_translate(keypos_t key)
+  20:../../tmk_core/common/unimap.c **** {
+  17               		.loc 1 20 1 view -0
+  18               		.cfi_startproc
+  19               	/* prologue: function */
+  20               	/* frame size = 0 */
+  21               	/* stack size = 0 */
+  22               	.L__stack_usage = 0
+  21:../../tmk_core/common/unimap.c ****     uint8_t unimap_pos = 
+  23               		.loc 1 21 5 view .LVU1
+  24               	.LBB2:
+  22:../../tmk_core/common/unimap.c **** #if defined(__AVR__)
+  23:../../tmk_core/common/unimap.c ****         pgm_read_byte(&unimap_trans[key.row][key.col]);
+  25               		.loc 1 23 9 view .LVU2
+  26               		.loc 1 23 9 view .LVU3
+  27               		.loc 1 23 9 view .LVU4
+  28 0000 28E0      		ldi r18,lo8(8)
+  29 0002 929F      		mul r25,r18
+  30 0004 F001      		movw r30,r0
+  31 0006 1124      		clr __zero_reg__
+  32 0008 E80F      		add r30,r24
+  33 000a F11D      		adc r31,__zero_reg__
+  34 000c E050      		subi r30,lo8(-(unimap_trans))
+  35 000e F040      		sbci r31,hi8(-(unimap_trans))
+  36               	/* #APP */
+  37               	 ;  23 "../../tmk_core/common/unimap.c" 1
+  38 0010 8491      		lpm r24, Z
+  39               		
+  40               	 ;  0 "" 2
+  41               	.LVL1:
+  42               		.loc 1 23 9 view .LVU5
+  43               		.loc 1 23 9 is_stmt 0 view .LVU6
+  44               	/* #NOAPP */
+  45               	.LBE2:
+  24:../../tmk_core/common/unimap.c **** #else
+  25:../../tmk_core/common/unimap.c ****         unimap_trans[key.row][key.col];
+  26:../../tmk_core/common/unimap.c **** #endif
+  27:../../tmk_core/common/unimap.c ****     return (keypos_t) {
+  46               		.loc 1 27 5 is_stmt 1 view .LVU7
+  28:../../tmk_core/common/unimap.c ****         .row = ((unimap_pos >> 4 ) & 0x07),
+  47               		.loc 1 28 36 is_stmt 0 view .LVU8
+  48 0012 982F      		mov r25,r24
+  49               		.loc 1 28 36 view .LVU9
+  50 0014 9295      		swap r25
+  51 0016 9F70      		andi r25,lo8(15)
+  29:../../tmk_core/common/unimap.c ****         .col = (unimap_pos & 0x0F)
+  30:../../tmk_core/common/unimap.c ****     };
+  31:../../tmk_core/common/unimap.c **** }
+  52               		.loc 1 31 1 view .LVU10
+  53 0018 8F70      		andi r24,lo8(15)
+  54               	.LVL2:
+  55               		.loc 1 31 1 view .LVU11
+  56 001a 9770      		andi r25,lo8(7)
+  57               	/* epilogue start */
+  58 001c 0895      		ret
+  59               		.cfi_endproc
+  60               	.LFE4:
+  62               		.section	.text.action_for_key,"ax",@progbits
+  63               		.weak	action_for_key
+  65               	action_for_key:
+  66               	.LVL3:
+  67               	.LFB5:
+  32:../../tmk_core/common/unimap.c **** 
+  33:../../tmk_core/common/unimap.c **** /* Converts key to action */
+  34:../../tmk_core/common/unimap.c **** __attribute__ ((weak))
+  35:../../tmk_core/common/unimap.c **** action_t action_for_key(uint8_t layer, keypos_t key)
+  36:../../tmk_core/common/unimap.c **** {
+  68               		.loc 1 36 1 is_stmt 1 view -0
+  69               		.cfi_startproc
+  70               		.loc 1 36 1 is_stmt 0 view .LVU13
+  71 0000 CF93      		push r28
+  72               	.LCFI0:
+  73               		.cfi_def_cfa_offset 3
+  74               		.cfi_offset 28, -2
+  75               	/* prologue: function */
+  76               	/* frame size = 0 */
+  77               	/* stack size = 1 */
+  78               	.L__stack_usage = 1
+  79 0002 C82F      		mov r28,r24
+  80 0004 CB01      		movw r24,r22
+  81               	.LVL4:
+  37:../../tmk_core/common/unimap.c ****     keypos_t uni = unimap_translate(key);
+  82               		.loc 1 37 5 is_stmt 1 view .LVU14
+  83               		.loc 1 37 20 is_stmt 0 view .LVU15
+  84 0006 0E94 0000 		call unimap_translate
+  85               	.LVL5:
+  38:../../tmk_core/common/unimap.c ****     if ((uni.row << 4 | uni.col) > 0x7F) {
+  86               		.loc 1 38 5 is_stmt 1 view .LVU16
+  87               		.loc 1 38 18 is_stmt 0 view .LVU17
+  88 000a 40E1      		ldi r20,lo8(16)
+  89 000c 949F      		mul r25,r20
+  90 000e 9001      		movw r18,r0
+  91 0010 1124      		clr __zero_reg__
+  92               		.loc 1 38 23 view .LVU18
+  93 0012 282B      		or r18,r24
+  94               		.loc 1 38 8 view .LVU19
+  95 0014 2038      		cpi r18,-128
+  96 0016 3105      		cpc r19,__zero_reg__
+  97 0018 04F0      		brlt .L3
+  39:../../tmk_core/common/unimap.c ****         return (action_t)ACTION_NO;
+  98               		.loc 1 39 9 is_stmt 1 view .LVU20
+  99               		.loc 1 39 16 is_stmt 0 view .LVU21
+ 100 001a 80E0      		ldi r24,0
+ 101               	.LVL6:
+ 102               		.loc 1 39 16 view .LVU22
+ 103 001c 90E0      		ldi r25,0
+ 104               	.LVL7:
+ 105               	.L4:
+ 106               	/* epilogue start */
+  40:../../tmk_core/common/unimap.c ****     }
+  41:../../tmk_core/common/unimap.c **** #if defined(__AVR__)
+  42:../../tmk_core/common/unimap.c ****     return (action_t)pgm_read_word(&actionmaps[(layer)][(uni.row & 0x07)][(uni.col & 0x0F)]);
+  43:../../tmk_core/common/unimap.c **** #else
+  44:../../tmk_core/common/unimap.c ****     return actionmaps[(layer)][(uni.row & 0x07)][(uni.col & 0x0F)];
+  45:../../tmk_core/common/unimap.c **** #endif
+  46:../../tmk_core/common/unimap.c **** }
+ 107               		.loc 1 46 1 view .LVU23
+ 108 001e CF91      		pop r28
+ 109               	.LVL8:
+ 110               		.loc 1 46 1 view .LVU24
+ 111 0020 0895      		ret
+ 112               	.LVL9:
+ 113               	.L3:
+  42:../../tmk_core/common/unimap.c **** #else
+ 114               		.loc 1 42 5 is_stmt 1 view .LVU25
+ 115               	.LBB3:
+  42:../../tmk_core/common/unimap.c **** #else
+ 116               		.loc 1 42 22 view .LVU26
+ 117 0022 48E0      		ldi r20,lo8(8)
+ 118 0024 C49F      		mul r28,r20
+ 119 0026 9001      		movw r18,r0
+ 120 0028 1124      		clr __zero_reg__
+ 121 002a 9770      		andi r25,lo8(7)
+ 122               	.LVL10:
+  42:../../tmk_core/common/unimap.c **** #else
+ 123               		.loc 1 42 22 is_stmt 0 view .LVU27
+ 124 002c 290F      		add r18,r25
+ 125 002e 311D      		adc r19,__zero_reg__
+ 126 0030 94E0      		ldi r25,4
+ 127               		1:
+ 128 0032 220F      		lsl r18
+ 129 0034 331F      		rol r19
+ 130 0036 9A95      		dec r25
+ 131 0038 01F4      		brne 1b
+ 132 003a E82F      		mov r30,r24
+ 133 003c EF70      		andi r30,lo8(15)
+ 134 003e E20F      		add r30,r18
+ 135 0040 F32F      		mov r31,r19
+ 136 0042 F11D      		adc r31,__zero_reg__
+ 137 0044 EE0F      		lsl r30
+ 138 0046 FF1F      		rol r31
+ 139 0048 E050      		subi r30,lo8(-(actionmaps))
+ 140 004a F040      		sbci r31,hi8(-(actionmaps))
+ 141               	.LVL11:
+  42:../../tmk_core/common/unimap.c **** #else
+ 142               		.loc 1 42 22 is_stmt 1 view .LVU28
+  42:../../tmk_core/common/unimap.c **** #else
+ 143               		.loc 1 42 22 view .LVU29
+ 144               	/* #APP */
+ 145               	 ;  42 "../../tmk_core/common/unimap.c" 1
+ 146 004c 8591      		lpm r24, Z+
+ 147 004e 9491      		lpm r25, Z
+ 148               		
+ 149               	 ;  0 "" 2
+ 150               	.LVL12:
+  42:../../tmk_core/common/unimap.c **** #else
+ 151               		.loc 1 42 22 view .LVU30
+ 152               	/* #NOAPP */
+ 153               	.LBE3:
+  42:../../tmk_core/common/unimap.c **** #else
+ 154               		.loc 1 42 12 is_stmt 0 view .LVU31
+ 155 0050 00C0      		rjmp .L4
+ 156               		.cfi_endproc
+ 157               	.LFE5:
+ 159               		.section	.text.action_get_macro,"ax",@progbits
+ 160               		.weak	action_get_macro
+ 162               	action_get_macro:
+ 163               	.LVL13:
+ 164               	.LFB6:
+  47:../../tmk_core/common/unimap.c **** 
+  48:../../tmk_core/common/unimap.c **** /* Macro */
+  49:../../tmk_core/common/unimap.c **** __attribute__ ((weak))
+  50:../../tmk_core/common/unimap.c **** const macro_t *action_get_macro(keyrecord_t *record, uint8_t id, uint8_t opt)
+  51:../../tmk_core/common/unimap.c **** {
+ 165               		.loc 1 51 1 is_stmt 1 view -0
+ 166               		.cfi_startproc
+ 167               	/* prologue: function */
+ 168               	/* frame size = 0 */
+ 169               	/* stack size = 0 */
+ 170               	.L__stack_usage = 0
+  52:../../tmk_core/common/unimap.c ****     return MACRO_NONE;
+ 171               		.loc 1 52 5 view .LVU33
+  53:../../tmk_core/common/unimap.c **** }
+ 172               		.loc 1 53 1 is_stmt 0 view .LVU34
+ 173 0000 90E0      		ldi r25,0
+ 174 0002 80E0      		ldi r24,0
+ 175               	.LVL14:
+ 176               	/* epilogue start */
+ 177               		.loc 1 53 1 view .LVU35
+ 178 0004 0895      		ret
+ 179               		.cfi_endproc
+ 180               	.LFE6:
+ 182               		.section	.text.action_function,"ax",@progbits
+ 183               		.weak	action_function
+ 185               	action_function:
+ 186               	.LVL15:
+ 187               	.LFB7:
+  54:../../tmk_core/common/unimap.c **** 
+  55:../../tmk_core/common/unimap.c **** /* Function */
+  56:../../tmk_core/common/unimap.c **** __attribute__ ((weak))
+  57:../../tmk_core/common/unimap.c **** void action_function(keyrecord_t *record, uint8_t id, uint8_t opt)
+  58:../../tmk_core/common/unimap.c **** {
+ 188               		.loc 1 58 1 is_stmt 1 view -0
+ 189               		.cfi_startproc
+ 190               	/* prologue: function */
+ 191               	/* frame size = 0 */
+ 192               	/* stack size = 0 */
+ 193               	.L__stack_usage = 0
+  59:../../tmk_core/common/unimap.c **** }
+ 194               		.loc 1 59 1 view .LVU37
+ 195               	/* epilogue start */
+ 196 0000 0895      		ret
+ 197               		.cfi_endproc
+ 198               	.LFE7:
+ 200               		.text
+ 201               	.Letext0:
+ 202               		.file 2 "/usr/avr/include/stdint.h"
+ 203               		.file 3 "../../tmk_core/common/keyboard.h"
+ 204               		.file 4 "../../tmk_core/common/action_code.h"
+ 205               		.file 5 "../../tmk_core/common/action_macro.h"
+ 206               		.file 6 "../../tmk_core/common/action.h"
+ 207               		.file 7 "../../tmk_core/common/avr/xprintf.h"
+DEFINED SYMBOLS
+                            *ABS*:0000000000000000 unimap.c
+     /tmp/ccngQX9H.s:2      *ABS*:000000000000003e __SP_H__
+     /tmp/ccngQX9H.s:3      *ABS*:000000000000003d __SP_L__
+     /tmp/ccngQX9H.s:4      *ABS*:000000000000003f __SREG__
+     /tmp/ccngQX9H.s:5      *ABS*:0000000000000000 __tmp_reg__
+     /tmp/ccngQX9H.s:6      *ABS*:0000000000000001 __zero_reg__
+     /tmp/ccngQX9H.s:13     .text.unimap_translate:0000000000000000 unimap_translate
+     /tmp/ccngQX9H.s:65     .text.action_for_key:0000000000000000 action_for_key
+     /tmp/ccngQX9H.s:162    .text.action_get_macro:0000000000000000 action_get_macro
+     /tmp/ccngQX9H.s:185    .text.action_function:0000000000000000 action_function
+
+UNDEFINED SYMBOLS
+unimap_trans
+actionmaps

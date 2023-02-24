@@ -1,0 +1,2102 @@
+   1               		.file	"command.c"
+   2               	__SP_H__ = 0x3e
+   3               	__SP_L__ = 0x3d
+   4               	__SREG__ = 0x3f
+   5               	__tmp_reg__ = 0
+   6               	__zero_reg__ = 1
+   7               		.text
+   8               	.Ltext0:
+   9               		.cfi_sections	.debug_frame
+  10               		.section	.text.switch_default_layer,"ax",@progbits
+  12               	switch_default_layer:
+  13               	.LVL0:
+  14               	.LFB17:
+  15               		.file 1 "../../tmk_core/common/command.c"
+   1:../../tmk_core/common/command.c **** /*
+   2:../../tmk_core/common/command.c **** Copyright 2011 Jun Wako <wakojun@gmail.com>
+   3:../../tmk_core/common/command.c **** 
+   4:../../tmk_core/common/command.c **** This program is free software: you can redistribute it and/or modify
+   5:../../tmk_core/common/command.c **** it under the terms of the GNU General Public License as published by
+   6:../../tmk_core/common/command.c **** the Free Software Foundation, either version 2 of the License, or
+   7:../../tmk_core/common/command.c **** (at your option) any later version.
+   8:../../tmk_core/common/command.c **** 
+   9:../../tmk_core/common/command.c **** This program is distributed in the hope that it will be useful,
+  10:../../tmk_core/common/command.c **** but WITHOUT ANY WARRANTY; without even the implied warranty of
+  11:../../tmk_core/common/command.c **** MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+  12:../../tmk_core/common/command.c **** GNU General Public License for more details.
+  13:../../tmk_core/common/command.c **** 
+  14:../../tmk_core/common/command.c **** You should have received a copy of the GNU General Public License
+  15:../../tmk_core/common/command.c **** along with this program.  If not, see <http://www.gnu.org/licenses/>.
+  16:../../tmk_core/common/command.c **** */
+  17:../../tmk_core/common/command.c **** #include <stdint.h>
+  18:../../tmk_core/common/command.c **** #include <stdbool.h>
+  19:../../tmk_core/common/command.c **** #include "wait.h"
+  20:../../tmk_core/common/command.c **** #include "keycode.h"
+  21:../../tmk_core/common/command.c **** #include "host.h"
+  22:../../tmk_core/common/command.c **** #include "keymap.h"
+  23:../../tmk_core/common/command.c **** #include "print.h"
+  24:../../tmk_core/common/command.c **** #include "debug.h"
+  25:../../tmk_core/common/command.c **** #include "util.h"
+  26:../../tmk_core/common/command.c **** #include "timer.h"
+  27:../../tmk_core/common/command.c **** #include "keyboard.h"
+  28:../../tmk_core/common/command.c **** #include "bootloader.h"
+  29:../../tmk_core/common/command.c **** #include "action_layer.h"
+  30:../../tmk_core/common/command.c **** #include "action_util.h"
+  31:../../tmk_core/common/command.c **** #include "eeconfig.h"
+  32:../../tmk_core/common/command.c **** #include "sleep_led.h"
+  33:../../tmk_core/common/command.c **** #include "led.h"
+  34:../../tmk_core/common/command.c **** #include "command.h"
+  35:../../tmk_core/common/command.c **** #include "backlight.h"
+  36:../../tmk_core/common/command.c **** 
+  37:../../tmk_core/common/command.c **** #ifdef MOUSEKEY_ENABLE
+  38:../../tmk_core/common/command.c **** #include "mousekey.h"
+  39:../../tmk_core/common/command.c **** #endif
+  40:../../tmk_core/common/command.c **** 
+  41:../../tmk_core/common/command.c **** #ifdef PROTOCOL_PJRC
+  42:../../tmk_core/common/command.c **** #   include "usb_keyboard.h"
+  43:../../tmk_core/common/command.c **** #   ifdef EXTRAKEY_ENABLE
+  44:../../tmk_core/common/command.c **** #       include "usb_extra.h"
+  45:../../tmk_core/common/command.c **** #   endif
+  46:../../tmk_core/common/command.c **** #endif
+  47:../../tmk_core/common/command.c **** 
+  48:../../tmk_core/common/command.c **** #ifdef PROTOCOL_VUSB
+  49:../../tmk_core/common/command.c **** #   include "usbdrv.h"
+  50:../../tmk_core/common/command.c **** #endif
+  51:../../tmk_core/common/command.c **** 
+  52:../../tmk_core/common/command.c **** 
+  53:../../tmk_core/common/command.c **** static bool command_common(uint8_t code);
+  54:../../tmk_core/common/command.c **** static void command_common_help(void);
+  55:../../tmk_core/common/command.c **** static bool command_console(uint8_t code);
+  56:../../tmk_core/common/command.c **** static void command_console_help(void);
+  57:../../tmk_core/common/command.c **** #ifdef MOUSEKEY_ENABLE
+  58:../../tmk_core/common/command.c **** static bool mousekey_console(uint8_t code);
+  59:../../tmk_core/common/command.c **** static void mousekey_console_help(void);
+  60:../../tmk_core/common/command.c **** static uint8_t numkey2num(uint8_t code);
+  61:../../tmk_core/common/command.c **** #endif
+  62:../../tmk_core/common/command.c **** 
+  63:../../tmk_core/common/command.c **** 
+  64:../../tmk_core/common/command.c **** static void switch_default_layer(uint8_t layer);
+  65:../../tmk_core/common/command.c **** 
+  66:../../tmk_core/common/command.c **** 
+  67:../../tmk_core/common/command.c **** command_state_t command_state = ONESHOT;
+  68:../../tmk_core/common/command.c **** 
+  69:../../tmk_core/common/command.c **** 
+  70:../../tmk_core/common/command.c **** bool command_proc(uint8_t code)
+  71:../../tmk_core/common/command.c **** {
+  72:../../tmk_core/common/command.c ****     switch (command_state) {
+  73:../../tmk_core/common/command.c ****         case ONESHOT:
+  74:../../tmk_core/common/command.c ****             if (!IS_COMMAND())
+  75:../../tmk_core/common/command.c ****                 return false;
+  76:../../tmk_core/common/command.c ****             return (command_extra(code) || command_common(code));
+  77:../../tmk_core/common/command.c ****             break;
+  78:../../tmk_core/common/command.c ****         case CONSOLE:
+  79:../../tmk_core/common/command.c ****             if (IS_COMMAND())
+  80:../../tmk_core/common/command.c ****                 return (command_extra(code) || command_common(code));
+  81:../../tmk_core/common/command.c ****             else
+  82:../../tmk_core/common/command.c ****                 return (command_console_extra(code) || command_console(code));
+  83:../../tmk_core/common/command.c ****             break;
+  84:../../tmk_core/common/command.c **** #ifdef MOUSEKEY_ENABLE
+  85:../../tmk_core/common/command.c ****         case MOUSEKEY:
+  86:../../tmk_core/common/command.c ****             mousekey_console(code);
+  87:../../tmk_core/common/command.c ****             break;
+  88:../../tmk_core/common/command.c **** #endif
+  89:../../tmk_core/common/command.c ****         default:
+  90:../../tmk_core/common/command.c ****             command_state = ONESHOT;
+  91:../../tmk_core/common/command.c ****             return false;
+  92:../../tmk_core/common/command.c ****     }
+  93:../../tmk_core/common/command.c ****     return true;
+  94:../../tmk_core/common/command.c **** }
+  95:../../tmk_core/common/command.c **** 
+  96:../../tmk_core/common/command.c **** /* TODO: Refactoring is needed. */
+  97:../../tmk_core/common/command.c **** /* This allows to define extra commands. return false when not processed. */
+  98:../../tmk_core/common/command.c **** bool command_extra(uint8_t code) __attribute__ ((weak));
+  99:../../tmk_core/common/command.c **** bool command_extra(uint8_t code)
+ 100:../../tmk_core/common/command.c **** {
+ 101:../../tmk_core/common/command.c ****     (void)code;
+ 102:../../tmk_core/common/command.c ****     return false;
+ 103:../../tmk_core/common/command.c **** }
+ 104:../../tmk_core/common/command.c **** 
+ 105:../../tmk_core/common/command.c **** bool command_console_extra(uint8_t code) __attribute__ ((weak));
+ 106:../../tmk_core/common/command.c **** bool command_console_extra(uint8_t code)
+ 107:../../tmk_core/common/command.c **** {
+ 108:../../tmk_core/common/command.c ****     (void)code;
+ 109:../../tmk_core/common/command.c ****     return false;
+ 110:../../tmk_core/common/command.c **** }
+ 111:../../tmk_core/common/command.c **** 
+ 112:../../tmk_core/common/command.c **** 
+ 113:../../tmk_core/common/command.c **** /***********************************************************
+ 114:../../tmk_core/common/command.c ****  * Command common
+ 115:../../tmk_core/common/command.c ****  ***********************************************************/
+ 116:../../tmk_core/common/command.c **** static void command_common_help(void)
+ 117:../../tmk_core/common/command.c **** {
+ 118:../../tmk_core/common/command.c ****     print("\n\t- Magic -\n"
+ 119:../../tmk_core/common/command.c ****           "d:	debug\n"
+ 120:../../tmk_core/common/command.c ****           "x:	debug matrix\n"
+ 121:../../tmk_core/common/command.c ****           "k:	debug keyboard\n"
+ 122:../../tmk_core/common/command.c ****           "m:	debug mouse\n"
+ 123:../../tmk_core/common/command.c ****           "v:	version\n"
+ 124:../../tmk_core/common/command.c ****           "s:	status\n"
+ 125:../../tmk_core/common/command.c ****           "c:	console mode\n"
+ 126:../../tmk_core/common/command.c ****           "0-4:	layer0-4(F10-F4)\n"
+ 127:../../tmk_core/common/command.c ****           "Paus:	bootloader\n"
+ 128:../../tmk_core/common/command.c **** 
+ 129:../../tmk_core/common/command.c **** #ifdef KEYBOARD_LOCK_ENABLE
+ 130:../../tmk_core/common/command.c ****           "Caps:	Lock\n"
+ 131:../../tmk_core/common/command.c **** #endif
+ 132:../../tmk_core/common/command.c **** 
+ 133:../../tmk_core/common/command.c **** #ifdef BOOTMAGIC_ENABLE
+ 134:../../tmk_core/common/command.c ****           "e:	eeprom\n"
+ 135:../../tmk_core/common/command.c **** #endif
+ 136:../../tmk_core/common/command.c **** 
+ 137:../../tmk_core/common/command.c **** #ifdef NKRO_ENABLE
+ 138:../../tmk_core/common/command.c ****           "n:	NKRO\n"
+ 139:../../tmk_core/common/command.c **** #endif
+ 140:../../tmk_core/common/command.c **** 
+ 141:../../tmk_core/common/command.c **** #ifdef SLEEP_LED_ENABLE
+ 142:../../tmk_core/common/command.c ****           "z:	sleep LED test\n"
+ 143:../../tmk_core/common/command.c **** #endif
+ 144:../../tmk_core/common/command.c ****     );
+ 145:../../tmk_core/common/command.c **** }
+ 146:../../tmk_core/common/command.c **** 
+ 147:../../tmk_core/common/command.c **** #ifdef BOOTMAGIC_ENABLE
+ 148:../../tmk_core/common/command.c **** static void print_eeconfig(void)
+ 149:../../tmk_core/common/command.c **** {
+ 150:../../tmk_core/common/command.c ****     print("default_layer: "); print_dec(eeconfig_read_default_layer()); print("\n");
+ 151:../../tmk_core/common/command.c **** 
+ 152:../../tmk_core/common/command.c ****     debug_config_t dc;
+ 153:../../tmk_core/common/command.c ****     dc.raw = eeconfig_read_debug();
+ 154:../../tmk_core/common/command.c ****     print("debug_config.raw: "); print_hex8(dc.raw); print("\n");
+ 155:../../tmk_core/common/command.c ****     print(".enable: "); print_dec(dc.enable); print("\n");
+ 156:../../tmk_core/common/command.c ****     print(".matrix: "); print_dec(dc.matrix); print("\n");
+ 157:../../tmk_core/common/command.c ****     print(".keyboard: "); print_dec(dc.keyboard); print("\n");
+ 158:../../tmk_core/common/command.c ****     print(".mouse: "); print_dec(dc.mouse); print("\n");
+ 159:../../tmk_core/common/command.c **** 
+ 160:../../tmk_core/common/command.c ****     keymap_config_t kc;
+ 161:../../tmk_core/common/command.c ****     kc.raw = eeconfig_read_keymap();
+ 162:../../tmk_core/common/command.c ****     print("keymap_config.raw: "); print_hex8(kc.raw); print("\n");
+ 163:../../tmk_core/common/command.c ****     print(".swap_control_capslock: "); print_dec(kc.swap_control_capslock); print("\n");
+ 164:../../tmk_core/common/command.c ****     print(".capslock_to_control: "); print_dec(kc.capslock_to_control); print("\n");
+ 165:../../tmk_core/common/command.c ****     print(".swap_lalt_lgui: "); print_dec(kc.swap_lalt_lgui); print("\n");
+ 166:../../tmk_core/common/command.c ****     print(".swap_ralt_rgui: "); print_dec(kc.swap_ralt_rgui); print("\n");
+ 167:../../tmk_core/common/command.c ****     print(".no_gui: "); print_dec(kc.no_gui); print("\n");
+ 168:../../tmk_core/common/command.c ****     print(".swap_grave_esc: "); print_dec(kc.swap_grave_esc); print("\n");
+ 169:../../tmk_core/common/command.c ****     print(".swap_backslash_backspace: "); print_dec(kc.swap_backslash_backspace); print("\n");
+ 170:../../tmk_core/common/command.c ****     print(".nkro: "); print_dec(kc.nkro); print("\n");
+ 171:../../tmk_core/common/command.c **** 
+ 172:../../tmk_core/common/command.c **** #ifdef BACKLIGHT_ENABLE
+ 173:../../tmk_core/common/command.c ****     backlight_config_t bc;
+ 174:../../tmk_core/common/command.c ****     bc.raw = eeconfig_read_backlight();
+ 175:../../tmk_core/common/command.c ****     print("backlight_config.raw: "); print_hex8(bc.raw); print("\n");
+ 176:../../tmk_core/common/command.c ****     print(".enable: "); print_dec(bc.enable); print("\n");
+ 177:../../tmk_core/common/command.c ****     print(".level: "); print_dec(bc.level); print("\n");
+ 178:../../tmk_core/common/command.c **** #endif
+ 179:../../tmk_core/common/command.c **** }
+ 180:../../tmk_core/common/command.c **** #endif
+ 181:../../tmk_core/common/command.c **** 
+ 182:../../tmk_core/common/command.c **** static bool command_common(uint8_t code)
+ 183:../../tmk_core/common/command.c **** {
+ 184:../../tmk_core/common/command.c **** #ifdef KEYBOARD_LOCK_ENABLE
+ 185:../../tmk_core/common/command.c ****     static host_driver_t *host_driver = 0;
+ 186:../../tmk_core/common/command.c **** #endif
+ 187:../../tmk_core/common/command.c **** #ifdef SLEEP_LED_ENABLE
+ 188:../../tmk_core/common/command.c ****     static bool sleep_led_test = false;
+ 189:../../tmk_core/common/command.c **** #endif
+ 190:../../tmk_core/common/command.c ****     switch (code) {
+ 191:../../tmk_core/common/command.c **** #ifdef SLEEP_LED_ENABLE
+ 192:../../tmk_core/common/command.c ****         case KC_Z:
+ 193:../../tmk_core/common/command.c ****             // test breathing sleep LED
+ 194:../../tmk_core/common/command.c ****             print("Sleep LED test\n");
+ 195:../../tmk_core/common/command.c ****             if (sleep_led_test) {
+ 196:../../tmk_core/common/command.c ****                 sleep_led_disable();
+ 197:../../tmk_core/common/command.c ****                 led_set(host_keyboard_leds());
+ 198:../../tmk_core/common/command.c ****             } else {
+ 199:../../tmk_core/common/command.c ****                 sleep_led_enable();
+ 200:../../tmk_core/common/command.c ****             }
+ 201:../../tmk_core/common/command.c ****             sleep_led_test = !sleep_led_test;
+ 202:../../tmk_core/common/command.c ****             break;
+ 203:../../tmk_core/common/command.c **** #endif
+ 204:../../tmk_core/common/command.c **** #ifdef BOOTMAGIC_ENABLE
+ 205:../../tmk_core/common/command.c ****         case KC_E:
+ 206:../../tmk_core/common/command.c ****             print("eeconfig:\n");
+ 207:../../tmk_core/common/command.c ****             print_eeconfig();
+ 208:../../tmk_core/common/command.c ****             break;
+ 209:../../tmk_core/common/command.c **** #endif
+ 210:../../tmk_core/common/command.c **** #ifdef KEYBOARD_LOCK_ENABLE
+ 211:../../tmk_core/common/command.c ****         case KC_CAPSLOCK:
+ 212:../../tmk_core/common/command.c ****             if (host_get_driver()) {
+ 213:../../tmk_core/common/command.c ****                 host_driver = host_get_driver();
+ 214:../../tmk_core/common/command.c ****                 clear_keyboard();
+ 215:../../tmk_core/common/command.c ****                 host_set_driver(0);
+ 216:../../tmk_core/common/command.c ****                 print("Locked.\n");
+ 217:../../tmk_core/common/command.c ****             } else {
+ 218:../../tmk_core/common/command.c ****                 host_set_driver(host_driver);
+ 219:../../tmk_core/common/command.c ****                 print("Unlocked.\n");
+ 220:../../tmk_core/common/command.c ****             }
+ 221:../../tmk_core/common/command.c ****             break;
+ 222:../../tmk_core/common/command.c **** #endif
+ 223:../../tmk_core/common/command.c ****         case KC_H:
+ 224:../../tmk_core/common/command.c ****         case KC_SLASH: /* ? */
+ 225:../../tmk_core/common/command.c ****             command_common_help();
+ 226:../../tmk_core/common/command.c ****             break;
+ 227:../../tmk_core/common/command.c ****         case KC_C:
+ 228:../../tmk_core/common/command.c ****             debug_matrix   = false;
+ 229:../../tmk_core/common/command.c ****             debug_keyboard = false;
+ 230:../../tmk_core/common/command.c ****             debug_mouse    = false;
+ 231:../../tmk_core/common/command.c ****             debug_enable   = false;
+ 232:../../tmk_core/common/command.c ****             command_console_help();
+ 233:../../tmk_core/common/command.c ****             print("C> ");
+ 234:../../tmk_core/common/command.c ****             command_state = CONSOLE;
+ 235:../../tmk_core/common/command.c ****             break;
+ 236:../../tmk_core/common/command.c ****         case KC_PAUSE:
+ 237:../../tmk_core/common/command.c ****             clear_keyboard();
+ 238:../../tmk_core/common/command.c ****             print("\n\nbootloader... ");
+ 239:../../tmk_core/common/command.c ****             wait_ms(1000);
+ 240:../../tmk_core/common/command.c ****             bootloader_jump(); // not return
+ 241:../../tmk_core/common/command.c ****             break;
+ 242:../../tmk_core/common/command.c ****         case KC_D:
+ 243:../../tmk_core/common/command.c ****             if (debug_enable) {
+ 244:../../tmk_core/common/command.c ****                 print("\ndebug: off\n");
+ 245:../../tmk_core/common/command.c ****                 debug_matrix   = false;
+ 246:../../tmk_core/common/command.c ****                 debug_keyboard = false;
+ 247:../../tmk_core/common/command.c ****                 debug_mouse    = false;
+ 248:../../tmk_core/common/command.c ****                 debug_enable   = false;
+ 249:../../tmk_core/common/command.c ****             } else {
+ 250:../../tmk_core/common/command.c ****                 print("\ndebug: on\n");
+ 251:../../tmk_core/common/command.c ****                 debug_enable   = true;
+ 252:../../tmk_core/common/command.c ****             }
+ 253:../../tmk_core/common/command.c ****             break;
+ 254:../../tmk_core/common/command.c ****         case KC_X: // debug matrix toggle
+ 255:../../tmk_core/common/command.c ****             debug_matrix = !debug_matrix;
+ 256:../../tmk_core/common/command.c ****             if (debug_matrix) {
+ 257:../../tmk_core/common/command.c ****                 print("\nmatrix: on\n");
+ 258:../../tmk_core/common/command.c ****                 debug_enable = true;
+ 259:../../tmk_core/common/command.c ****             } else {
+ 260:../../tmk_core/common/command.c ****                 print("\nmatrix: off\n");
+ 261:../../tmk_core/common/command.c ****             }
+ 262:../../tmk_core/common/command.c ****             break;
+ 263:../../tmk_core/common/command.c ****         case KC_K: // debug keyboard toggle
+ 264:../../tmk_core/common/command.c ****             debug_keyboard = !debug_keyboard;
+ 265:../../tmk_core/common/command.c ****             if (debug_keyboard) {
+ 266:../../tmk_core/common/command.c ****                 print("\nkeyboard: on\n");
+ 267:../../tmk_core/common/command.c ****                 debug_enable = true;
+ 268:../../tmk_core/common/command.c ****             } else {
+ 269:../../tmk_core/common/command.c ****                 print("\nkeyboard: off\n");
+ 270:../../tmk_core/common/command.c ****             }
+ 271:../../tmk_core/common/command.c ****             break;
+ 272:../../tmk_core/common/command.c ****         case KC_M: // debug mouse toggle
+ 273:../../tmk_core/common/command.c ****             debug_mouse = !debug_mouse;
+ 274:../../tmk_core/common/command.c ****             if (debug_mouse) {
+ 275:../../tmk_core/common/command.c ****                 print("\nmouse: on\n");
+ 276:../../tmk_core/common/command.c ****                 debug_enable = true;
+ 277:../../tmk_core/common/command.c ****             } else {
+ 278:../../tmk_core/common/command.c ****                 print("\nmouse: off\n");
+ 279:../../tmk_core/common/command.c ****             }
+ 280:../../tmk_core/common/command.c ****             break;
+ 281:../../tmk_core/common/command.c ****         case KC_V: // print version & information
+ 282:../../tmk_core/common/command.c ****             print("\n\t- Version -\n");
+ 283:../../tmk_core/common/command.c ****             print("DESC: " STR(DESCRIPTION) "\n");
+ 284:../../tmk_core/common/command.c ****             print("VID: " STR(VENDOR_ID) "(" STR(MANUFACTURER) ") "
+ 285:../../tmk_core/common/command.c ****                   "PID: " STR(PRODUCT_ID) "(" STR(PRODUCT) ") "
+ 286:../../tmk_core/common/command.c ****                   "VER: " STR(DEVICE_VER) "\n");
+ 287:../../tmk_core/common/command.c ****             print("BUILD: " STR(TMK_VERSION) " (" __TIME__ " " __DATE__ ")\n");
+ 288:../../tmk_core/common/command.c ****             /* build options */
+ 289:../../tmk_core/common/command.c ****             print("OPTIONS:"
+ 290:../../tmk_core/common/command.c **** #ifdef PROTOCOL_PJRC
+ 291:../../tmk_core/common/command.c ****             " PJRC"
+ 292:../../tmk_core/common/command.c **** #endif
+ 293:../../tmk_core/common/command.c **** #ifdef PROTOCOL_LUFA
+ 294:../../tmk_core/common/command.c ****             " LUFA"
+ 295:../../tmk_core/common/command.c **** #endif
+ 296:../../tmk_core/common/command.c **** #ifdef PROTOCOL_VUSB
+ 297:../../tmk_core/common/command.c ****             " VUSB"
+ 298:../../tmk_core/common/command.c **** #endif
+ 299:../../tmk_core/common/command.c **** #ifdef PROTOCOL_CHIBIOS
+ 300:../../tmk_core/common/command.c ****             " CHIBIOS"
+ 301:../../tmk_core/common/command.c **** #endif
+ 302:../../tmk_core/common/command.c **** #ifdef BOOTMAGIC_ENABLE
+ 303:../../tmk_core/common/command.c ****             " BOOTMAGIC"
+ 304:../../tmk_core/common/command.c **** #endif
+ 305:../../tmk_core/common/command.c **** #ifdef MOUSEKEY_ENABLE
+ 306:../../tmk_core/common/command.c ****             " MOUSEKEY"
+ 307:../../tmk_core/common/command.c **** #endif
+ 308:../../tmk_core/common/command.c **** #ifdef EXTRAKEY_ENABLE
+ 309:../../tmk_core/common/command.c ****             " EXTRAKEY"
+ 310:../../tmk_core/common/command.c **** #endif
+ 311:../../tmk_core/common/command.c **** #ifdef CONSOLE_ENABLE
+ 312:../../tmk_core/common/command.c ****             " CONSOLE"
+ 313:../../tmk_core/common/command.c **** #endif
+ 314:../../tmk_core/common/command.c **** #ifdef COMMAND_ENABLE
+ 315:../../tmk_core/common/command.c ****             " COMMAND"
+ 316:../../tmk_core/common/command.c **** #endif
+ 317:../../tmk_core/common/command.c **** #ifdef NKRO_ENABLE
+ 318:../../tmk_core/common/command.c ****             " NKRO"
+ 319:../../tmk_core/common/command.c **** #endif
+ 320:../../tmk_core/common/command.c **** #ifdef KEYMAP_SECTION_ENABLE
+ 321:../../tmk_core/common/command.c ****             " KEYMAP_SECTION"
+ 322:../../tmk_core/common/command.c **** #endif
+ 323:../../tmk_core/common/command.c ****             " " STR(BOOTLOADER_SIZE) "\n");
+ 324:../../tmk_core/common/command.c **** 
+ 325:../../tmk_core/common/command.c ****             print("GCC: " STR(__GNUC__) "." STR(__GNUC_MINOR__) "." STR(__GNUC_PATCHLEVEL__)
+ 326:../../tmk_core/common/command.c **** #if defined(__AVR__)
+ 327:../../tmk_core/common/command.c ****                   " AVR-LIBC: " __AVR_LIBC_VERSION_STRING__
+ 328:../../tmk_core/common/command.c ****                   " AVR_ARCH: avr" STR(__AVR_ARCH__) "\n");
+ 329:../../tmk_core/common/command.c **** #elif defined(__arm__)
+ 330:../../tmk_core/common/command.c ****             // TODO
+ 331:../../tmk_core/common/command.c ****             );
+ 332:../../tmk_core/common/command.c **** #endif
+ 333:../../tmk_core/common/command.c ****             break;
+ 334:../../tmk_core/common/command.c ****         case KC_S:
+ 335:../../tmk_core/common/command.c ****             print("\n\t- Status -\n");
+ 336:../../tmk_core/common/command.c ****             print_val_hex8(host_keyboard_leds());
+ 337:../../tmk_core/common/command.c ****             print_val_hex8(keyboard_protocol);
+ 338:../../tmk_core/common/command.c ****             print_val_hex8(keyboard_idle);
+ 339:../../tmk_core/common/command.c **** #ifdef NKRO_ENABLE
+ 340:../../tmk_core/common/command.c ****             print_val_hex8(keyboard_nkro);
+ 341:../../tmk_core/common/command.c **** #endif
+ 342:../../tmk_core/common/command.c ****             print_val_hex32(timer_read32());
+ 343:../../tmk_core/common/command.c **** 
+ 344:../../tmk_core/common/command.c **** #ifdef PROTOCOL_PJRC
+ 345:../../tmk_core/common/command.c ****             print_val_hex8(UDCON);
+ 346:../../tmk_core/common/command.c ****             print_val_hex8(UDIEN);
+ 347:../../tmk_core/common/command.c ****             print_val_hex8(UDINT);
+ 348:../../tmk_core/common/command.c ****             print_val_hex8(usb_keyboard_leds);
+ 349:../../tmk_core/common/command.c ****             print_val_hex8(usb_keyboard_idle_count);
+ 350:../../tmk_core/common/command.c **** #endif
+ 351:../../tmk_core/common/command.c **** 
+ 352:../../tmk_core/common/command.c **** #ifdef PROTOCOL_PJRC
+ 353:../../tmk_core/common/command.c **** #   if USB_COUNT_SOF
+ 354:../../tmk_core/common/command.c ****             print_val_hex8(usbSofCount);
+ 355:../../tmk_core/common/command.c **** #   endif
+ 356:../../tmk_core/common/command.c **** #endif
+ 357:../../tmk_core/common/command.c ****             break;
+ 358:../../tmk_core/common/command.c **** #ifdef NKRO_ENABLE
+ 359:../../tmk_core/common/command.c ****         case KC_N:
+ 360:../../tmk_core/common/command.c ****             clear_keyboard(); //Prevents stuck keys.
+ 361:../../tmk_core/common/command.c ****             keyboard_nkro = !keyboard_nkro;
+ 362:../../tmk_core/common/command.c ****             if (keyboard_nkro) {
+ 363:../../tmk_core/common/command.c ****                 print("NKRO: on\n");
+ 364:../../tmk_core/common/command.c ****             } else {
+ 365:../../tmk_core/common/command.c ****                 print("NKRO: off\n");
+ 366:../../tmk_core/common/command.c ****             }
+ 367:../../tmk_core/common/command.c ****             break;
+ 368:../../tmk_core/common/command.c **** #endif
+ 369:../../tmk_core/common/command.c ****         case KC_ESC:
+ 370:../../tmk_core/common/command.c ****         case KC_GRV:
+ 371:../../tmk_core/common/command.c ****         case KC_0:
+ 372:../../tmk_core/common/command.c ****         case KC_F10:
+ 373:../../tmk_core/common/command.c ****             switch_default_layer(0);
+ 374:../../tmk_core/common/command.c ****             break;
+ 375:../../tmk_core/common/command.c ****         case KC_1 ... KC_9:
+ 376:../../tmk_core/common/command.c ****             switch_default_layer((code - KC_1) + 1);
+ 377:../../tmk_core/common/command.c ****             break;
+ 378:../../tmk_core/common/command.c ****         case KC_F1 ... KC_F9:
+ 379:../../tmk_core/common/command.c ****             switch_default_layer((code - KC_F1) + 1);
+ 380:../../tmk_core/common/command.c ****             break;
+ 381:../../tmk_core/common/command.c ****         default:
+ 382:../../tmk_core/common/command.c ****             print("?");
+ 383:../../tmk_core/common/command.c ****             return false;
+ 384:../../tmk_core/common/command.c ****     }
+ 385:../../tmk_core/common/command.c ****     return true;
+ 386:../../tmk_core/common/command.c **** }
+ 387:../../tmk_core/common/command.c **** 
+ 388:../../tmk_core/common/command.c **** 
+ 389:../../tmk_core/common/command.c **** /***********************************************************
+ 390:../../tmk_core/common/command.c ****  * Command console
+ 391:../../tmk_core/common/command.c ****  ***********************************************************/
+ 392:../../tmk_core/common/command.c **** static void command_console_help(void)
+ 393:../../tmk_core/common/command.c **** {
+ 394:../../tmk_core/common/command.c ****     print("\n\t- Console -\n"
+ 395:../../tmk_core/common/command.c ****           "ESC/q:	quit\n"
+ 396:../../tmk_core/common/command.c **** #ifdef MOUSEKEY_ENABLE
+ 397:../../tmk_core/common/command.c ****           "m:	mousekey\n"
+ 398:../../tmk_core/common/command.c **** #endif
+ 399:../../tmk_core/common/command.c ****     );
+ 400:../../tmk_core/common/command.c **** }
+ 401:../../tmk_core/common/command.c **** 
+ 402:../../tmk_core/common/command.c **** static bool command_console(uint8_t code)
+ 403:../../tmk_core/common/command.c **** {
+ 404:../../tmk_core/common/command.c ****     switch (code) {
+ 405:../../tmk_core/common/command.c ****         case KC_H:
+ 406:../../tmk_core/common/command.c ****         case KC_SLASH: /* ? */
+ 407:../../tmk_core/common/command.c ****             command_console_help();
+ 408:../../tmk_core/common/command.c ****             break;
+ 409:../../tmk_core/common/command.c ****         case KC_Q:
+ 410:../../tmk_core/common/command.c ****         case KC_ESC:
+ 411:../../tmk_core/common/command.c ****             command_state = ONESHOT;
+ 412:../../tmk_core/common/command.c ****             return false;
+ 413:../../tmk_core/common/command.c **** #ifdef MOUSEKEY_ENABLE
+ 414:../../tmk_core/common/command.c ****         case KC_M:
+ 415:../../tmk_core/common/command.c ****             mousekey_console_help();
+ 416:../../tmk_core/common/command.c ****             print("M> ");
+ 417:../../tmk_core/common/command.c ****             command_state = MOUSEKEY;
+ 418:../../tmk_core/common/command.c ****             return true;
+ 419:../../tmk_core/common/command.c **** #endif
+ 420:../../tmk_core/common/command.c ****         default:
+ 421:../../tmk_core/common/command.c ****             print("?");
+ 422:../../tmk_core/common/command.c ****             return false;
+ 423:../../tmk_core/common/command.c ****     }
+ 424:../../tmk_core/common/command.c ****     print("C> ");
+ 425:../../tmk_core/common/command.c ****     return true;
+ 426:../../tmk_core/common/command.c **** }
+ 427:../../tmk_core/common/command.c **** 
+ 428:../../tmk_core/common/command.c **** 
+ 429:../../tmk_core/common/command.c **** #ifdef MOUSEKEY_ENABLE
+ 430:../../tmk_core/common/command.c **** /***********************************************************
+ 431:../../tmk_core/common/command.c ****  * Mousekey console
+ 432:../../tmk_core/common/command.c ****  ***********************************************************/
+ 433:../../tmk_core/common/command.c **** static uint8_t mousekey_param = 0;
+ 434:../../tmk_core/common/command.c **** 
+ 435:../../tmk_core/common/command.c **** static void mousekey_param_print(void)
+ 436:../../tmk_core/common/command.c **** {
+ 437:../../tmk_core/common/command.c ****     print("\n\t- Values -\n");
+ 438:../../tmk_core/common/command.c ****     print("1: delay(*10ms): "); pdec(mk_delay); print("\n");
+ 439:../../tmk_core/common/command.c ****     print("2: interval(ms): "); pdec(mk_interval); print("\n");
+ 440:../../tmk_core/common/command.c ****     print("3: max_speed: "); pdec(mk_max_speed); print("\n");
+ 441:../../tmk_core/common/command.c ****     print("4: time_to_max: "); pdec(mk_time_to_max); print("\n");
+ 442:../../tmk_core/common/command.c ****     print("5: wheel_max_speed: "); pdec(mk_wheel_max_speed); print("\n");
+ 443:../../tmk_core/common/command.c ****     print("6: wheel_time_to_max: "); pdec(mk_wheel_time_to_max); print("\n");
+ 444:../../tmk_core/common/command.c **** }
+ 445:../../tmk_core/common/command.c **** 
+ 446:../../tmk_core/common/command.c **** //#define PRINT_SET_VAL(v)  print(#v " = "); print_dec(v); print("\n");
+ 447:../../tmk_core/common/command.c **** #define PRINT_SET_VAL(v)  xprintf(#v " = %d\n", (v))
+ 448:../../tmk_core/common/command.c **** static void mousekey_param_inc(uint8_t param, uint8_t inc)
+ 449:../../tmk_core/common/command.c **** {
+ 450:../../tmk_core/common/command.c ****     switch (param) {
+ 451:../../tmk_core/common/command.c ****         case 1:
+ 452:../../tmk_core/common/command.c ****             if (mk_delay + inc < UINT8_MAX)
+ 453:../../tmk_core/common/command.c ****                 mk_delay += inc;
+ 454:../../tmk_core/common/command.c ****             else
+ 455:../../tmk_core/common/command.c ****                 mk_delay = UINT8_MAX;
+ 456:../../tmk_core/common/command.c ****             PRINT_SET_VAL(mk_delay);
+ 457:../../tmk_core/common/command.c ****             break;
+ 458:../../tmk_core/common/command.c ****         case 2:
+ 459:../../tmk_core/common/command.c ****             if (mk_interval + inc < UINT8_MAX)
+ 460:../../tmk_core/common/command.c ****                 mk_interval += inc;
+ 461:../../tmk_core/common/command.c ****             else
+ 462:../../tmk_core/common/command.c ****                 mk_interval = UINT8_MAX;
+ 463:../../tmk_core/common/command.c ****             PRINT_SET_VAL(mk_interval);
+ 464:../../tmk_core/common/command.c ****             break;
+ 465:../../tmk_core/common/command.c ****         case 3:
+ 466:../../tmk_core/common/command.c ****             if (mk_max_speed + inc < UINT8_MAX)
+ 467:../../tmk_core/common/command.c ****                 mk_max_speed += inc;
+ 468:../../tmk_core/common/command.c ****             else
+ 469:../../tmk_core/common/command.c ****                 mk_max_speed = UINT8_MAX;
+ 470:../../tmk_core/common/command.c ****             PRINT_SET_VAL(mk_max_speed);
+ 471:../../tmk_core/common/command.c ****             break;
+ 472:../../tmk_core/common/command.c ****         case 4:
+ 473:../../tmk_core/common/command.c ****             if (mk_time_to_max + inc < UINT8_MAX)
+ 474:../../tmk_core/common/command.c ****                 mk_time_to_max += inc;
+ 475:../../tmk_core/common/command.c ****             else
+ 476:../../tmk_core/common/command.c ****                 mk_time_to_max = UINT8_MAX;
+ 477:../../tmk_core/common/command.c ****             PRINT_SET_VAL(mk_time_to_max);
+ 478:../../tmk_core/common/command.c ****             break;
+ 479:../../tmk_core/common/command.c ****         case 5:
+ 480:../../tmk_core/common/command.c ****             if (mk_wheel_max_speed + inc < UINT8_MAX)
+ 481:../../tmk_core/common/command.c ****                 mk_wheel_max_speed += inc;
+ 482:../../tmk_core/common/command.c ****             else
+ 483:../../tmk_core/common/command.c ****                 mk_wheel_max_speed = UINT8_MAX;
+ 484:../../tmk_core/common/command.c ****             PRINT_SET_VAL(mk_wheel_max_speed);
+ 485:../../tmk_core/common/command.c ****             break;
+ 486:../../tmk_core/common/command.c ****         case 6:
+ 487:../../tmk_core/common/command.c ****             if (mk_wheel_time_to_max + inc < UINT8_MAX)
+ 488:../../tmk_core/common/command.c ****                 mk_wheel_time_to_max += inc;
+ 489:../../tmk_core/common/command.c ****             else
+ 490:../../tmk_core/common/command.c ****                 mk_wheel_time_to_max = UINT8_MAX;
+ 491:../../tmk_core/common/command.c ****             PRINT_SET_VAL(mk_wheel_time_to_max);
+ 492:../../tmk_core/common/command.c ****             break;
+ 493:../../tmk_core/common/command.c ****     }
+ 494:../../tmk_core/common/command.c **** }
+ 495:../../tmk_core/common/command.c **** 
+ 496:../../tmk_core/common/command.c **** static void mousekey_param_dec(uint8_t param, uint8_t dec)
+ 497:../../tmk_core/common/command.c **** {
+ 498:../../tmk_core/common/command.c ****     switch (param) {
+ 499:../../tmk_core/common/command.c ****         case 1:
+ 500:../../tmk_core/common/command.c ****             if (mk_delay > dec)
+ 501:../../tmk_core/common/command.c ****                 mk_delay -= dec;
+ 502:../../tmk_core/common/command.c ****             else
+ 503:../../tmk_core/common/command.c ****                 mk_delay = 0;
+ 504:../../tmk_core/common/command.c ****             PRINT_SET_VAL(mk_delay);
+ 505:../../tmk_core/common/command.c ****             break;
+ 506:../../tmk_core/common/command.c ****         case 2:
+ 507:../../tmk_core/common/command.c ****             if (mk_interval > dec)
+ 508:../../tmk_core/common/command.c ****                 mk_interval -= dec;
+ 509:../../tmk_core/common/command.c ****             else
+ 510:../../tmk_core/common/command.c ****                 mk_interval = 0;
+ 511:../../tmk_core/common/command.c ****             PRINT_SET_VAL(mk_interval);
+ 512:../../tmk_core/common/command.c ****             break;
+ 513:../../tmk_core/common/command.c ****         case 3:
+ 514:../../tmk_core/common/command.c ****             if (mk_max_speed > dec)
+ 515:../../tmk_core/common/command.c ****                 mk_max_speed -= dec;
+ 516:../../tmk_core/common/command.c ****             else
+ 517:../../tmk_core/common/command.c ****                 mk_max_speed = 0;
+ 518:../../tmk_core/common/command.c ****             PRINT_SET_VAL(mk_max_speed);
+ 519:../../tmk_core/common/command.c ****             break;
+ 520:../../tmk_core/common/command.c ****         case 4:
+ 521:../../tmk_core/common/command.c ****             if (mk_time_to_max > dec)
+ 522:../../tmk_core/common/command.c ****                 mk_time_to_max -= dec;
+ 523:../../tmk_core/common/command.c ****             else
+ 524:../../tmk_core/common/command.c ****                 mk_time_to_max = 0;
+ 525:../../tmk_core/common/command.c ****             PRINT_SET_VAL(mk_time_to_max);
+ 526:../../tmk_core/common/command.c ****             break;
+ 527:../../tmk_core/common/command.c ****         case 5:
+ 528:../../tmk_core/common/command.c ****             if (mk_wheel_max_speed > dec)
+ 529:../../tmk_core/common/command.c ****                 mk_wheel_max_speed -= dec;
+ 530:../../tmk_core/common/command.c ****             else
+ 531:../../tmk_core/common/command.c ****                 mk_wheel_max_speed = 0;
+ 532:../../tmk_core/common/command.c ****             PRINT_SET_VAL(mk_wheel_max_speed);
+ 533:../../tmk_core/common/command.c ****             break;
+ 534:../../tmk_core/common/command.c ****         case 6:
+ 535:../../tmk_core/common/command.c ****             if (mk_wheel_time_to_max > dec)
+ 536:../../tmk_core/common/command.c ****                 mk_wheel_time_to_max -= dec;
+ 537:../../tmk_core/common/command.c ****             else
+ 538:../../tmk_core/common/command.c ****                 mk_wheel_time_to_max = 0;
+ 539:../../tmk_core/common/command.c ****             PRINT_SET_VAL(mk_wheel_time_to_max);
+ 540:../../tmk_core/common/command.c ****             break;
+ 541:../../tmk_core/common/command.c ****     }
+ 542:../../tmk_core/common/command.c **** }
+ 543:../../tmk_core/common/command.c **** 
+ 544:../../tmk_core/common/command.c **** static void mousekey_console_help(void)
+ 545:../../tmk_core/common/command.c **** {
+ 546:../../tmk_core/common/command.c ****     print("\n\t- Mousekey -\n"
+ 547:../../tmk_core/common/command.c ****           "ESC/q:	quit\n"
+ 548:../../tmk_core/common/command.c ****           "1:	delay(*10ms)\n"
+ 549:../../tmk_core/common/command.c ****           "2:	interval(ms)\n"
+ 550:../../tmk_core/common/command.c ****           "3:	max_speed\n"
+ 551:../../tmk_core/common/command.c ****           "4:	time_to_max\n"
+ 552:../../tmk_core/common/command.c ****           "5:	wheel_max_speed\n"
+ 553:../../tmk_core/common/command.c ****           "6:	wheel_time_to_max\n"
+ 554:../../tmk_core/common/command.c ****           "\n"
+ 555:../../tmk_core/common/command.c ****           "p:	print values\n"
+ 556:../../tmk_core/common/command.c ****           "d:	set defaults\n"
+ 557:../../tmk_core/common/command.c ****           "up:	+1\n"
+ 558:../../tmk_core/common/command.c ****           "down:	-1\n"
+ 559:../../tmk_core/common/command.c ****           "pgup:	+10\n"
+ 560:../../tmk_core/common/command.c ****           "pgdown:	-10\n"
+ 561:../../tmk_core/common/command.c ****           "\n"
+ 562:../../tmk_core/common/command.c ****           "speed = delta * max_speed * (repeat / time_to_max)\n");
+ 563:../../tmk_core/common/command.c ****     xprintf("where delta: cursor=%d, wheel=%d\n" 
+ 564:../../tmk_core/common/command.c ****             "See http://en.wikipedia.org/wiki/Mouse_keys\n", MOUSEKEY_MOVE_DELTA,  MOUSEKEY_WHEEL_D
+ 565:../../tmk_core/common/command.c **** }
+ 566:../../tmk_core/common/command.c **** 
+ 567:../../tmk_core/common/command.c **** static bool mousekey_console(uint8_t code)
+ 568:../../tmk_core/common/command.c **** {
+ 569:../../tmk_core/common/command.c ****     switch (code) {
+ 570:../../tmk_core/common/command.c ****         case KC_H:
+ 571:../../tmk_core/common/command.c ****         case KC_SLASH: /* ? */
+ 572:../../tmk_core/common/command.c ****             mousekey_console_help();
+ 573:../../tmk_core/common/command.c ****             break;
+ 574:../../tmk_core/common/command.c ****         case KC_Q:
+ 575:../../tmk_core/common/command.c ****         case KC_ESC:
+ 576:../../tmk_core/common/command.c ****             if (mousekey_param) {
+ 577:../../tmk_core/common/command.c ****                 mousekey_param = 0;
+ 578:../../tmk_core/common/command.c ****             } else {
+ 579:../../tmk_core/common/command.c ****                 print("C> ");
+ 580:../../tmk_core/common/command.c ****                 command_state = CONSOLE;
+ 581:../../tmk_core/common/command.c ****                 return false;
+ 582:../../tmk_core/common/command.c ****             }
+ 583:../../tmk_core/common/command.c ****             break;
+ 584:../../tmk_core/common/command.c ****         case KC_P:
+ 585:../../tmk_core/common/command.c ****             mousekey_param_print();
+ 586:../../tmk_core/common/command.c ****             break;
+ 587:../../tmk_core/common/command.c ****         case KC_1:
+ 588:../../tmk_core/common/command.c ****         case KC_2:
+ 589:../../tmk_core/common/command.c ****         case KC_3:
+ 590:../../tmk_core/common/command.c ****         case KC_4:
+ 591:../../tmk_core/common/command.c ****         case KC_5:
+ 592:../../tmk_core/common/command.c ****         case KC_6:
+ 593:../../tmk_core/common/command.c ****             mousekey_param = numkey2num(code);
+ 594:../../tmk_core/common/command.c ****             break;
+ 595:../../tmk_core/common/command.c ****         case KC_UP:
+ 596:../../tmk_core/common/command.c ****             mousekey_param_inc(mousekey_param, 1);
+ 597:../../tmk_core/common/command.c ****             break;
+ 598:../../tmk_core/common/command.c ****         case KC_DOWN:
+ 599:../../tmk_core/common/command.c ****             mousekey_param_dec(mousekey_param, 1);
+ 600:../../tmk_core/common/command.c ****             break;
+ 601:../../tmk_core/common/command.c ****         case KC_PGUP:
+ 602:../../tmk_core/common/command.c ****             mousekey_param_inc(mousekey_param, 10);
+ 603:../../tmk_core/common/command.c ****             break;
+ 604:../../tmk_core/common/command.c ****         case KC_PGDN:
+ 605:../../tmk_core/common/command.c ****             mousekey_param_dec(mousekey_param, 10);
+ 606:../../tmk_core/common/command.c ****             break;
+ 607:../../tmk_core/common/command.c ****         case KC_D:
+ 608:../../tmk_core/common/command.c ****             mk_delay = MOUSEKEY_DELAY/10;
+ 609:../../tmk_core/common/command.c ****             mk_interval = MOUSEKEY_INTERVAL;
+ 610:../../tmk_core/common/command.c ****             mk_max_speed = MOUSEKEY_MAX_SPEED;
+ 611:../../tmk_core/common/command.c ****             mk_time_to_max = MOUSEKEY_TIME_TO_MAX;
+ 612:../../tmk_core/common/command.c ****             mk_wheel_max_speed = MOUSEKEY_WHEEL_MAX_SPEED;
+ 613:../../tmk_core/common/command.c ****             mk_wheel_time_to_max = MOUSEKEY_WHEEL_TIME_TO_MAX;
+ 614:../../tmk_core/common/command.c ****             print("set default\n");
+ 615:../../tmk_core/common/command.c ****             break;
+ 616:../../tmk_core/common/command.c ****         default:
+ 617:../../tmk_core/common/command.c ****             print("?");
+ 618:../../tmk_core/common/command.c ****             return false;
+ 619:../../tmk_core/common/command.c ****     }
+ 620:../../tmk_core/common/command.c ****     if (mousekey_param) {
+ 621:../../tmk_core/common/command.c ****         xprintf("M%d> ", mousekey_param);
+ 622:../../tmk_core/common/command.c ****     } else {
+ 623:../../tmk_core/common/command.c ****         print("M>" );
+ 624:../../tmk_core/common/command.c ****     }
+ 625:../../tmk_core/common/command.c ****     return true;
+ 626:../../tmk_core/common/command.c **** }
+ 627:../../tmk_core/common/command.c **** #endif
+ 628:../../tmk_core/common/command.c **** 
+ 629:../../tmk_core/common/command.c **** 
+ 630:../../tmk_core/common/command.c **** /***********************************************************
+ 631:../../tmk_core/common/command.c ****  * Utilities
+ 632:../../tmk_core/common/command.c ****  ***********************************************************/
+ 633:../../tmk_core/common/command.c **** #if MOUSEKEY_ENABLE
+ 634:../../tmk_core/common/command.c **** static uint8_t numkey2num(uint8_t code)
+ 635:../../tmk_core/common/command.c **** {
+ 636:../../tmk_core/common/command.c ****     switch (code) {
+ 637:../../tmk_core/common/command.c ****         case KC_1: return 1;
+ 638:../../tmk_core/common/command.c ****         case KC_2: return 2;
+ 639:../../tmk_core/common/command.c ****         case KC_3: return 3;
+ 640:../../tmk_core/common/command.c ****         case KC_4: return 4;
+ 641:../../tmk_core/common/command.c ****         case KC_5: return 5;
+ 642:../../tmk_core/common/command.c ****         case KC_6: return 6;
+ 643:../../tmk_core/common/command.c ****         case KC_7: return 7;
+ 644:../../tmk_core/common/command.c ****         case KC_8: return 8;
+ 645:../../tmk_core/common/command.c ****         case KC_9: return 9;
+ 646:../../tmk_core/common/command.c ****         case KC_0: return 0;
+ 647:../../tmk_core/common/command.c ****     }
+ 648:../../tmk_core/common/command.c ****     return 0;
+ 649:../../tmk_core/common/command.c **** }
+ 650:../../tmk_core/common/command.c **** #endif
+ 651:../../tmk_core/common/command.c **** 
+ 652:../../tmk_core/common/command.c **** static void switch_default_layer(uint8_t layer)
+ 653:../../tmk_core/common/command.c **** {
+  16               		.loc 1 653 1 view -0
+  17               		.cfi_startproc
+  18               		.loc 1 653 1 is_stmt 0 view .LVU1
+  19 0000 CF93      		push r28
+  20               	.LCFI0:
+  21               		.cfi_def_cfa_offset 3
+  22               		.cfi_offset 28, -2
+  23 0002 DF93      		push r29
+  24               	.LCFI1:
+  25               		.cfi_def_cfa_offset 4
+  26               		.cfi_offset 29, -3
+  27 0004 00D0      		rcall .
+  28 0006 00D0      		rcall .
+  29               	.LCFI2:
+  30               		.cfi_def_cfa_offset 8
+  31 0008 CDB7      		in r28,__SP_L__
+  32 000a DEB7      		in r29,__SP_H__
+  33               	.LCFI3:
+  34               		.cfi_def_cfa_register 28
+  35               	/* prologue: function */
+  36               	/* frame size = 4 */
+  37               	/* stack size = 6 */
+  38               	.L__stack_usage = 6
+  39 000c 8983      		std Y+1,r24
+ 654:../../tmk_core/common/command.c ****     xprintf("L%d\n", layer);
+  40               		.loc 1 654 5 is_stmt 1 view .LVU2
+  41               	.LBB26:
+  42               		.loc 1 654 5 view .LVU3
+  43               		.loc 1 654 5 view .LVU4
+  44               	.LBE26:
+  45 000e 1F92      		push __zero_reg__
+  46 0010 8F93      		push r24
+  47 0012 80E0      		ldi r24,lo8(__c.2664)
+  48 0014 90E0      		ldi r25,hi8(__c.2664)
+  49               	.LVL1:
+  50               		.loc 1 654 5 is_stmt 0 view .LVU5
+  51 0016 9F93      		push r25
+  52 0018 8F93      		push r24
+  53 001a 0E94 0000 		call __xprintf
+  54               	.LVL2:
+ 655:../../tmk_core/common/command.c ****     default_layer_set(1UL<<layer);
+  55               		.loc 1 655 5 is_stmt 1 view .LVU6
+  56 001e 81E0      		ldi r24,lo8(1)
+  57 0020 90E0      		ldi r25,0
+  58 0022 A0E0      		ldi r26,0
+  59 0024 B0E0      		ldi r27,0
+  60 0026 9C01      		movw r18,r24
+  61 0028 AD01      		movw r20,r26
+  62 002a 0980      		ldd r0,Y+1
+  63 002c 00C0      		rjmp 2f
+  64               		1:
+  65 002e 220F      		lsl r18
+  66 0030 331F      		rol r19
+  67 0032 441F      		rol r20
+  68 0034 551F      		rol r21
+  69               		2:
+  70 0036 0A94      		dec r0
+  71 0038 02F4      		brpl 1b
+  72 003a 2983      		std Y+1,r18
+  73 003c 3A83      		std Y+2,r19
+  74 003e 4B83      		std Y+3,r20
+  75 0040 5C83      		std Y+4,r21
+  76               	.LVL3:
+  77               		.loc 1 655 5 is_stmt 0 view .LVU7
+  78 0042 CA01      		movw r24,r20
+  79 0044 B901      		movw r22,r18
+  80 0046 0E94 0000 		call default_layer_set
+  81               	.LVL4:
+ 656:../../tmk_core/common/command.c ****     clear_keyboard();
+  82               		.loc 1 656 5 is_stmt 1 view .LVU8
+  83 004a 0F90      		pop __tmp_reg__
+  84 004c 0F90      		pop __tmp_reg__
+  85 004e 0F90      		pop __tmp_reg__
+  86 0050 0F90      		pop __tmp_reg__
+  87               	/* epilogue start */
+ 657:../../tmk_core/common/command.c **** }
+  88               		.loc 1 657 1 is_stmt 0 view .LVU9
+  89 0052 0F90      		pop __tmp_reg__
+  90 0054 0F90      		pop __tmp_reg__
+  91 0056 0F90      		pop __tmp_reg__
+  92 0058 0F90      		pop __tmp_reg__
+  93 005a DF91      		pop r29
+  94 005c CF91      		pop r28
+ 656:../../tmk_core/common/command.c ****     clear_keyboard();
+  95               		.loc 1 656 5 view .LVU10
+  96 005e 0C94 0000 		jmp clear_keyboard
+  97               	.LVL5:
+  98               		.cfi_endproc
+  99               	.LFE17:
+ 101               		.section	.text.command_common,"ax",@progbits
+ 103               	command_common:
+ 104               	.LFB14:
+ 183:../../tmk_core/common/command.c **** #ifdef KEYBOARD_LOCK_ENABLE
+ 105               		.loc 1 183 1 is_stmt 1 view -0
+ 106               		.cfi_startproc
+ 107               	/* prologue: function */
+ 108               	/* frame size = 0 */
+ 109               	/* stack size = 0 */
+ 110               	.L__stack_usage = 0
+ 190:../../tmk_core/common/command.c **** #ifdef SLEEP_LED_ENABLE
+ 111               		.loc 1 190 5 view .LVU12
+ 112 0000 8A32      		cpi r24,lo8(42)
+ 113 0002 00F4      		brsh .L3
+ 114 0004 8630      		cpi r24,lo8(6)
+ 115 0006 00F0      		brlo .L4
+ 116 0008 EAEF      		ldi r30,lo8(-6)
+ 117 000a E80F      		add r30,r24
+ 118 000c E432      		cpi r30,lo8(36)
+ 119 000e 00F4      		brsh .L4
+ 120 0010 F0E0      		ldi r31,0
+ 121 0012 E050      		subi r30,lo8(-(gs(.L6)))
+ 122 0014 F040      		sbci r31,hi8(-(gs(.L6)))
+ 123 0016 0C94 0000 		jmp __tablejump2__
+ 124               		.section	.jumptables.gcc.command_common,"a",@progbits
+ 125               		.p2align	1
+ 126               	.L6:
+ 127 0000 0000      		.word gs(.L15)
+ 128 0002 0000      		.word gs(.L14)
+ 129 0004 0000      		.word gs(.L4)
+ 130 0006 0000      		.word gs(.L4)
+ 131 0008 0000      		.word gs(.L4)
+ 132 000a 0000      		.word gs(.L13)
+ 133 000c 0000      		.word gs(.L4)
+ 134 000e 0000      		.word gs(.L4)
+ 135 0010 0000      		.word gs(.L12)
+ 136 0012 0000      		.word gs(.L4)
+ 137 0014 0000      		.word gs(.L11)
+ 138 0016 0000      		.word gs(.L4)
+ 139 0018 0000      		.word gs(.L4)
+ 140 001a 0000      		.word gs(.L4)
+ 141 001c 0000      		.word gs(.L4)
+ 142 001e 0000      		.word gs(.L4)
+ 143 0020 0000      		.word gs(.L10)
+ 144 0022 0000      		.word gs(.L4)
+ 145 0024 0000      		.word gs(.L4)
+ 146 0026 0000      		.word gs(.L9)
+ 147 0028 0000      		.word gs(.L4)
+ 148 002a 0000      		.word gs(.L8)
+ 149 002c 0000      		.word gs(.L4)
+ 150 002e 0000      		.word gs(.L4)
+ 151 0030 0000      		.word gs(.L7)
+ 152 0032 0000      		.word gs(.L7)
+ 153 0034 0000      		.word gs(.L7)
+ 154 0036 0000      		.word gs(.L7)
+ 155 0038 0000      		.word gs(.L7)
+ 156 003a 0000      		.word gs(.L7)
+ 157 003c 0000      		.word gs(.L7)
+ 158 003e 0000      		.word gs(.L7)
+ 159 0040 0000      		.word gs(.L7)
+ 160 0042 0000      		.word gs(.L5)
+ 161 0044 0000      		.word gs(.L4)
+ 162 0046 0000      		.word gs(.L5)
+ 163               		.section	.text.command_common
+ 164               	.L3:
+ 165 001a 8334      		cpi r24,lo8(67)
+ 166 001c 00F4      		brsh .L16
+ 167 001e 8A33      		cpi r24,lo8(58)
+ 168 0020 00F0      		brlo .+2
+ 169 0022 00C0      		rjmp .L17
+ 170 0024 8533      		cpi r24,lo8(53)
+ 171 0026 01F4      		brne .+2
+ 172 0028 00C0      		rjmp .L5
+ 173 002a 8833      		cpi r24,lo8(56)
+ 174 002c 01F0      		breq .L13
+ 175               	.L4:
+ 382:../../tmk_core/common/command.c ****             return false;
+ 176               		.loc 1 382 13 view .LVU13
+ 177               	.LBB57:
+ 382:../../tmk_core/common/command.c ****             return false;
+ 178               		.loc 1 382 13 view .LVU14
+ 382:../../tmk_core/common/command.c ****             return false;
+ 179               		.loc 1 382 13 view .LVU15
+ 180               	.LBE57:
+ 181 002e 80E0      		ldi r24,lo8(__c.2641)
+ 182 0030 90E0      		ldi r25,hi8(__c.2641)
+ 183 0032 0E94 0000 		call xputs
+ 383:../../tmk_core/common/command.c ****     }
+ 184               		.loc 1 383 13 view .LVU16
+ 383:../../tmk_core/common/command.c ****     }
+ 185               		.loc 1 383 20 is_stmt 0 view .LVU17
+ 186 0036 80E0      		ldi r24,0
+ 187               	/* epilogue start */
+ 386:../../tmk_core/common/command.c **** 
+ 188               		.loc 1 386 1 view .LVU18
+ 189 0038 0895      		ret
+ 190               	.L16:
+ 190:../../tmk_core/common/command.c **** #ifdef SLEEP_LED_ENABLE
+ 191               		.loc 1 190 5 view .LVU19
+ 192 003a 8334      		cpi r24,lo8(67)
+ 193 003c 01F4      		brne .+2
+ 194 003e 00C0      		rjmp .L5
+ 195 0040 8834      		cpi r24,lo8(72)
+ 196 0042 01F4      		brne .L4
+ 237:../../tmk_core/common/command.c ****             print("\n\nbootloader... ");
+ 197               		.loc 1 237 13 is_stmt 1 view .LVU20
+ 198 0044 0E94 0000 		call clear_keyboard
+ 238:../../tmk_core/common/command.c ****             wait_ms(1000);
+ 199               		.loc 1 238 13 view .LVU21
+ 200               	.LBB58:
+ 238:../../tmk_core/common/command.c ****             wait_ms(1000);
+ 201               		.loc 1 238 13 view .LVU22
+ 238:../../tmk_core/common/command.c ****             wait_ms(1000);
+ 202               		.loc 1 238 13 view .LVU23
+ 203               	.LBE58:
+ 204 0048 80E0      		ldi r24,lo8(__c.2588)
+ 205 004a 90E0      		ldi r25,hi8(__c.2588)
+ 206 004c 0E94 0000 		call xputs
+ 239:../../tmk_core/common/command.c ****             bootloader_jump(); // not return
+ 207               		.loc 1 239 13 view .LVU24
+ 208               	.LBB59:
+ 209               	.LBI59:
+ 210               		.file 2 "/usr/avr/include/util/delay.h"
+   1:/usr/avr/include/util/delay.h **** /* Copyright (c) 2002, Marek Michalkiewicz
+   2:/usr/avr/include/util/delay.h ****    Copyright (c) 2004,2005,2007 Joerg Wunsch
+   3:/usr/avr/include/util/delay.h ****    Copyright (c) 2007  Florin-Viorel Petrov
+   4:/usr/avr/include/util/delay.h ****    All rights reserved.
+   5:/usr/avr/include/util/delay.h **** 
+   6:/usr/avr/include/util/delay.h ****    Redistribution and use in source and binary forms, with or without
+   7:/usr/avr/include/util/delay.h ****    modification, are permitted provided that the following conditions are met:
+   8:/usr/avr/include/util/delay.h **** 
+   9:/usr/avr/include/util/delay.h ****    * Redistributions of source code must retain the above copyright
+  10:/usr/avr/include/util/delay.h ****      notice, this list of conditions and the following disclaimer.
+  11:/usr/avr/include/util/delay.h **** 
+  12:/usr/avr/include/util/delay.h ****    * Redistributions in binary form must reproduce the above copyright
+  13:/usr/avr/include/util/delay.h ****      notice, this list of conditions and the following disclaimer in
+  14:/usr/avr/include/util/delay.h ****      the documentation and/or other materials provided with the
+  15:/usr/avr/include/util/delay.h ****      distribution.
+  16:/usr/avr/include/util/delay.h **** 
+  17:/usr/avr/include/util/delay.h ****    * Neither the name of the copyright holders nor the names of
+  18:/usr/avr/include/util/delay.h ****      contributors may be used to endorse or promote products derived
+  19:/usr/avr/include/util/delay.h ****      from this software without specific prior written permission.
+  20:/usr/avr/include/util/delay.h **** 
+  21:/usr/avr/include/util/delay.h ****   THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
+  22:/usr/avr/include/util/delay.h ****   AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+  23:/usr/avr/include/util/delay.h ****   IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+  24:/usr/avr/include/util/delay.h ****   ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE
+  25:/usr/avr/include/util/delay.h ****   LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
+  26:/usr/avr/include/util/delay.h ****   CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
+  27:/usr/avr/include/util/delay.h ****   SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
+  28:/usr/avr/include/util/delay.h ****   INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
+  29:/usr/avr/include/util/delay.h ****   CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+  30:/usr/avr/include/util/delay.h ****   ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+  31:/usr/avr/include/util/delay.h ****   POSSIBILITY OF SUCH DAMAGE. */
+  32:/usr/avr/include/util/delay.h **** 
+  33:/usr/avr/include/util/delay.h **** /* $Id: delay.h.in 2506 2016-02-08 10:05:45Z joerg_wunsch $ */
+  34:/usr/avr/include/util/delay.h **** 
+  35:/usr/avr/include/util/delay.h **** #ifndef _UTIL_DELAY_H_
+  36:/usr/avr/include/util/delay.h **** #define _UTIL_DELAY_H_ 1
+  37:/usr/avr/include/util/delay.h **** 
+  38:/usr/avr/include/util/delay.h **** #ifndef __DOXYGEN__
+  39:/usr/avr/include/util/delay.h **** #  ifndef __HAS_DELAY_CYCLES
+  40:/usr/avr/include/util/delay.h **** #    define __HAS_DELAY_CYCLES 1
+  41:/usr/avr/include/util/delay.h **** #  endif
+  42:/usr/avr/include/util/delay.h **** #endif  /* __DOXYGEN__ */
+  43:/usr/avr/include/util/delay.h **** 
+  44:/usr/avr/include/util/delay.h **** #include <inttypes.h>
+  45:/usr/avr/include/util/delay.h **** #include <util/delay_basic.h>
+  46:/usr/avr/include/util/delay.h **** #include <math.h>
+  47:/usr/avr/include/util/delay.h **** 
+  48:/usr/avr/include/util/delay.h **** /** \file */
+  49:/usr/avr/include/util/delay.h **** /** \defgroup util_delay <util/delay.h>: Convenience functions for busy-wait delay loops
+  50:/usr/avr/include/util/delay.h ****     \code
+  51:/usr/avr/include/util/delay.h ****     #define F_CPU 1000000UL  // 1 MHz
+  52:/usr/avr/include/util/delay.h ****     //#define F_CPU 14.7456E6
+  53:/usr/avr/include/util/delay.h ****     #include <util/delay.h>
+  54:/usr/avr/include/util/delay.h ****     \endcode
+  55:/usr/avr/include/util/delay.h **** 
+  56:/usr/avr/include/util/delay.h ****     \note As an alternative method, it is possible to pass the
+  57:/usr/avr/include/util/delay.h ****     F_CPU macro down to the compiler from the Makefile.
+  58:/usr/avr/include/util/delay.h ****     Obviously, in that case, no \c \#define statement should be
+  59:/usr/avr/include/util/delay.h ****     used.
+  60:/usr/avr/include/util/delay.h **** 
+  61:/usr/avr/include/util/delay.h ****     The functions in this header file are wrappers around the basic
+  62:/usr/avr/include/util/delay.h ****     busy-wait functions from <util/delay_basic.h>.  They are meant as
+  63:/usr/avr/include/util/delay.h ****     convenience functions where actual time values can be specified
+  64:/usr/avr/include/util/delay.h ****     rather than a number of cycles to wait for.  The idea behind is
+  65:/usr/avr/include/util/delay.h ****     that compile-time constant expressions will be eliminated by
+  66:/usr/avr/include/util/delay.h ****     compiler optimization so floating-point expressions can be used
+  67:/usr/avr/include/util/delay.h ****     to calculate the number of delay cycles needed based on the CPU
+  68:/usr/avr/include/util/delay.h ****     frequency passed by the macro F_CPU.
+  69:/usr/avr/include/util/delay.h **** 
+  70:/usr/avr/include/util/delay.h ****     \note In order for these functions to work as intended, compiler
+  71:/usr/avr/include/util/delay.h ****     optimizations <em>must</em> be enabled, and the delay time
+  72:/usr/avr/include/util/delay.h ****     <em>must</em> be an expression that is a known constant at
+  73:/usr/avr/include/util/delay.h ****     compile-time.  If these requirements are not met, the resulting
+  74:/usr/avr/include/util/delay.h ****     delay will be much longer (and basically unpredictable), and
+  75:/usr/avr/include/util/delay.h ****     applications that otherwise do not use floating-point calculations
+  76:/usr/avr/include/util/delay.h ****     will experience severe code bloat by the floating-point library
+  77:/usr/avr/include/util/delay.h ****     routines linked into the application.
+  78:/usr/avr/include/util/delay.h **** 
+  79:/usr/avr/include/util/delay.h ****     The functions available allow the specification of microsecond, and
+  80:/usr/avr/include/util/delay.h ****     millisecond delays directly, using the application-supplied macro
+  81:/usr/avr/include/util/delay.h ****     F_CPU as the CPU clock frequency (in Hertz).
+  82:/usr/avr/include/util/delay.h **** 
+  83:/usr/avr/include/util/delay.h **** */
+  84:/usr/avr/include/util/delay.h **** 
+  85:/usr/avr/include/util/delay.h **** #if !defined(__DOXYGEN__)
+  86:/usr/avr/include/util/delay.h **** static __inline__ void _delay_us(double __us) __attribute__((__always_inline__));
+  87:/usr/avr/include/util/delay.h **** static __inline__ void _delay_ms(double __ms) __attribute__((__always_inline__));
+  88:/usr/avr/include/util/delay.h **** #endif
+  89:/usr/avr/include/util/delay.h **** 
+  90:/usr/avr/include/util/delay.h **** #ifndef F_CPU
+  91:/usr/avr/include/util/delay.h **** /* prevent compiler error by supplying a default */
+  92:/usr/avr/include/util/delay.h **** # warning "F_CPU not defined for <util/delay.h>"
+  93:/usr/avr/include/util/delay.h **** /** \ingroup util_delay
+  94:/usr/avr/include/util/delay.h ****     \def F_CPU
+  95:/usr/avr/include/util/delay.h ****     \brief CPU frequency in Hz
+  96:/usr/avr/include/util/delay.h **** 
+  97:/usr/avr/include/util/delay.h ****     The macro F_CPU specifies the CPU frequency to be considered by
+  98:/usr/avr/include/util/delay.h ****     the delay macros.  This macro is normally supplied by the
+  99:/usr/avr/include/util/delay.h ****     environment (e.g. from within a project header, or the project's
+ 100:/usr/avr/include/util/delay.h ****     Makefile).  The value 1 MHz here is only provided as a "vanilla"
+ 101:/usr/avr/include/util/delay.h ****     fallback if no such user-provided definition could be found.
+ 102:/usr/avr/include/util/delay.h **** 
+ 103:/usr/avr/include/util/delay.h ****     In terms of the delay functions, the CPU frequency can be given as
+ 104:/usr/avr/include/util/delay.h ****     a floating-point constant (e.g. 3.6864E6 for 3.6864 MHz).
+ 105:/usr/avr/include/util/delay.h ****     However, the macros in <util/setbaud.h> require it to be an
+ 106:/usr/avr/include/util/delay.h ****     integer value.
+ 107:/usr/avr/include/util/delay.h ****  */
+ 108:/usr/avr/include/util/delay.h **** # define F_CPU 1000000UL
+ 109:/usr/avr/include/util/delay.h **** #endif
+ 110:/usr/avr/include/util/delay.h **** 
+ 111:/usr/avr/include/util/delay.h **** #ifndef __OPTIMIZE__
+ 112:/usr/avr/include/util/delay.h **** # warning "Compiler optimizations disabled; functions from <util/delay.h> won't work as designed"
+ 113:/usr/avr/include/util/delay.h **** #endif
+ 114:/usr/avr/include/util/delay.h **** 
+ 115:/usr/avr/include/util/delay.h **** #if __HAS_DELAY_CYCLES && defined(__OPTIMIZE__) && \
+ 116:/usr/avr/include/util/delay.h ****   !defined(__DELAY_BACKWARD_COMPATIBLE__) &&	   \
+ 117:/usr/avr/include/util/delay.h ****   __STDC_HOSTED__
+ 118:/usr/avr/include/util/delay.h **** #  include <math.h>
+ 119:/usr/avr/include/util/delay.h **** #endif
+ 120:/usr/avr/include/util/delay.h **** 
+ 121:/usr/avr/include/util/delay.h **** /**
+ 122:/usr/avr/include/util/delay.h ****    \ingroup util_delay
+ 123:/usr/avr/include/util/delay.h **** 
+ 124:/usr/avr/include/util/delay.h ****    Perform a delay of \c __ms milliseconds, using _delay_loop_2().
+ 125:/usr/avr/include/util/delay.h **** 
+ 126:/usr/avr/include/util/delay.h ****    The macro F_CPU is supposed to be defined to a
+ 127:/usr/avr/include/util/delay.h ****    constant defining the CPU clock frequency (in Hertz).
+ 128:/usr/avr/include/util/delay.h **** 
+ 129:/usr/avr/include/util/delay.h ****    The maximal possible delay is 262.14 ms / F_CPU in MHz.
+ 130:/usr/avr/include/util/delay.h **** 
+ 131:/usr/avr/include/util/delay.h ****    When the user request delay which exceed the maximum possible one,
+ 132:/usr/avr/include/util/delay.h ****    _delay_ms() provides a decreased resolution functionality. In this
+ 133:/usr/avr/include/util/delay.h ****    mode _delay_ms() will work with a resolution of 1/10 ms, providing
+ 134:/usr/avr/include/util/delay.h ****    delays up to 6.5535 seconds (independent from CPU frequency).  The
+ 135:/usr/avr/include/util/delay.h ****    user will not be informed about decreased resolution.
+ 136:/usr/avr/include/util/delay.h **** 
+ 137:/usr/avr/include/util/delay.h ****    If the avr-gcc toolchain has __builtin_avr_delay_cycles()
+ 138:/usr/avr/include/util/delay.h ****    support, maximal possible delay is 4294967.295 ms/ F_CPU in MHz. For
+ 139:/usr/avr/include/util/delay.h ****    values greater than the maximal possible delay, overflows results in
+ 140:/usr/avr/include/util/delay.h ****    no delay i.e., 0ms.
+ 141:/usr/avr/include/util/delay.h **** 
+ 142:/usr/avr/include/util/delay.h ****    Conversion of \c __ms into clock cycles may not always result in
+ 143:/usr/avr/include/util/delay.h ****    integer.  By default, the clock cycles rounded up to next
+ 144:/usr/avr/include/util/delay.h ****    integer. This ensures that the user gets at least \c __ms
+ 145:/usr/avr/include/util/delay.h ****    microseconds of delay.
+ 146:/usr/avr/include/util/delay.h **** 
+ 147:/usr/avr/include/util/delay.h ****    Alternatively, by defining the macro \c __DELAY_ROUND_DOWN__, or
+ 148:/usr/avr/include/util/delay.h ****    \c __DELAY_ROUND_CLOSEST__, before including this header file, the
+ 149:/usr/avr/include/util/delay.h ****    algorithm can be made to round down, or round to closest integer,
+ 150:/usr/avr/include/util/delay.h ****    respectively.
+ 151:/usr/avr/include/util/delay.h **** 
+ 152:/usr/avr/include/util/delay.h ****    \note
+ 153:/usr/avr/include/util/delay.h **** 
+ 154:/usr/avr/include/util/delay.h ****    The implementation of _delay_ms() based on
+ 155:/usr/avr/include/util/delay.h ****    __builtin_avr_delay_cycles() is not backward compatible with older
+ 156:/usr/avr/include/util/delay.h ****    implementations.  In order to get functionality backward compatible
+ 157:/usr/avr/include/util/delay.h ****    with previous versions, the macro \c "__DELAY_BACKWARD_COMPATIBLE__"
+ 158:/usr/avr/include/util/delay.h ****    must be defined before including this header file. Also, the
+ 159:/usr/avr/include/util/delay.h ****    backward compatible algorithm will be chosen if the code is
+ 160:/usr/avr/include/util/delay.h ****    compiled in a <em>freestanding environment</em> (GCC option
+ 161:/usr/avr/include/util/delay.h ****    \c -ffreestanding), as the math functions required for rounding are
+ 162:/usr/avr/include/util/delay.h ****    not available to the compiler then.
+ 163:/usr/avr/include/util/delay.h **** 
+ 164:/usr/avr/include/util/delay.h ****  */
+ 165:/usr/avr/include/util/delay.h **** void
+ 166:/usr/avr/include/util/delay.h **** _delay_ms(double __ms)
+ 211               		.loc 2 166 1 view .LVU25
+ 212               	.LBB60:
+ 167:/usr/avr/include/util/delay.h **** {
+ 168:/usr/avr/include/util/delay.h **** 	double __tmp ;
+ 213               		.loc 2 168 2 view .LVU26
+ 169:/usr/avr/include/util/delay.h **** #if __HAS_DELAY_CYCLES && defined(__OPTIMIZE__) && \
+ 170:/usr/avr/include/util/delay.h ****   !defined(__DELAY_BACKWARD_COMPATIBLE__) &&	   \
+ 171:/usr/avr/include/util/delay.h ****   __STDC_HOSTED__
+ 172:/usr/avr/include/util/delay.h **** 	uint32_t __ticks_dc;
+ 214               		.loc 2 172 2 view .LVU27
+ 173:/usr/avr/include/util/delay.h **** 	extern void __builtin_avr_delay_cycles(unsigned long);
+ 215               		.loc 2 173 2 view .LVU28
+ 174:/usr/avr/include/util/delay.h **** 	__tmp = ((F_CPU) / 1e3) * __ms;
+ 216               		.loc 2 174 2 view .LVU29
+ 175:/usr/avr/include/util/delay.h **** 
+ 176:/usr/avr/include/util/delay.h **** 	#if defined(__DELAY_ROUND_DOWN__)
+ 177:/usr/avr/include/util/delay.h **** 		__ticks_dc = (uint32_t)fabs(__tmp);
+ 178:/usr/avr/include/util/delay.h **** 
+ 179:/usr/avr/include/util/delay.h **** 	#elif defined(__DELAY_ROUND_CLOSEST__)
+ 180:/usr/avr/include/util/delay.h **** 		__ticks_dc = (uint32_t)(fabs(__tmp)+0.5);
+ 181:/usr/avr/include/util/delay.h **** 
+ 182:/usr/avr/include/util/delay.h **** 	#else
+ 183:/usr/avr/include/util/delay.h **** 		//round up by default
+ 184:/usr/avr/include/util/delay.h **** 		__ticks_dc = (uint32_t)(ceil(fabs(__tmp)));
+ 217               		.loc 2 184 3 view .LVU30
+ 185:/usr/avr/include/util/delay.h **** 	#endif
+ 186:/usr/avr/include/util/delay.h **** 
+ 187:/usr/avr/include/util/delay.h **** 	__builtin_avr_delay_cycles(__ticks_dc);
+ 218               		.loc 2 187 2 view .LVU31
+ 219 0050 2FEF      		ldi r18,lo8(3199999)
+ 220 0052 83ED      		ldi r24,hi8(3199999)
+ 221 0054 90E3      		ldi r25,hlo8(3199999)
+ 222 0056 2150      	1:	subi r18,1
+ 223 0058 8040      		sbci r24,0
+ 224 005a 9040      		sbci r25,0
+ 225 005c 01F4      		brne 1b
+ 226 005e 00C0      		rjmp .
+ 227 0060 0000      		nop
+ 228               	.LBE60:
+ 229               	.LBE59:
+ 240:../../tmk_core/common/command.c ****             break;
+ 230               		.loc 1 240 13 view .LVU32
+ 231 0062 0E94 0000 		call bootloader_jump
+ 232               	.L33:
+ 241:../../tmk_core/common/command.c ****         case KC_D:
+ 233               		.loc 1 241 13 view .LVU33
+ 385:../../tmk_core/common/command.c **** }
+ 234               		.loc 1 385 12 is_stmt 0 view .LVU34
+ 235 0066 81E0      		ldi r24,lo8(1)
+ 241:../../tmk_core/common/command.c ****         case KC_D:
+ 236               		.loc 1 241 13 view .LVU35
+ 237 0068 0895      		ret
+ 238               	.L13:
+ 225:../../tmk_core/common/command.c ****             break;
+ 239               		.loc 1 225 13 is_stmt 1 view .LVU36
+ 240               	.LBB61:
+ 241               	.LBI61:
+ 116:../../tmk_core/common/command.c **** {
+ 242               		.loc 1 116 13 view .LVU37
+ 243               	.LBB62:
+ 118:../../tmk_core/common/command.c ****           "d:	debug\n"
+ 244               		.loc 1 118 5 view .LVU38
+ 245               	.LBE62:
+ 246               	.LBE61:
+ 118:../../tmk_core/common/command.c ****           "d:	debug\n"
+ 247               		.loc 1 118 5 view .LVU39
+ 118:../../tmk_core/common/command.c ****           "d:	debug\n"
+ 248               		.loc 1 118 5 view .LVU40
+ 249               	.LBB64:
+ 250               	.LBB63:
+ 251 006a 80E0      		ldi r24,lo8(__c.2576)
+ 252 006c 90E0      		ldi r25,hi8(__c.2576)
+ 253               	.L34:
+ 254               	.LBE63:
+ 255               	.LBE64:
+ 325:../../tmk_core/common/command.c **** #if defined(__AVR__)
+ 256               		.loc 1 325 13 is_stmt 0 view .LVU41
+ 257 006e 0E94 0000 		call xputs
+ 333:../../tmk_core/common/command.c ****         case KC_S:
+ 258               		.loc 1 333 13 is_stmt 1 view .LVU42
+ 259 0072 00C0      		rjmp .L33
+ 260               	.L15:
+ 228:../../tmk_core/common/command.c ****             debug_keyboard = false;
+ 261               		.loc 1 228 13 view .LVU43
+ 229:../../tmk_core/common/command.c ****             debug_mouse    = false;
+ 262               		.loc 1 229 13 view .LVU44
+ 230:../../tmk_core/common/command.c ****             debug_enable   = false;
+ 263               		.loc 1 230 13 view .LVU45
+ 231:../../tmk_core/common/command.c ****             command_console_help();
+ 264               		.loc 1 231 13 view .LVU46
+ 231:../../tmk_core/common/command.c ****             command_console_help();
+ 265               		.loc 1 231 28 is_stmt 0 view .LVU47
+ 266 0074 8091 0000 		lds r24,debug_config
+ 267 0078 807F      		andi r24,lo8(-16)
+ 268 007a 8093 0000 		sts debug_config,r24
+ 232:../../tmk_core/common/command.c ****             print("C> ");
+ 269               		.loc 1 232 13 is_stmt 1 view .LVU48
+ 270               	.LBB65:
+ 271               	.LBI65:
+ 392:../../tmk_core/common/command.c **** {
+ 272               		.loc 1 392 13 view .LVU49
+ 273               	.LBB66:
+ 394:../../tmk_core/common/command.c ****           "ESC/q:	quit\n"
+ 274               		.loc 1 394 5 view .LVU50
+ 275               	.LBE66:
+ 276               	.LBE65:
+ 394:../../tmk_core/common/command.c ****           "ESC/q:	quit\n"
+ 277               		.loc 1 394 5 view .LVU51
+ 394:../../tmk_core/common/command.c ****           "ESC/q:	quit\n"
+ 278               		.loc 1 394 5 view .LVU52
+ 279               	.LBB68:
+ 280               	.LBB67:
+ 281 007e 80E0      		ldi r24,lo8(__c.2646)
+ 282 0080 90E0      		ldi r25,hi8(__c.2646)
+ 283 0082 0E94 0000 		call xputs
+ 284               	.LBE67:
+ 285               	.LBE68:
+ 233:../../tmk_core/common/command.c ****             command_state = CONSOLE;
+ 286               		.loc 1 233 13 view .LVU53
+ 287               	.LBB69:
+ 233:../../tmk_core/common/command.c ****             command_state = CONSOLE;
+ 288               		.loc 1 233 13 view .LVU54
+ 233:../../tmk_core/common/command.c ****             command_state = CONSOLE;
+ 289               		.loc 1 233 13 view .LVU55
+ 290               	.LBE69:
+ 291 0086 80E0      		ldi r24,lo8(__c.2585)
+ 292 0088 90E0      		ldi r25,hi8(__c.2585)
+ 293 008a 0E94 0000 		call xputs
+ 234:../../tmk_core/common/command.c ****             break;
+ 294               		.loc 1 234 13 view .LVU56
+ 234:../../tmk_core/common/command.c ****             break;
+ 295               		.loc 1 234 27 is_stmt 0 view .LVU57
+ 296 008e 81E0      		ldi r24,lo8(1)
+ 297 0090 8093 0000 		sts command_state,r24
+ 235:../../tmk_core/common/command.c ****         case KC_PAUSE:
+ 298               		.loc 1 235 13 is_stmt 1 view .LVU58
+ 299 0094 0895      		ret
+ 300               	.L14:
+ 243:../../tmk_core/common/command.c ****                 print("\ndebug: off\n");
+ 301               		.loc 1 243 13 view .LVU59
+ 243:../../tmk_core/common/command.c ****                 print("\ndebug: off\n");
+ 302               		.loc 1 243 17 is_stmt 0 view .LVU60
+ 303 0096 8091 0000 		lds r24,debug_config
+ 243:../../tmk_core/common/command.c ****                 print("\ndebug: off\n");
+ 304               		.loc 1 243 16 view .LVU61
+ 305 009a 80FF      		sbrs r24,0
+ 306 009c 00C0      		rjmp .L20
+ 244:../../tmk_core/common/command.c ****                 debug_matrix   = false;
+ 307               		.loc 1 244 17 is_stmt 1 view .LVU62
+ 308               	.LBB70:
+ 244:../../tmk_core/common/command.c ****                 debug_matrix   = false;
+ 309               		.loc 1 244 17 view .LVU63
+ 244:../../tmk_core/common/command.c ****                 debug_matrix   = false;
+ 310               		.loc 1 244 17 view .LVU64
+ 311               	.LBE70:
+ 312 009e 80E0      		ldi r24,lo8(__c.2591)
+ 313 00a0 90E0      		ldi r25,hi8(__c.2591)
+ 314 00a2 0E94 0000 		call xputs
+ 245:../../tmk_core/common/command.c ****                 debug_keyboard = false;
+ 315               		.loc 1 245 17 view .LVU65
+ 246:../../tmk_core/common/command.c ****                 debug_mouse    = false;
+ 316               		.loc 1 246 17 view .LVU66
+ 247:../../tmk_core/common/command.c ****                 debug_enable   = false;
+ 317               		.loc 1 247 17 view .LVU67
+ 248:../../tmk_core/common/command.c ****             } else {
+ 318               		.loc 1 248 17 view .LVU68
+ 248:../../tmk_core/common/command.c ****             } else {
+ 319               		.loc 1 248 32 is_stmt 0 view .LVU69
+ 320 00a6 8091 0000 		lds r24,debug_config
+ 321 00aa 807F      		andi r24,lo8(-16)
+ 322               	.L35:
+ 276:../../tmk_core/common/command.c ****             } else {
+ 323               		.loc 1 276 30 view .LVU70
+ 324 00ac 8093 0000 		sts debug_config,r24
+ 325 00b0 00C0      		rjmp .L33
+ 326               	.L20:
+ 250:../../tmk_core/common/command.c ****                 debug_enable   = true;
+ 327               		.loc 1 250 17 is_stmt 1 view .LVU71
+ 328               	.LBB71:
+ 250:../../tmk_core/common/command.c ****                 debug_enable   = true;
+ 329               		.loc 1 250 17 view .LVU72
+ 250:../../tmk_core/common/command.c ****                 debug_enable   = true;
+ 330               		.loc 1 250 17 view .LVU73
+ 331               	.LBE71:
+ 332 00b2 80E0      		ldi r24,lo8(__c.2593)
+ 333 00b4 90E0      		ldi r25,hi8(__c.2593)
+ 334               	.L36:
+ 275:../../tmk_core/common/command.c ****                 debug_enable = true;
+ 335               		.loc 1 275 17 is_stmt 0 view .LVU74
+ 336 00b6 0E94 0000 		call xputs
+ 276:../../tmk_core/common/command.c ****             } else {
+ 337               		.loc 1 276 17 is_stmt 1 view .LVU75
+ 276:../../tmk_core/common/command.c ****             } else {
+ 338               		.loc 1 276 30 is_stmt 0 view .LVU76
+ 339 00ba 8091 0000 		lds r24,debug_config
+ 340 00be 8160      		ori r24,lo8(1<<0)
+ 341 00c0 00C0      		rjmp .L35
+ 342               	.L8:
+ 255:../../tmk_core/common/command.c ****             if (debug_matrix) {
+ 343               		.loc 1 255 13 is_stmt 1 view .LVU77
+ 255:../../tmk_core/common/command.c ****             if (debug_matrix) {
+ 344               		.loc 1 255 29 is_stmt 0 view .LVU78
+ 345 00c2 9091 0000 		lds r25,debug_config
+ 255:../../tmk_core/common/command.c ****             if (debug_matrix) {
+ 346               		.loc 1 255 26 view .LVU79
+ 347 00c6 892F      		mov r24,r25
+ 348 00c8 8D7F      		andi r24,~(1<<1)
+ 349 00ca 91FF      		sbrs r25,1
+ 350 00cc 8260      		ori r24,1<<1
+ 351 00ce 8093 0000 		sts debug_config,r24
+ 256:../../tmk_core/common/command.c ****                 print("\nmatrix: on\n");
+ 352               		.loc 1 256 13 is_stmt 1 view .LVU80
+ 256:../../tmk_core/common/command.c ****                 print("\nmatrix: on\n");
+ 353               		.loc 1 256 16 is_stmt 0 view .LVU81
+ 354 00d2 81FF      		sbrs r24,1
+ 355 00d4 00C0      		rjmp .L21
+ 257:../../tmk_core/common/command.c ****                 debug_enable = true;
+ 356               		.loc 1 257 17 is_stmt 1 view .LVU82
+ 357               	.LBB72:
+ 257:../../tmk_core/common/command.c ****                 debug_enable = true;
+ 358               		.loc 1 257 17 view .LVU83
+ 257:../../tmk_core/common/command.c ****                 debug_enable = true;
+ 359               		.loc 1 257 17 view .LVU84
+ 360               	.LBE72:
+ 361 00d6 80E0      		ldi r24,lo8(__c.2596)
+ 362 00d8 90E0      		ldi r25,hi8(__c.2596)
+ 363 00da 00C0      		rjmp .L36
+ 364               	.L21:
+ 260:../../tmk_core/common/command.c ****             }
+ 365               		.loc 1 260 17 view .LVU85
+ 366               	.LBB73:
+ 260:../../tmk_core/common/command.c ****             }
+ 367               		.loc 1 260 17 view .LVU86
+ 260:../../tmk_core/common/command.c ****             }
+ 368               		.loc 1 260 17 view .LVU87
+ 369               	.LBE73:
+ 370 00dc 80E0      		ldi r24,lo8(__c.2598)
+ 371 00de 90E0      		ldi r25,hi8(__c.2598)
+ 372 00e0 00C0      		rjmp .L34
+ 373               	.L12:
+ 264:../../tmk_core/common/command.c ****             if (debug_keyboard) {
+ 374               		.loc 1 264 13 view .LVU88
+ 264:../../tmk_core/common/command.c ****             if (debug_keyboard) {
+ 375               		.loc 1 264 31 is_stmt 0 view .LVU89
+ 376 00e2 9091 0000 		lds r25,debug_config
+ 264:../../tmk_core/common/command.c ****             if (debug_keyboard) {
+ 377               		.loc 1 264 28 view .LVU90
+ 378 00e6 892F      		mov r24,r25
+ 379 00e8 8B7F      		andi r24,~(1<<2)
+ 380 00ea 92FF      		sbrs r25,2
+ 381 00ec 8460      		ori r24,1<<2
+ 382 00ee 8093 0000 		sts debug_config,r24
+ 265:../../tmk_core/common/command.c ****                 print("\nkeyboard: on\n");
+ 383               		.loc 1 265 13 is_stmt 1 view .LVU91
+ 265:../../tmk_core/common/command.c ****                 print("\nkeyboard: on\n");
+ 384               		.loc 1 265 16 is_stmt 0 view .LVU92
+ 385 00f2 82FF      		sbrs r24,2
+ 386 00f4 00C0      		rjmp .L22
+ 266:../../tmk_core/common/command.c ****                 debug_enable = true;
+ 387               		.loc 1 266 17 is_stmt 1 view .LVU93
+ 388               	.LBB74:
+ 266:../../tmk_core/common/command.c ****                 debug_enable = true;
+ 389               		.loc 1 266 17 view .LVU94
+ 266:../../tmk_core/common/command.c ****                 debug_enable = true;
+ 390               		.loc 1 266 17 view .LVU95
+ 391               	.LBE74:
+ 392 00f6 80E0      		ldi r24,lo8(__c.2601)
+ 393 00f8 90E0      		ldi r25,hi8(__c.2601)
+ 394 00fa 00C0      		rjmp .L36
+ 395               	.L22:
+ 269:../../tmk_core/common/command.c ****             }
+ 396               		.loc 1 269 17 view .LVU96
+ 397               	.LBB75:
+ 269:../../tmk_core/common/command.c ****             }
+ 398               		.loc 1 269 17 view .LVU97
+ 269:../../tmk_core/common/command.c ****             }
+ 399               		.loc 1 269 17 view .LVU98
+ 400               	.LBE75:
+ 401 00fc 80E0      		ldi r24,lo8(__c.2603)
+ 402 00fe 90E0      		ldi r25,hi8(__c.2603)
+ 403 0100 00C0      		rjmp .L34
+ 404               	.L11:
+ 273:../../tmk_core/common/command.c ****             if (debug_mouse) {
+ 405               		.loc 1 273 13 view .LVU99
+ 273:../../tmk_core/common/command.c ****             if (debug_mouse) {
+ 406               		.loc 1 273 28 is_stmt 0 view .LVU100
+ 407 0102 9091 0000 		lds r25,debug_config
+ 273:../../tmk_core/common/command.c ****             if (debug_mouse) {
+ 408               		.loc 1 273 25 view .LVU101
+ 409 0106 892F      		mov r24,r25
+ 410 0108 877F      		andi r24,~(1<<3)
+ 411 010a 93FF      		sbrs r25,3
+ 412 010c 8860      		ori r24,1<<3
+ 413 010e 8093 0000 		sts debug_config,r24
+ 274:../../tmk_core/common/command.c ****                 print("\nmouse: on\n");
+ 414               		.loc 1 274 13 is_stmt 1 view .LVU102
+ 274:../../tmk_core/common/command.c ****                 print("\nmouse: on\n");
+ 415               		.loc 1 274 16 is_stmt 0 view .LVU103
+ 416 0112 83FF      		sbrs r24,3
+ 417 0114 00C0      		rjmp .L23
+ 275:../../tmk_core/common/command.c ****                 debug_enable = true;
+ 418               		.loc 1 275 17 is_stmt 1 view .LVU104
+ 419               	.LBB76:
+ 275:../../tmk_core/common/command.c ****                 debug_enable = true;
+ 420               		.loc 1 275 17 view .LVU105
+ 275:../../tmk_core/common/command.c ****                 debug_enable = true;
+ 421               		.loc 1 275 17 view .LVU106
+ 422               	.LBE76:
+ 423 0116 80E0      		ldi r24,lo8(__c.2606)
+ 424 0118 90E0      		ldi r25,hi8(__c.2606)
+ 425 011a 00C0      		rjmp .L36
+ 426               	.L23:
+ 278:../../tmk_core/common/command.c ****             }
+ 427               		.loc 1 278 17 view .LVU107
+ 428               	.LBB77:
+ 278:../../tmk_core/common/command.c ****             }
+ 429               		.loc 1 278 17 view .LVU108
+ 278:../../tmk_core/common/command.c ****             }
+ 430               		.loc 1 278 17 view .LVU109
+ 431               	.LBE77:
+ 432 011c 80E0      		ldi r24,lo8(__c.2608)
+ 433 011e 90E0      		ldi r25,hi8(__c.2608)
+ 434 0120 00C0      		rjmp .L34
+ 435               	.L9:
+ 282:../../tmk_core/common/command.c ****             print("DESC: " STR(DESCRIPTION) "\n");
+ 436               		.loc 1 282 13 view .LVU110
+ 437               	.LBB78:
+ 282:../../tmk_core/common/command.c ****             print("DESC: " STR(DESCRIPTION) "\n");
+ 438               		.loc 1 282 13 view .LVU111
+ 282:../../tmk_core/common/command.c ****             print("DESC: " STR(DESCRIPTION) "\n");
+ 439               		.loc 1 282 13 view .LVU112
+ 440               	.LBE78:
+ 441 0122 80E0      		ldi r24,lo8(__c.2611)
+ 442 0124 90E0      		ldi r25,hi8(__c.2611)
+ 443 0126 0E94 0000 		call xputs
+ 283:../../tmk_core/common/command.c ****             print("VID: " STR(VENDOR_ID) "(" STR(MANUFACTURER) ") "
+ 444               		.loc 1 283 13 view .LVU113
+ 445               	.LBB79:
+ 283:../../tmk_core/common/command.c ****             print("VID: " STR(VENDOR_ID) "(" STR(MANUFACTURER) ") "
+ 446               		.loc 1 283 13 view .LVU114
+ 283:../../tmk_core/common/command.c ****             print("VID: " STR(VENDOR_ID) "(" STR(MANUFACTURER) ") "
+ 447               		.loc 1 283 13 view .LVU115
+ 448               	.LBE79:
+ 449 012a 80E0      		ldi r24,lo8(__c.2613)
+ 450 012c 90E0      		ldi r25,hi8(__c.2613)
+ 451 012e 0E94 0000 		call xputs
+ 284:../../tmk_core/common/command.c ****                   "PID: " STR(PRODUCT_ID) "(" STR(PRODUCT) ") "
+ 452               		.loc 1 284 13 view .LVU116
+ 453               	.LBB80:
+ 284:../../tmk_core/common/command.c ****                   "PID: " STR(PRODUCT_ID) "(" STR(PRODUCT) ") "
+ 454               		.loc 1 284 13 view .LVU117
+ 284:../../tmk_core/common/command.c ****                   "PID: " STR(PRODUCT_ID) "(" STR(PRODUCT) ") "
+ 455               		.loc 1 284 13 view .LVU118
+ 456               	.LBE80:
+ 457 0132 80E0      		ldi r24,lo8(__c.2615)
+ 458 0134 90E0      		ldi r25,hi8(__c.2615)
+ 459 0136 0E94 0000 		call xputs
+ 287:../../tmk_core/common/command.c ****             /* build options */
+ 460               		.loc 1 287 13 view .LVU119
+ 461               	.LBB81:
+ 287:../../tmk_core/common/command.c ****             /* build options */
+ 462               		.loc 1 287 13 view .LVU120
+ 287:../../tmk_core/common/command.c ****             /* build options */
+ 463               		.loc 1 287 13 view .LVU121
+ 464               	.LBE81:
+ 465 013a 80E0      		ldi r24,lo8(__c.2617)
+ 466 013c 90E0      		ldi r25,hi8(__c.2617)
+ 467 013e 0E94 0000 		call xputs
+ 289:../../tmk_core/common/command.c **** #ifdef PROTOCOL_PJRC
+ 468               		.loc 1 289 13 view .LVU122
+ 469               	.LBB82:
+ 289:../../tmk_core/common/command.c **** #ifdef PROTOCOL_PJRC
+ 470               		.loc 1 289 13 view .LVU123
+ 289:../../tmk_core/common/command.c **** #ifdef PROTOCOL_PJRC
+ 471               		.loc 1 289 13 view .LVU124
+ 472               	.LBE82:
+ 473 0142 80E0      		ldi r24,lo8(__c.2619)
+ 474 0144 90E0      		ldi r25,hi8(__c.2619)
+ 475 0146 0E94 0000 		call xputs
+ 325:../../tmk_core/common/command.c **** #if defined(__AVR__)
+ 476               		.loc 1 325 13 view .LVU125
+ 477               	.LBB83:
+ 325:../../tmk_core/common/command.c **** #if defined(__AVR__)
+ 478               		.loc 1 325 13 view .LVU126
+ 325:../../tmk_core/common/command.c **** #if defined(__AVR__)
+ 479               		.loc 1 325 13 view .LVU127
+ 480               	.LBE83:
+ 481 014a 80E0      		ldi r24,lo8(__c.2621)
+ 482 014c 90E0      		ldi r25,hi8(__c.2621)
+ 483 014e 00C0      		rjmp .L34
+ 484               	.L10:
+ 335:../../tmk_core/common/command.c ****             print_val_hex8(host_keyboard_leds());
+ 485               		.loc 1 335 13 view .LVU128
+ 486               	.LBB84:
+ 335:../../tmk_core/common/command.c ****             print_val_hex8(host_keyboard_leds());
+ 487               		.loc 1 335 13 view .LVU129
+ 335:../../tmk_core/common/command.c ****             print_val_hex8(host_keyboard_leds());
+ 488               		.loc 1 335 13 view .LVU130
+ 489               	.LBE84:
+ 490 0150 80E0      		ldi r24,lo8(__c.2624)
+ 491 0152 90E0      		ldi r25,hi8(__c.2624)
+ 492 0154 0E94 0000 		call xputs
+ 336:../../tmk_core/common/command.c ****             print_val_hex8(keyboard_protocol);
+ 493               		.loc 1 336 13 view .LVU131
+ 494 0158 0E94 0000 		call host_keyboard_leds
+ 495               	.LBB85:
+ 336:../../tmk_core/common/command.c ****             print_val_hex8(keyboard_protocol);
+ 496               		.loc 1 336 13 view .LVU132
+ 336:../../tmk_core/common/command.c ****             print_val_hex8(keyboard_protocol);
+ 497               		.loc 1 336 13 view .LVU133
+ 498               	.LBE85:
+ 499 015c 1F92      		push __zero_reg__
+ 500               	.LCFI4:
+ 501               		.cfi_def_cfa_offset 3
+ 502 015e 8F93      		push r24
+ 503               	.LCFI5:
+ 504               		.cfi_def_cfa_offset 4
+ 505 0160 80E0      		ldi r24,lo8(__c.2626)
+ 506 0162 90E0      		ldi r25,hi8(__c.2626)
+ 507 0164 9F93      		push r25
+ 508               	.LCFI6:
+ 509               		.cfi_def_cfa_offset 5
+ 510 0166 8F93      		push r24
+ 511               	.LCFI7:
+ 512               		.cfi_def_cfa_offset 6
+ 513 0168 0E94 0000 		call __xprintf
+ 337:../../tmk_core/common/command.c ****             print_val_hex8(keyboard_idle);
+ 514               		.loc 1 337 13 view .LVU134
+ 515               	.LBB86:
+ 337:../../tmk_core/common/command.c ****             print_val_hex8(keyboard_idle);
+ 516               		.loc 1 337 13 view .LVU135
+ 337:../../tmk_core/common/command.c ****             print_val_hex8(keyboard_idle);
+ 517               		.loc 1 337 13 view .LVU136
+ 518               	.LBE86:
+ 519 016c 8091 0000 		lds r24,keyboard_protocol
+ 520 0170 1F92      		push __zero_reg__
+ 521               	.LCFI8:
+ 522               		.cfi_def_cfa_offset 7
+ 523 0172 8F93      		push r24
+ 524               	.LCFI9:
+ 525               		.cfi_def_cfa_offset 8
+ 526 0174 80E0      		ldi r24,lo8(__c.2628)
+ 527 0176 90E0      		ldi r25,hi8(__c.2628)
+ 528 0178 9F93      		push r25
+ 529               	.LCFI10:
+ 530               		.cfi_def_cfa_offset 9
+ 531 017a 8F93      		push r24
+ 532               	.LCFI11:
+ 533               		.cfi_def_cfa_offset 10
+ 534 017c 0E94 0000 		call __xprintf
+ 338:../../tmk_core/common/command.c **** #ifdef NKRO_ENABLE
+ 535               		.loc 1 338 13 view .LVU137
+ 536               	.LBB87:
+ 338:../../tmk_core/common/command.c **** #ifdef NKRO_ENABLE
+ 537               		.loc 1 338 13 view .LVU138
+ 338:../../tmk_core/common/command.c **** #ifdef NKRO_ENABLE
+ 538               		.loc 1 338 13 view .LVU139
+ 539               	.LBE87:
+ 540 0180 8091 0000 		lds r24,keyboard_idle
+ 541 0184 1F92      		push __zero_reg__
+ 542               	.LCFI12:
+ 543               		.cfi_def_cfa_offset 11
+ 544 0186 8F93      		push r24
+ 545               	.LCFI13:
+ 546               		.cfi_def_cfa_offset 12
+ 547 0188 80E0      		ldi r24,lo8(__c.2630)
+ 548 018a 90E0      		ldi r25,hi8(__c.2630)
+ 549 018c 9F93      		push r25
+ 550               	.LCFI14:
+ 551               		.cfi_def_cfa_offset 13
+ 552 018e 8F93      		push r24
+ 553               	.LCFI15:
+ 554               		.cfi_def_cfa_offset 14
+ 555 0190 0E94 0000 		call __xprintf
+ 342:../../tmk_core/common/command.c **** 
+ 556               		.loc 1 342 13 view .LVU140
+ 557 0194 0E94 0000 		call timer_read32
+ 558               	.LBB88:
+ 342:../../tmk_core/common/command.c **** 
+ 559               		.loc 1 342 13 view .LVU141
+ 342:../../tmk_core/common/command.c **** 
+ 560               		.loc 1 342 13 view .LVU142
+ 561               	.LBE88:
+ 562 0198 9F93      		push r25
+ 563               	.LCFI16:
+ 564               		.cfi_def_cfa_offset 15
+ 565 019a 8F93      		push r24
+ 566               	.LCFI17:
+ 567               		.cfi_def_cfa_offset 16
+ 568 019c 7F93      		push r23
+ 569               	.LCFI18:
+ 570               		.cfi_def_cfa_offset 17
+ 571 019e 6F93      		push r22
+ 572               	.LCFI19:
+ 573               		.cfi_def_cfa_offset 18
+ 574 01a0 80E0      		ldi r24,lo8(__c.2632)
+ 575 01a2 90E0      		ldi r25,hi8(__c.2632)
+ 576 01a4 9F93      		push r25
+ 577               	.LCFI20:
+ 578               		.cfi_def_cfa_offset 19
+ 579 01a6 8F93      		push r24
+ 580               	.LCFI21:
+ 581               		.cfi_def_cfa_offset 20
+ 582 01a8 0E94 0000 		call __xprintf
+ 357:../../tmk_core/common/command.c **** #ifdef NKRO_ENABLE
+ 583               		.loc 1 357 13 view .LVU143
+ 584 01ac 8DB7      		in r24,__SP_L__
+ 585 01ae 9EB7      		in r25,__SP_H__
+ 586 01b0 4296      		adiw r24,18
+ 587 01b2 0FB6      		in __tmp_reg__,__SREG__
+ 588 01b4 F894      		cli
+ 589 01b6 9EBF      		out __SP_H__,r25
+ 590 01b8 0FBE      		out __SREG__,__tmp_reg__
+ 591 01ba 8DBF      		out __SP_L__,r24
+ 592               	.LCFI22:
+ 593               		.cfi_def_cfa_offset 2
+ 594 01bc 00C0      		rjmp .L33
+ 595               	.L5:
+ 373:../../tmk_core/common/command.c ****             break;
+ 596               		.loc 1 373 13 view .LVU144
+ 597 01be 80E0      		ldi r24,0
+ 598               	.L37:
+ 379:../../tmk_core/common/command.c ****             break;
+ 599               		.loc 1 379 13 is_stmt 0 view .LVU145
+ 600 01c0 0E94 0000 		call switch_default_layer
+ 380:../../tmk_core/common/command.c ****         default:
+ 601               		.loc 1 380 13 is_stmt 1 view .LVU146
+ 602 01c4 00C0      		rjmp .L33
+ 603               	.L7:
+ 376:../../tmk_core/common/command.c ****             break;
+ 604               		.loc 1 376 13 view .LVU147
+ 605 01c6 8D51      		subi r24,lo8(-(-29))
+ 606 01c8 00C0      		rjmp .L37
+ 607               	.L17:
+ 379:../../tmk_core/common/command.c ****             break;
+ 608               		.loc 1 379 13 view .LVU148
+ 609 01ca 8953      		subi r24,lo8(-(-57))
+ 610 01cc 00C0      		rjmp .L37
+ 611               		.cfi_endproc
+ 612               	.LFE14:
+ 614               		.section	.text.command_extra,"ax",@progbits
+ 615               		.weak	command_extra
+ 617               	command_extra:
+ 618               	.LVL6:
+ 619               	.LFB11:
+ 100:../../tmk_core/common/command.c ****     (void)code;
+ 620               		.loc 1 100 1 view -0
+ 621               		.cfi_startproc
+ 622               	/* prologue: function */
+ 623               	/* frame size = 0 */
+ 624               	/* stack size = 0 */
+ 625               	.L__stack_usage = 0
+ 101:../../tmk_core/common/command.c ****     return false;
+ 626               		.loc 1 101 5 view .LVU150
+ 102:../../tmk_core/common/command.c **** }
+ 627               		.loc 1 102 5 view .LVU151
+ 103:../../tmk_core/common/command.c **** 
+ 628               		.loc 1 103 1 is_stmt 0 view .LVU152
+ 629 0000 80E0      		ldi r24,0
+ 630               	.LVL7:
+ 631               	/* epilogue start */
+ 103:../../tmk_core/common/command.c **** 
+ 632               		.loc 1 103 1 view .LVU153
+ 633 0002 0895      		ret
+ 634               		.cfi_endproc
+ 635               	.LFE11:
+ 637               		.set	command_extra.localalias,command_extra
+ 638               		.section	.text.command_console_extra,"ax",@progbits
+ 639               		.weak	command_console_extra
+ 641               	command_console_extra:
+ 642               	.LFB19:
+ 643               		.cfi_startproc
+ 644               	/* prologue: function */
+ 645               	/* frame size = 0 */
+ 646               	/* stack size = 0 */
+ 647               	.L__stack_usage = 0
+ 648 0000 0C94 0000 		jmp command_extra.localalias
+ 649               		.cfi_endproc
+ 650               	.LFE19:
+ 652               		.section	.text.command_proc,"ax",@progbits
+ 653               	.global	command_proc
+ 655               	command_proc:
+ 656               	.LVL8:
+ 657               	.LFB10:
+  71:../../tmk_core/common/command.c ****     switch (command_state) {
+ 658               		.loc 1 71 1 is_stmt 1 view -0
+ 659               		.cfi_startproc
+  71:../../tmk_core/common/command.c ****     switch (command_state) {
+ 660               		.loc 1 71 1 is_stmt 0 view .LVU155
+ 661 0000 CF93      		push r28
+ 662               	.LCFI23:
+ 663               		.cfi_def_cfa_offset 3
+ 664               		.cfi_offset 28, -2
+ 665               	/* prologue: function */
+ 666               	/* frame size = 0 */
+ 667               	/* stack size = 1 */
+ 668               	.L__stack_usage = 1
+ 669 0002 C82F      		mov r28,r24
+  72:../../tmk_core/common/command.c ****         case ONESHOT:
+ 670               		.loc 1 72 5 is_stmt 1 view .LVU156
+ 671 0004 8091 0000 		lds r24,command_state
+ 672               	.LVL9:
+  72:../../tmk_core/common/command.c ****         case ONESHOT:
+ 673               		.loc 1 72 5 is_stmt 0 view .LVU157
+ 674 0008 8823      		tst r24
+ 675 000a 01F0      		breq .L41
+ 676 000c 8130      		cpi r24,lo8(1)
+ 677 000e 01F0      		breq .L42
+  83:../../tmk_core/common/command.c **** #ifdef MOUSEKEY_ENABLE
+ 678               		.loc 1 83 13 is_stmt 1 view .LVU158
+  90:../../tmk_core/common/command.c ****             return false;
+ 679               		.loc 1 90 13 view .LVU159
+  90:../../tmk_core/common/command.c ****             return false;
+ 680               		.loc 1 90 27 is_stmt 0 view .LVU160
+ 681 0010 1092 0000 		sts command_state,__zero_reg__
+  91:../../tmk_core/common/command.c ****     }
+ 682               		.loc 1 91 13 is_stmt 1 view .LVU161
+ 683               	.L55:
+  75:../../tmk_core/common/command.c ****             return (command_extra(code) || command_common(code));
+ 684               		.loc 1 75 24 is_stmt 0 view .LVU162
+ 685 0014 80E0      		ldi r24,0
+ 686 0016 00C0      		rjmp .L40
+ 687               	.L41:
+  74:../../tmk_core/common/command.c ****                 return false;
+ 688               		.loc 1 74 13 is_stmt 1 view .LVU163
+  74:../../tmk_core/common/command.c ****                 return false;
+ 689               		.loc 1 74 18 is_stmt 0 view .LVU164
+ 690 0018 E091 0000 		lds r30,keyboard_report
+ 691 001c F091 0000 		lds r31,keyboard_report+1
+ 692 0020 8081      		ld r24,Z
+  74:../../tmk_core/common/command.c ****                 return false;
+ 693               		.loc 1 74 16 view .LVU165
+ 694 0022 8232      		cpi r24,lo8(34)
+ 695 0024 01F0      		breq .L47
+  74:../../tmk_core/common/command.c ****                 return false;
+ 696               		.loc 1 74 17 discriminator 1 view .LVU166
+ 697 0026 8035      		cpi r24,lo8(80)
+ 698 0028 01F4      		brne .L55
+ 699               	.L47:
+  80:../../tmk_core/common/command.c ****             else
+ 700               		.loc 1 80 17 is_stmt 1 view .LVU167
+  80:../../tmk_core/common/command.c ****             else
+ 701               		.loc 1 80 25 is_stmt 0 view .LVU168
+ 702 002a 8C2F      		mov r24,r28
+ 703 002c 0E94 0000 		call command_extra
+ 704               	.LVL10:
+  80:../../tmk_core/common/command.c ****             else
+ 705               		.loc 1 80 45 view .LVU169
+ 706 0030 8111      		cpse r24,__zero_reg__
+ 707 0032 00C0      		rjmp .L57
+  80:../../tmk_core/common/command.c ****             else
+ 708               		.loc 1 80 48 discriminator 2 view .LVU170
+ 709 0034 8C2F      		mov r24,r28
+ 710 0036 0E94 0000 		call command_common
+ 711               	.LVL11:
+ 712               	.L50:
+  82:../../tmk_core/common/command.c ****             break;
+ 713               		.loc 1 82 53 discriminator 6 view .LVU171
+ 714 003a 8170      		andi r24,lo8(1)
+ 715               	.L40:
+ 716               	/* epilogue start */
+  94:../../tmk_core/common/command.c **** 
+ 717               		.loc 1 94 1 view .LVU172
+ 718 003c CF91      		pop r28
+ 719               	.LVL12:
+  94:../../tmk_core/common/command.c **** 
+ 720               		.loc 1 94 1 view .LVU173
+ 721 003e 0895      		ret
+ 722               	.LVL13:
+ 723               	.L42:
+  77:../../tmk_core/common/command.c ****         case CONSOLE:
+ 724               		.loc 1 77 13 is_stmt 1 view .LVU174
+  79:../../tmk_core/common/command.c ****                 return (command_extra(code) || command_common(code));
+ 725               		.loc 1 79 13 view .LVU175
+  79:../../tmk_core/common/command.c ****                 return (command_extra(code) || command_common(code));
+ 726               		.loc 1 79 17 is_stmt 0 view .LVU176
+ 727 0040 E091 0000 		lds r30,keyboard_report
+ 728 0044 F091 0000 		lds r31,keyboard_report+1
+ 729 0048 8081      		ld r24,Z
+  79:../../tmk_core/common/command.c ****                 return (command_extra(code) || command_common(code));
+ 730               		.loc 1 79 16 view .LVU177
+ 731 004a 8232      		cpi r24,lo8(34)
+ 732 004c 01F0      		breq .L47
+  79:../../tmk_core/common/command.c ****                 return (command_extra(code) || command_common(code));
+ 733               		.loc 1 79 17 discriminator 1 view .LVU178
+ 734 004e 8035      		cpi r24,lo8(80)
+ 735 0050 01F0      		breq .L47
+  82:../../tmk_core/common/command.c ****             break;
+ 736               		.loc 1 82 17 is_stmt 1 view .LVU179
+  82:../../tmk_core/common/command.c ****             break;
+ 737               		.loc 1 82 25 is_stmt 0 view .LVU180
+ 738 0052 8C2F      		mov r24,r28
+ 739 0054 0E94 0000 		call command_console_extra
+ 740               	.LVL14:
+  82:../../tmk_core/common/command.c ****             break;
+ 741               		.loc 1 82 53 view .LVU181
+ 742 0058 8111      		cpse r24,__zero_reg__
+ 743 005a 00C0      		rjmp .L58
+ 744               	.LVL15:
+ 745               	.LBB96:
+ 746               	.LBI96:
+ 402:../../tmk_core/common/command.c **** {
+ 747               		.loc 1 402 13 is_stmt 1 view .LVU182
+ 748               	.LBB97:
+ 404:../../tmk_core/common/command.c ****         case KC_H:
+ 749               		.loc 1 404 5 view .LVU183
+ 750 005c C932      		cpi r28,lo8(41)
+ 751 005e 01F0      		breq .L51
+ 752 0060 00F4      		brsh .L52
+ 753 0062 CB30      		cpi r28,lo8(11)
+ 754 0064 01F0      		breq .L53
+ 755 0066 C431      		cpi r28,lo8(20)
+ 756 0068 01F0      		breq .L51
+ 757               	.L54:
+ 421:../../tmk_core/common/command.c ****             return false;
+ 758               		.loc 1 421 13 view .LVU184
+ 759               	.LBE97:
+ 760               	.LBE96:
+ 421:../../tmk_core/common/command.c ****             return false;
+ 761               		.loc 1 421 13 view .LVU185
+ 421:../../tmk_core/common/command.c ****             return false;
+ 762               		.loc 1 421 13 view .LVU186
+ 763               	.LBB107:
+ 764               	.LBB102:
+ 765 006a 80E0      		ldi r24,lo8(__c.2657)
+ 766 006c 90E0      		ldi r25,hi8(__c.2657)
+ 767 006e 0E94 0000 		call xputs
+ 768               	.LVL16:
+ 769 0072 00C0      		rjmp .L75
+ 770               	.LVL17:
+ 771               	.L57:
+ 421:../../tmk_core/common/command.c ****             return false;
+ 772               		.loc 1 421 13 is_stmt 0 view .LVU187
+ 773               	.LBE102:
+ 774               	.LBE107:
+  80:../../tmk_core/common/command.c ****             else
+ 775               		.loc 1 80 45 view .LVU188
+ 776 0074 81E0      		ldi r24,lo8(1)
+ 777 0076 90E0      		ldi r25,0
+ 778 0078 00C0      		rjmp .L50
+ 779               	.LVL18:
+ 780               	.L52:
+ 781               	.LBB108:
+ 782               	.LBB103:
+ 404:../../tmk_core/common/command.c ****         case KC_H:
+ 783               		.loc 1 404 5 view .LVU189
+ 784 007a C833      		cpi r28,lo8(56)
+ 785 007c 01F4      		brne .L54
+ 786               	.L53:
+ 407:../../tmk_core/common/command.c ****             break;
+ 787               		.loc 1 407 13 is_stmt 1 view .LVU190
+ 788               	.LBB98:
+ 789               	.LBI98:
+ 392:../../tmk_core/common/command.c **** {
+ 790               		.loc 1 392 13 view .LVU191
+ 791               	.LBB99:
+ 394:../../tmk_core/common/command.c ****           "ESC/q:	quit\n"
+ 792               		.loc 1 394 5 view .LVU192
+ 793               	.LBE99:
+ 794               	.LBE98:
+ 795               	.LBE103:
+ 796               	.LBE108:
+ 394:../../tmk_core/common/command.c ****           "ESC/q:	quit\n"
+ 797               		.loc 1 394 5 view .LVU193
+ 394:../../tmk_core/common/command.c ****           "ESC/q:	quit\n"
+ 798               		.loc 1 394 5 view .LVU194
+ 799               	.LBB109:
+ 800               	.LBB104:
+ 801               	.LBB101:
+ 802               	.LBB100:
+ 803 007e 80E0      		ldi r24,lo8(__c.2646)
+ 804 0080 90E0      		ldi r25,hi8(__c.2646)
+ 805 0082 0E94 0000 		call xputs
+ 806               	.LVL19:
+ 807               	.LBE100:
+ 808               	.LBE101:
+ 408:../../tmk_core/common/command.c ****         case KC_Q:
+ 809               		.loc 1 408 13 view .LVU195
+ 424:../../tmk_core/common/command.c ****     return true;
+ 810               		.loc 1 424 5 view .LVU196
+ 811               	.LBE104:
+ 812               	.LBE109:
+ 424:../../tmk_core/common/command.c ****     return true;
+ 813               		.loc 1 424 5 view .LVU197
+ 424:../../tmk_core/common/command.c ****     return true;
+ 814               		.loc 1 424 5 view .LVU198
+ 815               	.LBB110:
+ 816               	.LBB105:
+ 817 0086 80E0      		ldi r24,lo8(__c.2659)
+ 818 0088 90E0      		ldi r25,hi8(__c.2659)
+ 819 008a 0E94 0000 		call xputs
+ 820               	.LVL20:
+ 425:../../tmk_core/common/command.c **** }
+ 821               		.loc 1 425 5 view .LVU199
+ 822               	.L58:
+ 425:../../tmk_core/common/command.c **** }
+ 823               		.loc 1 425 5 is_stmt 0 view .LVU200
+ 824               	.LBE105:
+ 825               	.LBE110:
+  82:../../tmk_core/common/command.c ****             break;
+ 826               		.loc 1 82 53 view .LVU201
+ 827 008e 81E0      		ldi r24,lo8(1)
+ 828 0090 00C0      		rjmp .L50
+ 829               	.LVL21:
+ 830               	.L51:
+ 831               	.LBB111:
+ 832               	.LBB106:
+ 411:../../tmk_core/common/command.c ****             return false;
+ 833               		.loc 1 411 13 is_stmt 1 view .LVU202
+ 411:../../tmk_core/common/command.c ****             return false;
+ 834               		.loc 1 411 27 is_stmt 0 view .LVU203
+ 835 0092 1092 0000 		sts command_state,__zero_reg__
+ 412:../../tmk_core/common/command.c **** #ifdef MOUSEKEY_ENABLE
+ 836               		.loc 1 412 13 is_stmt 1 view .LVU204
+ 837               	.LVL22:
+ 838               	.L75:
+ 422:../../tmk_core/common/command.c ****     }
+ 839               		.loc 1 422 13 view .LVU205
+ 840               	.LBE106:
+ 841               	.LBE111:
+  82:../../tmk_core/common/command.c ****             break;
+ 842               		.loc 1 82 53 is_stmt 0 view .LVU206
+ 843 0096 80E0      		ldi r24,0
+ 844 0098 00C0      		rjmp .L50
+ 845               		.cfi_endproc
+ 846               	.LFE10:
+ 848               		.section	.progmem.data.__c.2657,"a"
+ 851               	__c.2657:
+ 852 0000 3F00      		.string	"?"
+ 853               		.section	.progmem.data.__c.2659,"a"
+ 856               	__c.2659:
+ 857 0000 433E 2000 		.string	"C> "
+ 858               		.section	.progmem.data.__c.2664,"a"
+ 861               	__c.2664:
+ 862 0000 4C25 640A 		.string	"L%d\n"
+ 862      00
+ 863               		.section	.progmem.data.__c.2646,"a"
+ 866               	__c.2646:
+ 867 0000 0A09 2D20 		.string	"\n\t- Console -\nESC/q:\tquit\n"
+ 867      436F 6E73 
+ 867      6F6C 6520 
+ 867      2D0A 4553 
+ 867      432F 713A 
+ 868               		.section	.progmem.data.__c.2576,"a"
+ 871               	__c.2576:
+ 872 0000 0A09 2D20 		.string	"\n\t- Magic -\nd:\tdebug\nx:\tdebug matrix\nk:\tdebug keyboard\nm:\tdebug mouse\nv:\tvers
+ 872      4D61 6769 
+ 872      6320 2D0A 
+ 872      643A 0964 
+ 872      6562 7567 
+ 873               		.section	.progmem.data.__c.2641,"a"
+ 876               	__c.2641:
+ 877 0000 3F00      		.string	"?"
+ 878               		.section	.progmem.data.__c.2632,"a"
+ 881               	__c.2632:
+ 882 0000 7469 6D65 		.string	"timer_read32(): %04lX\n"
+ 882      725F 7265 
+ 882      6164 3332 
+ 882      2829 3A20 
+ 882      2530 346C 
+ 883               		.section	.progmem.data.__c.2630,"a"
+ 886               	__c.2630:
+ 887 0000 6B65 7962 		.string	"keyboard_idle: %X\n"
+ 887      6F61 7264 
+ 887      5F69 646C 
+ 887      653A 2025 
+ 887      580A 00
+ 888               		.section	.progmem.data.__c.2628,"a"
+ 891               	__c.2628:
+ 892 0000 6B65 7962 		.string	"keyboard_protocol: %X\n"
+ 892      6F61 7264 
+ 892      5F70 726F 
+ 892      746F 636F 
+ 892      6C3A 2025 
+ 893               		.section	.progmem.data.__c.2626,"a"
+ 896               	__c.2626:
+ 897 0000 686F 7374 		.string	"host_keyboard_leds(): %X\n"
+ 897      5F6B 6579 
+ 897      626F 6172 
+ 897      645F 6C65 
+ 897      6473 2829 
+ 898               		.section	.progmem.data.__c.2624,"a"
+ 901               	__c.2624:
+ 902 0000 0A09 2D20 		.string	"\n\t- Status -\n"
+ 902      5374 6174 
+ 902      7573 202D 
+ 902      0A00 
+ 903               		.section	.progmem.data.__c.2621,"a"
+ 906               	__c.2621:
+ 907 0000 4743 433A 		.string	"GCC: 9.3.0 AVR-LIBC: 2.0.0 AVR_ARCH: avr5\n"
+ 907      2039 2E33 
+ 907      2E30 2041 
+ 907      5652 2D4C 
+ 907      4942 433A 
+ 908               		.section	.progmem.data.__c.2619,"a"
+ 911               	__c.2619:
+ 912 0000 4F50 5449 		.string	"OPTIONS: LUFA CONSOLE COMMAND 4096\n"
+ 912      4F4E 533A 
+ 912      204C 5546 
+ 912      4120 434F 
+ 912      4E53 4F4C 
+ 913               		.section	.progmem.data.__c.2617,"a"
+ 916               	__c.2617:
+ 917 0000 4255 494C 		.string	"BUILD: 8f86d125 (00:46:45 Apr  4 2020)\n"
+ 917      443A 2038 
+ 917      6638 3664 
+ 917      3132 3520 
+ 917      2830 303A 
+ 918               		.section	.progmem.data.__c.2615,"a"
+ 921               	__c.2615:
+ 922 0000 5649 443A 		.string	"VID: 0xFEED(t.m.k.) PID: 0x6535(PS/2(Set3)-USB Keyboard converter(IBM 122keys)) VER: 0x01
+ 922      2030 7846 
+ 922      4545 4428 
+ 922      742E 6D2E 
+ 922      6B2E 2920 
+ 923               		.section	.progmem.data.__c.2613,"a"
+ 926               	__c.2613:
+ 927 0000 4445 5343 		.string	"DESC: USB converter for IBM Terminal Keyboard 122keys\n"
+ 927      3A20 5553 
+ 927      4220 636F 
+ 927      6E76 6572 
+ 927      7465 7220 
+ 928               		.section	.progmem.data.__c.2611,"a"
+ 931               	__c.2611:
+ 932 0000 0A09 2D20 		.string	"\n\t- Version -\n"
+ 932      5665 7273 
+ 932      696F 6E20 
+ 932      2D0A 00
+ 933               		.section	.progmem.data.__c.2608,"a"
+ 936               	__c.2608:
+ 937 0000 0A6D 6F75 		.string	"\nmouse: off\n"
+ 937      7365 3A20 
+ 937      6F66 660A 
+ 937      00
+ 938               		.section	.progmem.data.__c.2606,"a"
+ 941               	__c.2606:
+ 942 0000 0A6D 6F75 		.string	"\nmouse: on\n"
+ 942      7365 3A20 
+ 942      6F6E 0A00 
+ 943               		.section	.progmem.data.__c.2603,"a"
+ 946               	__c.2603:
+ 947 0000 0A6B 6579 		.string	"\nkeyboard: off\n"
+ 947      626F 6172 
+ 947      643A 206F 
+ 947      6666 0A00 
+ 948               		.section	.progmem.data.__c.2601,"a"
+ 951               	__c.2601:
+ 952 0000 0A6B 6579 		.string	"\nkeyboard: on\n"
+ 952      626F 6172 
+ 952      643A 206F 
+ 952      6E0A 00
+ 953               		.section	.progmem.data.__c.2598,"a"
+ 956               	__c.2598:
+ 957 0000 0A6D 6174 		.string	"\nmatrix: off\n"
+ 957      7269 783A 
+ 957      206F 6666 
+ 957      0A00 
+ 958               		.section	.progmem.data.__c.2596,"a"
+ 961               	__c.2596:
+ 962 0000 0A6D 6174 		.string	"\nmatrix: on\n"
+ 962      7269 783A 
+ 962      206F 6E0A 
+ 962      00
+ 963               		.section	.progmem.data.__c.2593,"a"
+ 966               	__c.2593:
+ 967 0000 0A64 6562 		.string	"\ndebug: on\n"
+ 967      7567 3A20 
+ 967      6F6E 0A00 
+ 968               		.section	.progmem.data.__c.2591,"a"
+ 971               	__c.2591:
+ 972 0000 0A64 6562 		.string	"\ndebug: off\n"
+ 972      7567 3A20 
+ 972      6F66 660A 
+ 972      00
+ 973               		.section	.progmem.data.__c.2588,"a"
+ 976               	__c.2588:
+ 977 0000 0A0A 626F 		.string	"\n\nbootloader... "
+ 977      6F74 6C6F 
+ 977      6164 6572 
+ 977      2E2E 2E20 
+ 977      00
+ 978               		.section	.progmem.data.__c.2585,"a"
+ 981               	__c.2585:
+ 982 0000 433E 2000 		.string	"C> "
+ 983               	.global	command_state
+ 984               		.section	.bss.command_state,"aw",@nobits
+ 987               	command_state:
+ 988 0000 00        		.zero	1
+ 989               		.text
+ 990               	.Letext0:
+ 991               		.file 3 "/usr/avr/include/stdint.h"
+ 992               		.file 4 "../../tmk_core/common/report.h"
+ 993               		.file 5 "../../tmk_core/common/host.h"
+ 994               		.file 6 "../../tmk_core/common/avr/xprintf.h"
+ 995               		.file 7 "../../tmk_core/common/debug.h"
+ 996               		.file 8 "../../tmk_core/common/timer.h"
+ 997               		.file 9 "../../tmk_core/common/action_layer.h"
+ 998               		.file 10 "../../tmk_core/common/action_util.h"
+ 999               		.file 11 "../../tmk_core/common/command.h"
+ 1000               		.file 12 "../../tmk_core/common/action.h"
+ 1001               		.file 13 "../../tmk_core/common/keycode.h"
+DEFINED SYMBOLS
+                            *ABS*:0000000000000000 command.c
+     /tmp/cc5Vath8.s:2      *ABS*:000000000000003e __SP_H__
+     /tmp/cc5Vath8.s:3      *ABS*:000000000000003d __SP_L__
+     /tmp/cc5Vath8.s:4      *ABS*:000000000000003f __SREG__
+     /tmp/cc5Vath8.s:5      *ABS*:0000000000000000 __tmp_reg__
+     /tmp/cc5Vath8.s:6      *ABS*:0000000000000001 __zero_reg__
+     /tmp/cc5Vath8.s:12     .text.switch_default_layer:0000000000000000 switch_default_layer
+     /tmp/cc5Vath8.s:861    .progmem.data.__c.2664:0000000000000000 __c.2664
+     /tmp/cc5Vath8.s:103    .text.command_common:0000000000000000 command_common
+     /tmp/cc5Vath8.s:876    .progmem.data.__c.2641:0000000000000000 __c.2641
+     /tmp/cc5Vath8.s:976    .progmem.data.__c.2588:0000000000000000 __c.2588
+     /tmp/cc5Vath8.s:871    .progmem.data.__c.2576:0000000000000000 __c.2576
+     /tmp/cc5Vath8.s:866    .progmem.data.__c.2646:0000000000000000 __c.2646
+     /tmp/cc5Vath8.s:981    .progmem.data.__c.2585:0000000000000000 __c.2585
+     /tmp/cc5Vath8.s:987    .bss.command_state:0000000000000000 command_state
+     /tmp/cc5Vath8.s:971    .progmem.data.__c.2591:0000000000000000 __c.2591
+     /tmp/cc5Vath8.s:966    .progmem.data.__c.2593:0000000000000000 __c.2593
+     /tmp/cc5Vath8.s:961    .progmem.data.__c.2596:0000000000000000 __c.2596
+     /tmp/cc5Vath8.s:956    .progmem.data.__c.2598:0000000000000000 __c.2598
+     /tmp/cc5Vath8.s:951    .progmem.data.__c.2601:0000000000000000 __c.2601
+     /tmp/cc5Vath8.s:946    .progmem.data.__c.2603:0000000000000000 __c.2603
+     /tmp/cc5Vath8.s:941    .progmem.data.__c.2606:0000000000000000 __c.2606
+     /tmp/cc5Vath8.s:936    .progmem.data.__c.2608:0000000000000000 __c.2608
+     /tmp/cc5Vath8.s:931    .progmem.data.__c.2611:0000000000000000 __c.2611
+     /tmp/cc5Vath8.s:926    .progmem.data.__c.2613:0000000000000000 __c.2613
+     /tmp/cc5Vath8.s:921    .progmem.data.__c.2615:0000000000000000 __c.2615
+     /tmp/cc5Vath8.s:916    .progmem.data.__c.2617:0000000000000000 __c.2617
+     /tmp/cc5Vath8.s:911    .progmem.data.__c.2619:0000000000000000 __c.2619
+     /tmp/cc5Vath8.s:906    .progmem.data.__c.2621:0000000000000000 __c.2621
+     /tmp/cc5Vath8.s:901    .progmem.data.__c.2624:0000000000000000 __c.2624
+     /tmp/cc5Vath8.s:896    .progmem.data.__c.2626:0000000000000000 __c.2626
+     /tmp/cc5Vath8.s:891    .progmem.data.__c.2628:0000000000000000 __c.2628
+     /tmp/cc5Vath8.s:886    .progmem.data.__c.2630:0000000000000000 __c.2630
+     /tmp/cc5Vath8.s:881    .progmem.data.__c.2632:0000000000000000 __c.2632
+     /tmp/cc5Vath8.s:617    .text.command_extra:0000000000000000 command_extra
+     /tmp/cc5Vath8.s:617    .text.command_extra:0000000000000000 command_extra.localalias
+     /tmp/cc5Vath8.s:641    .text.command_console_extra:0000000000000000 command_console_extra
+     /tmp/cc5Vath8.s:655    .text.command_proc:0000000000000000 command_proc
+     /tmp/cc5Vath8.s:851    .progmem.data.__c.2657:0000000000000000 __c.2657
+     /tmp/cc5Vath8.s:856    .progmem.data.__c.2659:0000000000000000 __c.2659
+
+UNDEFINED SYMBOLS
+__xprintf
+default_layer_set
+clear_keyboard
+__tablejump2__
+xputs
+bootloader_jump
+debug_config
+host_keyboard_leds
+keyboard_protocol
+keyboard_idle
+timer_read32
+keyboard_report
+__do_clear_bss

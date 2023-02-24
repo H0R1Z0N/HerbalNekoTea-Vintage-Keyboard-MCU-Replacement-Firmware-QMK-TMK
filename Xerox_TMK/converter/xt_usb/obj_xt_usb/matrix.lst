@@ -1,0 +1,870 @@
+   1               		.file	"matrix.c"
+   2               	__SP_H__ = 0x3e
+   3               	__SP_L__ = 0x3d
+   4               	__SREG__ = 0x3f
+   5               	__tmp_reg__ = 0
+   6               	__zero_reg__ = 1
+   7               		.text
+   8               	.Ltext0:
+   9               		.cfi_sections	.debug_frame
+  10               		.section	.text.matrix_make,"ax",@progbits
+  12               	matrix_make:
+  13               	.LVL0:
+  14               	.LFB8:
+  15               		.file 1 "matrix.c"
+   1:matrix.c      **** /*
+   2:matrix.c      **** Copyright 2011 Jun Wako <wakojun@gmail.com>
+   3:matrix.c      **** Copyright 2016 Ethan Apodaca <papodaca@gmail.com>
+   4:matrix.c      **** 
+   5:matrix.c      **** This program is free software: you can redistribute it and/or modify
+   6:matrix.c      **** it under the terms of the GNU General Public License as published by
+   7:matrix.c      **** the Free Software Foundation, either version 2 of the License, or
+   8:matrix.c      **** (at your option) any later version.
+   9:matrix.c      **** 
+  10:matrix.c      **** This program is distributed in the hope that it will be useful,
+  11:matrix.c      **** but WITHOUT ANY WARRANTY; without even the implied warranty of
+  12:matrix.c      **** MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+  13:matrix.c      **** GNU General Public License for more details.
+  14:matrix.c      **** 
+  15:matrix.c      **** You should have received a copy of the GNU General Public License
+  16:matrix.c      **** along with this program.  If not, see <http://www.gnu.org/licenses/>.
+  17:matrix.c      **** */
+  18:matrix.c      **** 
+  19:matrix.c      **** #include <stdint.h>
+  20:matrix.c      **** #include <stdbool.h>
+  21:matrix.c      **** #include "action.h"
+  22:matrix.c      **** #include "print.h"
+  23:matrix.c      **** #include "util.h"
+  24:matrix.c      **** #include "debug.h"
+  25:matrix.c      **** #include "xt.h"
+  26:matrix.c      **** #include "matrix.h"
+  27:matrix.c      **** 
+  28:matrix.c      **** 
+  29:matrix.c      **** static void matrix_make(uint8_t code);
+  30:matrix.c      **** static void matrix_break(uint8_t code);
+  31:matrix.c      **** 
+  32:matrix.c      **** static uint8_t matrix[MATRIX_ROWS];
+  33:matrix.c      **** #define ROW(code)      (code>>3)
+  34:matrix.c      **** #define COL(code)      (code&0x07)
+  35:matrix.c      **** 
+  36:matrix.c      **** 
+  37:matrix.c      **** void matrix_init(void)
+  38:matrix.c      **** {
+  39:matrix.c      ****     debug_enable = true;
+  40:matrix.c      ****     xt_host_init();
+  41:matrix.c      **** 
+  42:matrix.c      ****     // initialize matrix state: all keys off
+  43:matrix.c      ****     for (uint8_t i=0; i < MATRIX_ROWS; i++) matrix[i] = 0x00;
+  44:matrix.c      **** 
+  45:matrix.c      ****     return;
+  46:matrix.c      **** }
+  47:matrix.c      **** 
+  48:matrix.c      **** // convert E0-escaped codes into unused area
+  49:matrix.c      **** static uint8_t move_e0code(uint8_t code) {
+  50:matrix.c      ****     switch(code) {
+  51:matrix.c      ****         // Original IBM XT keyboard doesn't use E0-codes probably
+  52:matrix.c      ****         // Some XT compatilble keyobards need these keys?
+  53:matrix.c      ****         // http://download.microsoft.com/download/1/6/1/161ba512-40e2-4cc9-843a-923143f3456c/transl
+  54:matrix.c      ****         // https://download.microsoft.com/download/1/6/1/161ba512-40e2-4cc9-843a-923143f3456c/scanc
+  55:matrix.c      ****         case 0x37: return 0x54; // Print Screen
+  56:matrix.c      ****         case 0x46: return 0x55; // Ctrl + Pause
+  57:matrix.c      ****         case 0x1C: return 0x6F; // Keypad Enter
+  58:matrix.c      ****         case 0x35: return 0x7F; // Keypad /
+  59:matrix.c      ****         case 0x5B: return 0x5A; // Left  GUI
+  60:matrix.c      ****         case 0x5C: return 0x5B; // Right GUI
+  61:matrix.c      ****         case 0x5D: return 0x5C; // Application
+  62:matrix.c      ****         case 0x5E: return 0x5D; // Power(not used)
+  63:matrix.c      ****         case 0x5F: return 0x5E; // Sleep(not used)
+  64:matrix.c      ****         case 0x63: return 0x5F; // Wake (not used)
+  65:matrix.c      ****         case 0x48: return 0x60; // Up
+  66:matrix.c      ****         case 0x4B: return 0x61; // Left
+  67:matrix.c      ****         case 0x50: return 0x62; // Down
+  68:matrix.c      ****         case 0x4D: return 0x63; // Right
+  69:matrix.c      ****         case 0x52: return 0x71; // Insert
+  70:matrix.c      ****         case 0x53: return 0x72; // Delete
+  71:matrix.c      ****         case 0x47: return 0x74; // Home
+  72:matrix.c      ****         case 0x4F: return 0x75; // End
+  73:matrix.c      ****         case 0x49: return 0x77; // Home
+  74:matrix.c      ****         case 0x51: return 0x78; // End
+  75:matrix.c      ****         case 0x1D: return 0x7A; // Right Ctrl
+  76:matrix.c      ****         case 0x38: return 0x7C; // Right Alt
+  77:matrix.c      ****     }
+  78:matrix.c      ****     return 0x00;
+  79:matrix.c      **** }
+  80:matrix.c      **** 
+  81:matrix.c      **** uint8_t matrix_scan(void)
+  82:matrix.c      **** {
+  83:matrix.c      ****     static enum {
+  84:matrix.c      ****         INIT,
+  85:matrix.c      ****         E0,
+  86:matrix.c      ****         // Pause: E1 1D 45, E1 9D C5
+  87:matrix.c      ****         E1,
+  88:matrix.c      ****         E1_1D,
+  89:matrix.c      ****         E1_9D,
+  90:matrix.c      ****     } state = INIT;
+  91:matrix.c      **** 
+  92:matrix.c      ****     uint8_t code = xt_host_recv();
+  93:matrix.c      ****     if (!code) return 0;
+  94:matrix.c      ****     dprintf("%02X ", code);
+  95:matrix.c      ****     switch (state) {
+  96:matrix.c      ****         case INIT:
+  97:matrix.c      ****             switch (code) {
+  98:matrix.c      ****                 case 0xE0:
+  99:matrix.c      ****                     state = E0;
+ 100:matrix.c      ****                     break;
+ 101:matrix.c      ****                 case 0xE1:
+ 102:matrix.c      ****                     state = E1;
+ 103:matrix.c      ****                     break;
+ 104:matrix.c      ****                 default:
+ 105:matrix.c      ****                     if (code < 0x80)
+ 106:matrix.c      ****                         matrix_make(code);
+ 107:matrix.c      ****                     else
+ 108:matrix.c      ****                         matrix_break(code & 0x7F);
+ 109:matrix.c      ****                     break;
+ 110:matrix.c      ****             }
+ 111:matrix.c      ****             break;
+ 112:matrix.c      ****         case E0:
+ 113:matrix.c      ****             switch (code) {
+ 114:matrix.c      ****                 case 0x2A:
+ 115:matrix.c      ****                 case 0xAA:
+ 116:matrix.c      ****                 case 0x36:
+ 117:matrix.c      ****                 case 0xB6:
+ 118:matrix.c      ****                     //ignore fake shift
+ 119:matrix.c      ****                     state = INIT;
+ 120:matrix.c      ****                     break;
+ 121:matrix.c      ****                 default:
+ 122:matrix.c      ****                     if (code < 0x80)
+ 123:matrix.c      ****                         matrix_make(move_e0code(code));
+ 124:matrix.c      ****                     else
+ 125:matrix.c      ****                         matrix_break(move_e0code(code & 0x7F));
+ 126:matrix.c      ****                     state = INIT;
+ 127:matrix.c      ****                     break;
+ 128:matrix.c      ****             }
+ 129:matrix.c      ****             break;
+ 130:matrix.c      ****         case E1:
+ 131:matrix.c      ****             switch (code) {
+ 132:matrix.c      ****                 case 0x1D:
+ 133:matrix.c      ****                     state = E1_1D;
+ 134:matrix.c      ****                     break;
+ 135:matrix.c      ****                 case 0x9D:
+ 136:matrix.c      ****                     state = E1_9D;
+ 137:matrix.c      ****                     break;
+ 138:matrix.c      ****                 default:
+ 139:matrix.c      ****                     state = INIT;
+ 140:matrix.c      ****                     break;
+ 141:matrix.c      ****             }
+ 142:matrix.c      ****             break;
+ 143:matrix.c      ****         case E1_1D:
+ 144:matrix.c      ****             switch (code) {
+ 145:matrix.c      ****                 case 0x45:
+ 146:matrix.c      ****                     matrix_make(0x55);
+ 147:matrix.c      ****                     break;
+ 148:matrix.c      ****                 default:
+ 149:matrix.c      ****                     state = INIT;
+ 150:matrix.c      ****                     break;
+ 151:matrix.c      ****             }
+ 152:matrix.c      ****             break;
+ 153:matrix.c      ****         case E1_9D:
+ 154:matrix.c      ****             switch (code) {
+ 155:matrix.c      ****                 case 0x45:
+ 156:matrix.c      ****                     matrix_break(0x55);
+ 157:matrix.c      ****                     break;
+ 158:matrix.c      ****                 default:
+ 159:matrix.c      ****                     state = INIT;
+ 160:matrix.c      ****                     break;
+ 161:matrix.c      ****             }
+ 162:matrix.c      ****             break;
+ 163:matrix.c      ****         default:
+ 164:matrix.c      ****             state = INIT;
+ 165:matrix.c      ****     }
+ 166:matrix.c      ****     return 1;
+ 167:matrix.c      **** }
+ 168:matrix.c      **** 
+ 169:matrix.c      **** inline
+ 170:matrix.c      **** uint8_t matrix_get_row(uint8_t row)
+ 171:matrix.c      **** {
+ 172:matrix.c      ****     return matrix[row];
+ 173:matrix.c      **** }
+ 174:matrix.c      **** 
+ 175:matrix.c      **** inline
+ 176:matrix.c      **** static void matrix_make(uint8_t code)
+ 177:matrix.c      **** {
+  16               		.loc 1 177 1 view -0
+  17               		.cfi_startproc
+  18               		.loc 1 177 1 is_stmt 0 view .LVU1
+  19 0000 CF93      		push r28
+  20               	.LCFI0:
+  21               		.cfi_def_cfa_offset 3
+  22               		.cfi_offset 28, -2
+  23 0002 DF93      		push r29
+  24               	.LCFI1:
+  25               		.cfi_def_cfa_offset 4
+  26               		.cfi_offset 29, -3
+  27               	/* prologue: function */
+  28               	/* frame size = 0 */
+  29               	/* stack size = 2 */
+  30               	.L__stack_usage = 2
+ 178:matrix.c      ****     if (!matrix_is_on(ROW(code), COL(code))) {
+  31               		.loc 1 178 5 is_stmt 1 view .LVU2
+  32               		.loc 1 178 10 is_stmt 0 view .LVU3
+  33 0004 D82F      		mov r29,r24
+  34 0006 D770      		andi r29,lo8(7)
+  35 0008 C82F      		mov r28,r24
+  36 000a C695      		lsr r28
+  37 000c C695      		lsr r28
+  38 000e C695      		lsr r28
+  39 0010 6D2F      		mov r22,r29
+  40 0012 8C2F      		mov r24,r28
+  41               	.LVL1:
+  42               		.loc 1 178 10 view .LVU4
+  43 0014 0E94 0000 		call matrix_is_on
+  44               	.LVL2:
+  45               		.loc 1 178 8 view .LVU5
+  46 0018 8111      		cpse r24,__zero_reg__
+  47 001a 00C0      		rjmp .L1
+ 179:matrix.c      ****         matrix[ROW(code)] |= 1<<COL(code);
+  48               		.loc 1 179 9 is_stmt 1 view .LVU6
+  49               		.loc 1 179 27 is_stmt 0 view .LVU7
+  50 001c EC2F      		mov r30,r28
+  51 001e F0E0      		ldi r31,0
+  52 0020 E050      		subi r30,lo8(-(matrix))
+  53 0022 F040      		sbci r31,hi8(-(matrix))
+  54               		.loc 1 179 31 view .LVU8
+  55 0024 21E0      		ldi r18,lo8(1)
+  56 0026 30E0      		ldi r19,0
+  57 0028 00C0      		rjmp 2f
+  58               		1:
+  59 002a 220F      		lsl r18
+  60               		2:
+  61 002c DA95      		dec r29
+  62 002e 02F4      		brpl 1b
+  63               		.loc 1 179 27 view .LVU9
+  64 0030 8081      		ld r24,Z
+  65 0032 822B      		or r24,r18
+  66 0034 8083      		st Z,r24
+  67               	.L1:
+  68               	/* epilogue start */
+ 180:matrix.c      ****     }
+ 181:matrix.c      **** }
+  69               		.loc 1 181 1 view .LVU10
+  70 0036 DF91      		pop r29
+  71 0038 CF91      		pop r28
+  72 003a 0895      		ret
+  73               		.cfi_endproc
+  74               	.LFE8:
+  76               		.section	.text.matrix_break,"ax",@progbits
+  78               	matrix_break:
+  79               	.LVL3:
+  80               	.LFB9:
+ 182:matrix.c      **** 
+ 183:matrix.c      **** inline
+ 184:matrix.c      **** static void matrix_break(uint8_t code)
+ 185:matrix.c      **** {
+  81               		.loc 1 185 1 is_stmt 1 view -0
+  82               		.cfi_startproc
+  83               		.loc 1 185 1 is_stmt 0 view .LVU12
+  84 0000 CF93      		push r28
+  85               	.LCFI2:
+  86               		.cfi_def_cfa_offset 3
+  87               		.cfi_offset 28, -2
+  88 0002 DF93      		push r29
+  89               	.LCFI3:
+  90               		.cfi_def_cfa_offset 4
+  91               		.cfi_offset 29, -3
+  92               	/* prologue: function */
+  93               	/* frame size = 0 */
+  94               	/* stack size = 2 */
+  95               	.L__stack_usage = 2
+ 186:matrix.c      ****     if (matrix_is_on(ROW(code), COL(code))) {
+  96               		.loc 1 186 5 is_stmt 1 view .LVU13
+  97               		.loc 1 186 9 is_stmt 0 view .LVU14
+  98 0004 D82F      		mov r29,r24
+  99 0006 D770      		andi r29,lo8(7)
+ 100 0008 C82F      		mov r28,r24
+ 101 000a C695      		lsr r28
+ 102 000c C695      		lsr r28
+ 103 000e C695      		lsr r28
+ 104 0010 6D2F      		mov r22,r29
+ 105 0012 8C2F      		mov r24,r28
+ 106               	.LVL4:
+ 107               		.loc 1 186 9 view .LVU15
+ 108 0014 0E94 0000 		call matrix_is_on
+ 109               	.LVL5:
+ 110               		.loc 1 186 8 view .LVU16
+ 111 0018 8823      		tst r24
+ 112 001a 01F0      		breq .L3
+ 187:matrix.c      ****         matrix[ROW(code)] &= ~(1<<COL(code));
+ 113               		.loc 1 187 9 is_stmt 1 view .LVU17
+ 114               		.loc 1 187 27 is_stmt 0 view .LVU18
+ 115 001c EC2F      		mov r30,r28
+ 116 001e F0E0      		ldi r31,0
+ 117 0020 E050      		subi r30,lo8(-(matrix))
+ 118 0022 F040      		sbci r31,hi8(-(matrix))
+ 119               		.loc 1 187 33 view .LVU19
+ 120 0024 81E0      		ldi r24,lo8(1)
+ 121 0026 90E0      		ldi r25,0
+ 122 0028 00C0      		rjmp 2f
+ 123               		1:
+ 124 002a 880F      		lsl r24
+ 125               		2:
+ 126 002c DA95      		dec r29
+ 127 002e 02F4      		brpl 1b
+ 128               		.loc 1 187 27 view .LVU20
+ 129 0030 8095      		com r24
+ 130 0032 9081      		ld r25,Z
+ 131 0034 8923      		and r24,r25
+ 132 0036 8083      		st Z,r24
+ 133               	.L3:
+ 134               	/* epilogue start */
+ 188:matrix.c      ****     }
+ 189:matrix.c      **** }
+ 135               		.loc 1 189 1 view .LVU21
+ 136 0038 DF91      		pop r29
+ 137 003a CF91      		pop r28
+ 138 003c 0895      		ret
+ 139               		.cfi_endproc
+ 140               	.LFE9:
+ 142               		.section	.text.matrix_init,"ax",@progbits
+ 143               	.global	matrix_init
+ 145               	matrix_init:
+ 146               	.LFB4:
+  38:matrix.c      ****     debug_enable = true;
+ 147               		.loc 1 38 1 is_stmt 1 view -0
+ 148               		.cfi_startproc
+ 149               	/* prologue: function */
+ 150               	/* frame size = 0 */
+ 151               	/* stack size = 0 */
+ 152               	.L__stack_usage = 0
+  39:matrix.c      ****     xt_host_init();
+ 153               		.loc 1 39 5 view .LVU23
+  39:matrix.c      ****     xt_host_init();
+ 154               		.loc 1 39 18 is_stmt 0 view .LVU24
+ 155 0000 8091 0000 		lds r24,debug_config
+ 156 0004 8160      		ori r24,lo8(1<<0)
+ 157 0006 8093 0000 		sts debug_config,r24
+  40:matrix.c      **** 
+ 158               		.loc 1 40 5 is_stmt 1 view .LVU25
+ 159 000a 0E94 0000 		call xt_host_init
+ 160               	.LVL6:
+  43:matrix.c      **** 
+ 161               		.loc 1 43 5 view .LVU26
+ 162               	.LBB2:
+  43:matrix.c      **** 
+ 163               		.loc 1 43 10 view .LVU27
+  43:matrix.c      **** 
+ 164               		.loc 1 43 10 is_stmt 0 view .LVU28
+ 165 000e E0E0      		ldi r30,lo8(matrix)
+ 166 0010 F0E0      		ldi r31,hi8(matrix)
+ 167               	.LVL7:
+ 168               	.L9:
+  43:matrix.c      **** 
+ 169               		.loc 1 43 45 is_stmt 1 discriminator 3 view .LVU29
+  43:matrix.c      **** 
+ 170               		.loc 1 43 55 is_stmt 0 discriminator 3 view .LVU30
+ 171 0012 1192      		st Z+,__zero_reg__
+ 172               	.LVL8:
+  43:matrix.c      **** 
+ 173               		.loc 1 43 5 discriminator 3 view .LVU31
+ 174 0014 80E0      		ldi r24,hi8(matrix+16)
+ 175 0016 E030      		cpi r30,lo8(matrix+16)
+ 176 0018 F807      		cpc r31,r24
+ 177 001a 01F4      		brne .L9
+ 178               	/* epilogue start */
+ 179               	.LBE2:
+  46:matrix.c      **** 
+ 180               		.loc 1 46 1 view .LVU32
+ 181 001c 0895      		ret
+ 182               		.cfi_endproc
+ 183               	.LFE4:
+ 185               		.section	.text.matrix_scan,"ax",@progbits
+ 186               	.global	matrix_scan
+ 188               	matrix_scan:
+ 189               	.LFB6:
+  82:matrix.c      ****     static enum {
+ 190               		.loc 1 82 1 is_stmt 1 view -0
+ 191               		.cfi_startproc
+ 192 0000 CF93      		push r28
+ 193               	.LCFI4:
+ 194               		.cfi_def_cfa_offset 3
+ 195               		.cfi_offset 28, -2
+ 196               	/* prologue: function */
+ 197               	/* frame size = 0 */
+ 198               	/* stack size = 1 */
+ 199               	.L__stack_usage = 1
+  83:matrix.c      ****         INIT,
+ 200               		.loc 1 83 5 view .LVU34
+  92:matrix.c      ****     if (!code) return 0;
+ 201               		.loc 1 92 5 view .LVU35
+  92:matrix.c      ****     if (!code) return 0;
+ 202               		.loc 1 92 20 is_stmt 0 view .LVU36
+ 203 0002 0E94 0000 		call xt_host_recv
+ 204               	.LVL9:
+ 205 0006 C82F      		mov r28,r24
+ 206               	.LVL10:
+  93:matrix.c      ****     dprintf("%02X ", code);
+ 207               		.loc 1 93 5 is_stmt 1 view .LVU37
+  93:matrix.c      ****     dprintf("%02X ", code);
+ 208               		.loc 1 93 8 is_stmt 0 view .LVU38
+ 209 0008 8823      		tst r24
+ 210 000a 01F0      		breq .L11
+  94:matrix.c      ****     switch (state) {
+ 211               		.loc 1 94 5 is_stmt 1 view .LVU39
+  94:matrix.c      ****     switch (state) {
+ 212               		.loc 1 94 5 view .LVU40
+ 213 000c 8091 0000 		lds r24,debug_config
+ 214               	.LVL11:
+  94:matrix.c      ****     switch (state) {
+ 215               		.loc 1 94 5 is_stmt 0 view .LVU41
+ 216 0010 80FF      		sbrs r24,0
+ 217 0012 00C0      		rjmp .L13
+  94:matrix.c      ****     switch (state) {
+ 218               		.loc 1 94 5 is_stmt 1 discriminator 1 view .LVU42
+ 219               	.LBB8:
+  94:matrix.c      ****     switch (state) {
+ 220               		.loc 1 94 5 discriminator 1 view .LVU43
+  94:matrix.c      ****     switch (state) {
+ 221               		.loc 1 94 5 discriminator 1 view .LVU44
+ 222               	.LBE8:
+ 223 0014 1F92      		push __zero_reg__
+ 224               	.LCFI5:
+ 225               		.cfi_def_cfa_offset 4
+ 226 0016 CF93      		push r28
+ 227               	.LCFI6:
+ 228               		.cfi_def_cfa_offset 5
+ 229 0018 80E0      		ldi r24,lo8(__c.2327)
+ 230 001a 90E0      		ldi r25,hi8(__c.2327)
+ 231 001c 9F93      		push r25
+ 232               	.LCFI7:
+ 233               		.cfi_def_cfa_offset 6
+ 234 001e 8F93      		push r24
+ 235               	.LCFI8:
+ 236               		.cfi_def_cfa_offset 7
+ 237 0020 0E94 0000 		call __xprintf
+ 238               	.LVL12:
+ 239 0024 0F90      		pop __tmp_reg__
+ 240 0026 0F90      		pop __tmp_reg__
+ 241 0028 0F90      		pop __tmp_reg__
+ 242 002a 0F90      		pop __tmp_reg__
+ 243               	.LCFI9:
+ 244               		.cfi_def_cfa_offset 3
+ 245               	.L13:
+  95:matrix.c      ****         case INIT:
+ 246               		.loc 1 95 5 view .LVU45
+ 247 002c 8091 0000 		lds r24,state.2325
+ 248 0030 8230      		cpi r24,lo8(2)
+ 249 0032 01F4      		brne .+2
+ 250 0034 00C0      		rjmp .L14
+ 251 0036 00F4      		brsh .L15
+ 252 0038 8823      		tst r24
+ 253 003a 01F0      		breq .L16
+ 254 003c 8130      		cpi r24,lo8(1)
+ 255 003e 01F0      		breq .L17
+ 256               	.LVL13:
+ 257               	.L29:
+ 126:matrix.c      ****                     break;
+ 258               		.loc 1 126 21 view .LVU46
+ 126:matrix.c      ****                     break;
+ 259               		.loc 1 126 27 is_stmt 0 view .LVU47
+ 260 0040 1092 0000 		sts state.2325,__zero_reg__
+ 127:matrix.c      ****             }
+ 261               		.loc 1 127 21 is_stmt 1 view .LVU48
+ 262               	.L51:
+ 157:matrix.c      ****                 default:
+ 263               		.loc 1 157 21 view .LVU49
+ 166:matrix.c      **** }
+ 264               		.loc 1 166 12 is_stmt 0 view .LVU50
+ 265 0044 C1E0      		ldi r28,lo8(1)
+ 266               	.L11:
+ 167:matrix.c      **** 
+ 267               		.loc 1 167 1 view .LVU51
+ 268 0046 8C2F      		mov r24,r28
+ 269               	/* epilogue start */
+ 270 0048 CF91      		pop r28
+ 271 004a 0895      		ret
+ 272               	.LVL14:
+ 273               	.L15:
+  95:matrix.c      ****         case INIT:
+ 274               		.loc 1 95 5 view .LVU52
+ 275 004c 8330      		cpi r24,lo8(3)
+ 276 004e 01F4      		brne .+2
+ 277 0050 00C0      		rjmp .L19
+ 278 0052 8430      		cpi r24,lo8(4)
+ 279 0054 01F4      		brne .L29
+ 154:matrix.c      ****                 case 0x45:
+ 280               		.loc 1 154 13 is_stmt 1 view .LVU53
+ 281 0056 C534      		cpi r28,lo8(69)
+ 282 0058 01F4      		brne .L29
+ 156:matrix.c      ****                     break;
+ 283               		.loc 1 156 21 view .LVU54
+ 284 005a 85E5      		ldi r24,lo8(85)
+ 285 005c 00C0      		rjmp .L52
+ 286               	.L16:
+  97:matrix.c      ****                 case 0xE0:
+ 287               		.loc 1 97 13 view .LVU55
+ 288 005e C03E      		cpi r28,lo8(-32)
+ 289 0060 01F0      		breq .L21
+ 290 0062 C13E      		cpi r28,lo8(-31)
+ 291 0064 01F0      		breq .L22
+ 105:matrix.c      ****                         matrix_make(code);
+ 292               		.loc 1 105 21 view .LVU56
+ 106:matrix.c      ****                     else
+ 293               		.loc 1 106 25 is_stmt 0 view .LVU57
+ 294 0066 8C2F      		mov r24,r28
+ 105:matrix.c      ****                         matrix_make(code);
+ 295               		.loc 1 105 24 view .LVU58
+ 296 0068 C7FD      		sbrc r28,7
+ 297 006a 00C0      		rjmp .L24
+ 298               	.L54:
+ 146:matrix.c      ****                     break;
+ 299               		.loc 1 146 21 view .LVU59
+ 300 006c 0E94 0000 		call matrix_make
+ 301               	.LVL15:
+ 147:matrix.c      ****                 default:
+ 302               		.loc 1 147 21 is_stmt 1 view .LVU60
+ 303 0070 00C0      		rjmp .L51
+ 304               	.L21:
+  99:matrix.c      ****                     break;
+ 305               		.loc 1 99 21 view .LVU61
+  99:matrix.c      ****                     break;
+ 306               		.loc 1 99 27 is_stmt 0 view .LVU62
+ 307 0072 81E0      		ldi r24,lo8(1)
+ 308               	.L53:
+ 136:matrix.c      ****                     break;
+ 309               		.loc 1 136 27 view .LVU63
+ 310 0074 8093 0000 		sts state.2325,r24
+ 137:matrix.c      ****                 default:
+ 311               		.loc 1 137 21 is_stmt 1 view .LVU64
+ 312 0078 00C0      		rjmp .L51
+ 313               	.L22:
+ 102:matrix.c      ****                     break;
+ 314               		.loc 1 102 21 view .LVU65
+ 102:matrix.c      ****                     break;
+ 315               		.loc 1 102 27 is_stmt 0 view .LVU66
+ 316 007a 82E0      		ldi r24,lo8(2)
+ 317 007c 00C0      		rjmp .L53
+ 318               	.LVL16:
+ 319               	.L24:
+ 108:matrix.c      ****                     break;
+ 320               		.loc 1 108 25 is_stmt 1 view .LVU67
+ 321 007e 8F77      		andi r24,lo8(127)
+ 322               	.LVL17:
+ 323               	.L52:
+ 156:matrix.c      ****                     break;
+ 324               		.loc 1 156 21 is_stmt 0 view .LVU68
+ 325 0080 0E94 0000 		call matrix_break
+ 326               	.LVL18:
+ 327 0084 00C0      		rjmp .L51
+ 328               	.L17:
+ 113:matrix.c      ****                 case 0x2A:
+ 329               		.loc 1 113 13 is_stmt 1 view .LVU69
+ 330 0086 C633      		cpi r28,lo8(54)
+ 331 0088 01F0      		breq .L29
+ 332 008a 00F4      		brsh .L25
+ 333 008c CA32      		cpi r28,lo8(42)
+ 334 008e 01F0      		breq .L29
+ 335               	.L26:
+ 122:matrix.c      ****                         matrix_make(move_e0code(code));
+ 336               		.loc 1 122 21 view .LVU70
+ 122:matrix.c      ****                         matrix_make(move_e0code(code));
+ 337               		.loc 1 122 24 is_stmt 0 view .LVU71
+ 338 0090 C7FD      		sbrc r28,7
+ 339 0092 00C0      		rjmp .L27
+ 123:matrix.c      ****                     else
+ 340               		.loc 1 123 25 is_stmt 1 view .LVU72
+ 341               	.LVL19:
+ 342               	.LBB9:
+ 343               	.LBI9:
+  49:matrix.c      ****     switch(code) {
+ 344               		.loc 1 49 16 view .LVU73
+ 345               	.LBE9:
+  50:matrix.c      ****         // Original IBM XT keyboard doesn't use E0-codes probably
+ 346               		.loc 1 50 5 view .LVU74
+ 347 0094 CC51      		subi r28,lo8(-(-28))
+ 348               	.LVL20:
+ 122:matrix.c      ****                         matrix_make(move_e0code(code));
+ 349               		.loc 1 122 24 is_stmt 0 view .LVU75
+ 350 0096 80E0      		ldi r24,0
+ 351 0098 C834      		cpi r28,lo8(72)
+ 352 009a 00F4      		brsh .L28
+ 353 009c EC2F      		mov r30,r28
+ 354 009e F0E0      		ldi r31,0
+ 355 00a0 E050      		subi r30,lo8(-(CSWTCH.5))
+ 356 00a2 F040      		sbci r31,hi8(-(CSWTCH.5))
+ 357 00a4 8081      		ld r24,Z
+ 358               	.L28:
+ 359               	.LVL21:
+ 123:matrix.c      ****                     else
+ 360               		.loc 1 123 25 view .LVU76
+ 361 00a6 0E94 0000 		call matrix_make
+ 362               	.LVL22:
+ 363 00aa 00C0      		rjmp .L29
+ 364               	.LVL23:
+ 365               	.L25:
+ 123:matrix.c      ****                     else
+ 366               		.loc 1 123 25 view .LVU77
+ 367 00ac CA3A      		cpi r28,lo8(-86)
+ 368 00ae 01F0      		breq .L29
+ 369 00b0 C63B      		cpi r28,lo8(-74)
+ 370 00b2 01F4      		brne .L26
+ 371 00b4 00C0      		rjmp .L29
+ 372               	.L27:
+ 125:matrix.c      ****                     state = INIT;
+ 373               		.loc 1 125 25 is_stmt 1 view .LVU78
+ 374               	.LVL24:
+ 375               	.LBB10:
+ 376               	.LBI10:
+  49:matrix.c      ****     switch(code) {
+ 377               		.loc 1 49 16 view .LVU79
+ 378               	.LBE10:
+  50:matrix.c      ****         // Original IBM XT keyboard doesn't use E0-codes probably
+ 379               		.loc 1 50 5 view .LVU80
+ 125:matrix.c      ****                     state = INIT;
+ 380               		.loc 1 125 25 is_stmt 0 view .LVU81
+ 381 00b6 EC2F      		mov r30,r28
+ 382 00b8 EF77      		andi r30,lo8(127)
+ 383               	.LVL25:
+ 125:matrix.c      ****                     state = INIT;
+ 384               		.loc 1 125 25 view .LVU82
+ 385 00ba EC51      		subi r30,lo8(-(-28))
+ 386               	.LVL26:
+ 125:matrix.c      ****                     state = INIT;
+ 387               		.loc 1 125 25 view .LVU83
+ 388 00bc 80E0      		ldi r24,0
+ 389 00be E834      		cpi r30,lo8(72)
+ 390 00c0 00F4      		brsh .L30
+ 391 00c2 F0E0      		ldi r31,0
+ 392 00c4 E050      		subi r30,lo8(-(CSWTCH.5))
+ 393 00c6 F040      		sbci r31,hi8(-(CSWTCH.5))
+ 394               	.LVL27:
+ 125:matrix.c      ****                     state = INIT;
+ 395               		.loc 1 125 25 view .LVU84
+ 396 00c8 8081      		ld r24,Z
+ 397               	.L30:
+ 398               	.LVL28:
+ 125:matrix.c      ****                     state = INIT;
+ 399               		.loc 1 125 25 view .LVU85
+ 400 00ca 0E94 0000 		call matrix_break
+ 401               	.LVL29:
+ 402 00ce 00C0      		rjmp .L29
+ 403               	.L14:
+ 131:matrix.c      ****                 case 0x1D:
+ 404               		.loc 1 131 13 is_stmt 1 view .LVU86
+ 405 00d0 CD31      		cpi r28,lo8(29)
+ 406 00d2 01F0      		breq .L31
+ 407 00d4 CD39      		cpi r28,lo8(-99)
+ 408 00d6 01F0      		breq .+2
+ 409 00d8 00C0      		rjmp .L29
+ 136:matrix.c      ****                     break;
+ 410               		.loc 1 136 21 view .LVU87
+ 136:matrix.c      ****                     break;
+ 411               		.loc 1 136 27 is_stmt 0 view .LVU88
+ 412 00da 84E0      		ldi r24,lo8(4)
+ 413 00dc 00C0      		rjmp .L53
+ 414               	.L31:
+ 133:matrix.c      ****                     break;
+ 415               		.loc 1 133 21 is_stmt 1 view .LVU89
+ 133:matrix.c      ****                     break;
+ 416               		.loc 1 133 27 is_stmt 0 view .LVU90
+ 417 00de 83E0      		ldi r24,lo8(3)
+ 418 00e0 00C0      		rjmp .L53
+ 419               	.L19:
+ 144:matrix.c      ****                 case 0x45:
+ 420               		.loc 1 144 13 is_stmt 1 view .LVU91
+ 421 00e2 C534      		cpi r28,lo8(69)
+ 422 00e4 01F0      		breq .+2
+ 423 00e6 00C0      		rjmp .L29
+ 146:matrix.c      ****                     break;
+ 424               		.loc 1 146 21 view .LVU92
+ 425 00e8 85E5      		ldi r24,lo8(85)
+ 426 00ea 00C0      		rjmp .L54
+ 427               		.cfi_endproc
+ 428               	.LFE6:
+ 430               		.section	.text.matrix_get_row,"ax",@progbits
+ 431               	.global	matrix_get_row
+ 433               	matrix_get_row:
+ 434               	.LVL30:
+ 435               	.LFB7:
+ 171:matrix.c      ****     return matrix[row];
+ 436               		.loc 1 171 1 view -0
+ 437               		.cfi_startproc
+ 438               	/* prologue: function */
+ 439               	/* frame size = 0 */
+ 440               	/* stack size = 0 */
+ 441               	.L__stack_usage = 0
+ 172:matrix.c      **** }
+ 442               		.loc 1 172 5 view .LVU94
+ 172:matrix.c      **** }
+ 443               		.loc 1 172 18 is_stmt 0 view .LVU95
+ 444 0000 E82F      		mov r30,r24
+ 445 0002 F0E0      		ldi r31,0
+ 446 0004 E050      		subi r30,lo8(-(matrix))
+ 447 0006 F040      		sbci r31,hi8(-(matrix))
+ 173:matrix.c      **** 
+ 448               		.loc 1 173 1 view .LVU96
+ 449 0008 8081      		ld r24,Z
+ 450               	.LVL31:
+ 451               	/* epilogue start */
+ 173:matrix.c      **** 
+ 452               		.loc 1 173 1 view .LVU97
+ 453 000a 0895      		ret
+ 454               		.cfi_endproc
+ 455               	.LFE7:
+ 457               		.section	.text.matrix_clear,"ax",@progbits
+ 458               	.global	matrix_clear
+ 460               	matrix_clear:
+ 461               	.LFB10:
+ 190:matrix.c      **** 
+ 191:matrix.c      **** void matrix_clear(void)
+ 192:matrix.c      **** {
+ 462               		.loc 1 192 1 is_stmt 1 view -0
+ 463               		.cfi_startproc
+ 464               	/* prologue: function */
+ 465               	/* frame size = 0 */
+ 466               	/* stack size = 0 */
+ 467               	.L__stack_usage = 0
+ 193:matrix.c      ****     for (uint8_t i=0; i < MATRIX_ROWS; i++) matrix[i] = 0x00;
+ 468               		.loc 1 193 5 view .LVU99
+ 469               	.LBB11:
+ 470               		.loc 1 193 10 view .LVU100
+ 471               	.LVL32:
+ 472               		.loc 1 193 10 is_stmt 0 view .LVU101
+ 473 0000 E0E0      		ldi r30,lo8(matrix)
+ 474 0002 F0E0      		ldi r31,hi8(matrix)
+ 475               	.LVL33:
+ 476               	.L57:
+ 477               		.loc 1 193 45 is_stmt 1 discriminator 3 view .LVU102
+ 478               		.loc 1 193 55 is_stmt 0 discriminator 3 view .LVU103
+ 479 0004 1192      		st Z+,__zero_reg__
+ 480               	.LVL34:
+ 481               		.loc 1 193 5 discriminator 3 view .LVU104
+ 482 0006 80E0      		ldi r24,hi8(matrix+16)
+ 483 0008 E030      		cpi r30,lo8(matrix+16)
+ 484 000a F807      		cpc r31,r24
+ 485 000c 01F4      		brne .L57
+ 486               	/* epilogue start */
+ 487               	.LBE11:
+ 194:matrix.c      **** }
+ 488               		.loc 1 194 1 view .LVU105
+ 489 000e 0895      		ret
+ 490               		.cfi_endproc
+ 491               	.LFE10:
+ 493               		.section	.rodata.CSWTCH.5,"a"
+ 496               	CSWTCH.5:
+ 497 0000 6F        		.byte	111
+ 498 0001 7A        		.byte	122
+ 499 0002 00        		.byte	0
+ 500 0003 00        		.byte	0
+ 501 0004 00        		.byte	0
+ 502 0005 00        		.byte	0
+ 503 0006 00        		.byte	0
+ 504 0007 00        		.byte	0
+ 505 0008 00        		.byte	0
+ 506 0009 00        		.byte	0
+ 507 000a 00        		.byte	0
+ 508 000b 00        		.byte	0
+ 509 000c 00        		.byte	0
+ 510 000d 00        		.byte	0
+ 511 000e 00        		.byte	0
+ 512 000f 00        		.byte	0
+ 513 0010 00        		.byte	0
+ 514 0011 00        		.byte	0
+ 515 0012 00        		.byte	0
+ 516 0013 00        		.byte	0
+ 517 0014 00        		.byte	0
+ 518 0015 00        		.byte	0
+ 519 0016 00        		.byte	0
+ 520 0017 00        		.byte	0
+ 521 0018 00        		.byte	0
+ 522 0019 7F        		.byte	127
+ 523 001a 00        		.byte	0
+ 524 001b 54        		.byte	84
+ 525 001c 7C        		.byte	124
+ 526 001d 00        		.byte	0
+ 527 001e 00        		.byte	0
+ 528 001f 00        		.byte	0
+ 529 0020 00        		.byte	0
+ 530 0021 00        		.byte	0
+ 531 0022 00        		.byte	0
+ 532 0023 00        		.byte	0
+ 533 0024 00        		.byte	0
+ 534 0025 00        		.byte	0
+ 535 0026 00        		.byte	0
+ 536 0027 00        		.byte	0
+ 537 0028 00        		.byte	0
+ 538 0029 00        		.byte	0
+ 539 002a 55        		.byte	85
+ 540 002b 74        		.byte	116
+ 541 002c 60        		.byte	96
+ 542 002d 77        		.byte	119
+ 543 002e 00        		.byte	0
+ 544 002f 61        		.byte	97
+ 545 0030 00        		.byte	0
+ 546 0031 63        		.byte	99
+ 547 0032 00        		.byte	0
+ 548 0033 75        		.byte	117
+ 549 0034 62        		.byte	98
+ 550 0035 78        		.byte	120
+ 551 0036 71        		.byte	113
+ 552 0037 72        		.byte	114
+ 553 0038 00        		.byte	0
+ 554 0039 00        		.byte	0
+ 555 003a 00        		.byte	0
+ 556 003b 00        		.byte	0
+ 557 003c 00        		.byte	0
+ 558 003d 00        		.byte	0
+ 559 003e 00        		.byte	0
+ 560 003f 5A        		.byte	90
+ 561 0040 5B        		.byte	91
+ 562 0041 5C        		.byte	92
+ 563 0042 5D        		.byte	93
+ 564 0043 5E        		.byte	94
+ 565 0044 00        		.byte	0
+ 566 0045 00        		.byte	0
+ 567 0046 00        		.byte	0
+ 568 0047 5F        		.byte	95
+ 569               		.section	.bss.state.2325,"aw",@nobits
+ 572               	state.2325:
+ 573 0000 00        		.zero	1
+ 574               		.section	.progmem.data.__c.2327,"a"
+ 577               	__c.2327:
+ 578 0000 2530 3258 		.string	"%02X "
+ 578      2000 
+ 579               		.section	.bss.matrix,"aw",@nobits
+ 582               	matrix:
+ 583 0000 0000 0000 		.zero	16
+ 583      0000 0000 
+ 583      0000 0000 
+ 583      0000 0000 
+ 584               		.text
+ 585               	.Letext0:
+ 586               		.file 2 "../../tmk_core/common/debug.h"
+ 587               		.file 3 "/usr/avr/include/stdint.h"
+ 588               		.file 4 "../../tmk_core/common/avr/xprintf.h"
+ 589               		.file 5 "../../tmk_core/common/matrix.h"
+ 590               		.file 6 "../../tmk_core/protocol/xt.h"
+DEFINED SYMBOLS
+                            *ABS*:0000000000000000 matrix.c
+     /tmp/ccfvPioT.s:2      *ABS*:000000000000003e __SP_H__
+     /tmp/ccfvPioT.s:3      *ABS*:000000000000003d __SP_L__
+     /tmp/ccfvPioT.s:4      *ABS*:000000000000003f __SREG__
+     /tmp/ccfvPioT.s:5      *ABS*:0000000000000000 __tmp_reg__
+     /tmp/ccfvPioT.s:6      *ABS*:0000000000000001 __zero_reg__
+     /tmp/ccfvPioT.s:12     .text.matrix_make:0000000000000000 matrix_make
+     /tmp/ccfvPioT.s:582    .bss.matrix:0000000000000000 matrix
+     /tmp/ccfvPioT.s:78     .text.matrix_break:0000000000000000 matrix_break
+     /tmp/ccfvPioT.s:145    .text.matrix_init:0000000000000000 matrix_init
+     /tmp/ccfvPioT.s:188    .text.matrix_scan:0000000000000000 matrix_scan
+     /tmp/ccfvPioT.s:577    .progmem.data.__c.2327:0000000000000000 __c.2327
+     /tmp/ccfvPioT.s:572    .bss.state.2325:0000000000000000 state.2325
+     /tmp/ccfvPioT.s:496    .rodata.CSWTCH.5:0000000000000000 CSWTCH.5
+     /tmp/ccfvPioT.s:433    .text.matrix_get_row:0000000000000000 matrix_get_row
+     /tmp/ccfvPioT.s:460    .text.matrix_clear:0000000000000000 matrix_clear
+
+UNDEFINED SYMBOLS
+matrix_is_on
+debug_config
+xt_host_init
+xt_host_recv
+__xprintf
+__do_copy_data
+__do_clear_bss

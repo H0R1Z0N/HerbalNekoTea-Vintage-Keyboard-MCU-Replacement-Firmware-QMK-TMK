@@ -1,0 +1,363 @@
+   1               		.file	"matrix.c"
+   2               	__SP_H__ = 0x3e
+   3               	__SP_L__ = 0x3d
+   4               	__SREG__ = 0x3f
+   5               	__tmp_reg__ = 0
+   6               	__zero_reg__ = 1
+   7               		.text
+   8               	.Ltext0:
+   9               		.cfi_sections	.debug_frame
+  10               		.section	.text.matrix_init,"ax",@progbits
+  11               	.global	matrix_init
+  13               	matrix_init:
+  14               	.LFB7:
+  15               		.file 1 "matrix.c"
+   1:matrix.c      **** /*
+   2:matrix.c      **** Copyright 2012 Jun Wako <wakojun@gmail.com>
+   3:matrix.c      **** 
+   4:matrix.c      **** This program is free software: you can redistribute it and/or modify
+   5:matrix.c      **** it under the terms of the GNU General Public License as published by
+   6:matrix.c      **** the Free Software Foundation, either version 2 of the License, or
+   7:matrix.c      **** (at your option) any later version.
+   8:matrix.c      **** 
+   9:matrix.c      **** This program is distributed in the hope that it will be useful,
+  10:matrix.c      **** but WITHOUT ANY WARRANTY; without even the implied warranty of
+  11:matrix.c      **** MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+  12:matrix.c      **** GNU General Public License for more details.
+  13:matrix.c      **** 
+  14:matrix.c      **** You should have received a copy of the GNU General Public License
+  15:matrix.c      **** along with this program.  If not, see <http://www.gnu.org/licenses/>.
+  16:matrix.c      **** */
+  17:matrix.c      **** 
+  18:matrix.c      **** #include <stdint.h>
+  19:matrix.c      **** #include <stdbool.h>
+  20:matrix.c      **** #include <avr/io.h>
+  21:matrix.c      **** #include <util/delay.h>
+  22:matrix.c      **** #include "print.h"
+  23:matrix.c      **** #include "util.h"
+  24:matrix.c      **** #include "news.h"
+  25:matrix.c      **** #include "matrix.h"
+  26:matrix.c      **** #include "debug.h"
+  27:matrix.c      **** 
+  28:matrix.c      **** 
+  29:matrix.c      **** /*
+  30:matrix.c      ****  * Matrix Array usage:
+  31:matrix.c      ****  *
+  32:matrix.c      ****  * ROW: 16
+  33:matrix.c      ****  * COL:8
+  34:matrix.c      ****  *
+  35:matrix.c      ****  *    8bit wide
+  36:matrix.c      ****  *   +---------+
+  37:matrix.c      ****  *  0|00 ... 07|
+  38:matrix.c      ****  *  1|08 ... 0F|
+  39:matrix.c      ****  *  :|   ...   |
+  40:matrix.c      ****  *  :|   ...   |
+  41:matrix.c      ****  *  E|70 ... 77|
+  42:matrix.c      ****  *  F|78 ... 7F|
+  43:matrix.c      ****  *   +---------+
+  44:matrix.c      ****  *
+  45:matrix.c      ****  */
+  46:matrix.c      **** static uint8_t matrix[MATRIX_ROWS];
+  47:matrix.c      **** #define ROW(code)      ((code>>3)&0xF)
+  48:matrix.c      **** #define COL(code)      (code&0x07)
+  49:matrix.c      **** 
+  50:matrix.c      **** 
+  51:matrix.c      **** void matrix_init(void)
+  52:matrix.c      **** {
+  16               		.loc 1 52 1 view -0
+  17               		.cfi_startproc
+  18               	/* prologue: function */
+  19               	/* frame size = 0 */
+  20               	/* stack size = 0 */
+  21               	.L__stack_usage = 0
+  53:matrix.c      ****     news_init();
+  22               		.loc 1 53 5 view .LVU1
+  23 0000 0E94 0000 		call news_init
+  24               	.LVL0:
+  54:matrix.c      **** 
+  55:matrix.c      ****     // initialize matrix state: all keys off
+  56:matrix.c      ****     for (uint8_t i=0; i < MATRIX_ROWS; i++) matrix[i] = 0x00;
+  25               		.loc 1 56 5 view .LVU2
+  26               	.LBB2:
+  27               		.loc 1 56 10 view .LVU3
+  28               		.loc 1 56 23 view .LVU4
+  29               		.loc 1 56 55 is_stmt 0 view .LVU5
+  30 0004 E0E0      		ldi r30,lo8(matrix)
+  31 0006 F0E0      		ldi r31,hi8(matrix)
+  32 0008 80E1      		ldi r24,lo8(16)
+  33 000a DF01      		movw r26,r30
+  34               		0:
+  35 000c 1D92      		st X+,__zero_reg__
+  36 000e 8A95      		dec r24
+  37 0010 01F4      		brne 0b
+  38               	.LVL1:
+  39               		.loc 1 56 55 view .LVU6
+  40               	.LBE2:
+  57:matrix.c      **** 
+  58:matrix.c      ****     return;
+  41               		.loc 1 58 5 is_stmt 1 view .LVU7
+  42               	/* epilogue start */
+  59:matrix.c      **** }
+  43               		.loc 1 59 1 is_stmt 0 view .LVU8
+  44 0012 0895      		ret
+  45               		.cfi_endproc
+  46               	.LFE7:
+  48               		.section	.text.matrix_scan,"ax",@progbits
+  49               	.global	matrix_scan
+  51               	matrix_scan:
+  52               	.LFB8:
+  60:matrix.c      **** 
+  61:matrix.c      **** uint8_t matrix_scan(void)
+  62:matrix.c      **** {
+  53               		.loc 1 62 1 is_stmt 1 view -0
+  54               		.cfi_startproc
+  55 0000 1F93      		push r17
+  56               	.LCFI0:
+  57               		.cfi_def_cfa_offset 3
+  58               		.cfi_offset 17, -2
+  59 0002 CF93      		push r28
+  60               	.LCFI1:
+  61               		.cfi_def_cfa_offset 4
+  62               		.cfi_offset 28, -3
+  63 0004 DF93      		push r29
+  64               	.LCFI2:
+  65               		.cfi_def_cfa_offset 5
+  66               		.cfi_offset 29, -4
+  67               	/* prologue: function */
+  68               	/* frame size = 0 */
+  69               	/* stack size = 3 */
+  70               	.L__stack_usage = 3
+  63:matrix.c      ****     uint8_t code;
+  71               		.loc 1 63 5 view .LVU10
+  64:matrix.c      ****     code = news_recv();
+  72               		.loc 1 64 5 view .LVU11
+  73               		.loc 1 64 12 is_stmt 0 view .LVU12
+  74 0006 0E94 0000 		call news_recv
+  75               	.LVL2:
+  76 000a D82F      		mov r29,r24
+  77               	.LVL3:
+  65:matrix.c      ****     if (code == 0) {
+  78               		.loc 1 65 5 is_stmt 1 view .LVU13
+  79               		.loc 1 65 8 is_stmt 0 view .LVU14
+  80 000c 8823      		tst r24
+  81 000e 01F0      		breq .L2
+  66:matrix.c      ****         return 0;
+  67:matrix.c      ****     }
+  68:matrix.c      **** 
+  69:matrix.c      ****     phex(code); print(" ");
+  82               		.loc 1 69 5 is_stmt 1 view .LVU15
+  83               	.LBB3:
+  84               		.loc 1 69 5 view .LVU16
+  85               		.loc 1 69 5 view .LVU17
+  86               	.LBE3:
+  87 0010 1F92      		push __zero_reg__
+  88               	.LCFI3:
+  89               		.cfi_def_cfa_offset 6
+  90 0012 8F93      		push r24
+  91               	.LCFI4:
+  92               		.cfi_def_cfa_offset 7
+  93 0014 80E0      		ldi r24,lo8(__c.1)
+  94 0016 90E0      		ldi r25,hi8(__c.1)
+  95               	.LVL4:
+  96               		.loc 1 69 5 is_stmt 0 view .LVU18
+  97 0018 9F93      		push r25
+  98               	.LCFI5:
+  99               		.cfi_def_cfa_offset 8
+ 100 001a 8F93      		push r24
+ 101               	.LCFI6:
+ 102               		.cfi_def_cfa_offset 9
+ 103 001c 0E94 0000 		call __xprintf
+ 104               	.LVL5:
+ 105               		.loc 1 69 17 is_stmt 1 view .LVU19
+ 106               	.LBB4:
+ 107               		.loc 1 69 17 view .LVU20
+ 108               		.loc 1 69 17 view .LVU21
+ 109               	.LBE4:
+ 110 0020 80E0      		ldi r24,lo8(__c.0)
+ 111 0022 90E0      		ldi r25,hi8(__c.0)
+ 112 0024 0E94 0000 		call xputs
+ 113               	.LVL6:
+  70:matrix.c      ****     if (code&0x80) {
+ 114               		.loc 1 70 5 view .LVU22
+  71:matrix.c      ****         // break code
+  72:matrix.c      ****         if (matrix_is_on(ROW(code), COL(code))) {
+ 115               		.loc 1 72 13 is_stmt 0 view .LVU23
+ 116 0028 1D2F      		mov r17,r29
+ 117 002a 1770      		andi r17,lo8(7)
+ 118               		.loc 1 72 26 view .LVU24
+ 119 002c CD2F      		mov r28,r29
+ 120 002e C695      		lsr r28
+ 121 0030 C695      		lsr r28
+ 122 0032 C695      		lsr r28
+  70:matrix.c      ****     if (code&0x80) {
+ 123               		.loc 1 70 8 view .LVU25
+ 124 0034 0F90      		pop __tmp_reg__
+ 125 0036 0F90      		pop __tmp_reg__
+ 126 0038 0F90      		pop __tmp_reg__
+ 127 003a 0F90      		pop __tmp_reg__
+ 128               	.LCFI7:
+ 129               		.cfi_def_cfa_offset 5
+ 130 003c D7FF      		sbrs r29,7
+ 131 003e 00C0      		rjmp .L4
+ 132               		.loc 1 72 9 is_stmt 1 view .LVU26
+ 133               		.loc 1 72 13 is_stmt 0 view .LVU27
+ 134 0040 CF70      		andi r28,lo8(15)
+ 135 0042 612F      		mov r22,r17
+ 136 0044 8C2F      		mov r24,r28
+ 137 0046 0E94 0000 		call matrix_is_on
+ 138               	.LVL7:
+ 139               		.loc 1 72 12 view .LVU28
+ 140 004a 8823      		tst r24
+ 141 004c 01F0      		breq .L2
+  73:matrix.c      ****             matrix[ROW(code)] &= ~(1<<COL(code));
+ 142               		.loc 1 73 13 is_stmt 1 view .LVU29
+ 143               		.loc 1 73 31 is_stmt 0 view .LVU30
+ 144 004e EC2F      		mov r30,r28
+ 145 0050 F0E0      		ldi r31,0
+ 146 0052 E050      		subi r30,lo8(-(matrix))
+ 147 0054 F040      		sbci r31,hi8(-(matrix))
+ 148               		.loc 1 73 37 view .LVU31
+ 149 0056 81E0      		ldi r24,lo8(1)
+ 150 0058 90E0      		ldi r25,0
+ 151 005a 00C0      		rjmp 2f
+ 152               		1:
+ 153 005c 880F      		lsl r24
+ 154               		2:
+ 155 005e 1A95      		dec r17
+ 156 0060 02F4      		brpl 1b
+ 157               		.loc 1 73 31 view .LVU32
+ 158 0062 8095      		com r24
+ 159 0064 9081      		ld r25,Z
+ 160 0066 8923      		and r24,r25
+ 161               	.L11:
+  74:matrix.c      ****         }
+  75:matrix.c      ****     } else {
+  76:matrix.c      ****         // make code
+  77:matrix.c      ****         if (!matrix_is_on(ROW(code), COL(code))) {
+  78:matrix.c      ****             matrix[ROW(code)] |=  (1<<COL(code));
+ 162               		.loc 1 78 31 view .LVU33
+ 163 0068 8083      		st Z,r24
+ 164               	.L2:
+  79:matrix.c      ****         }
+  80:matrix.c      ****     }
+  81:matrix.c      ****     return code;
+  82:matrix.c      **** }
+ 165               		.loc 1 82 1 view .LVU34
+ 166 006a 8D2F      		mov r24,r29
+ 167               	/* epilogue start */
+ 168 006c DF91      		pop r29
+ 169               	.LVL8:
+ 170               		.loc 1 82 1 view .LVU35
+ 171 006e CF91      		pop r28
+ 172 0070 1F91      		pop r17
+ 173 0072 0895      		ret
+ 174               	.LVL9:
+ 175               	.L4:
+  77:matrix.c      ****             matrix[ROW(code)] |=  (1<<COL(code));
+ 176               		.loc 1 77 9 is_stmt 1 view .LVU36
+  77:matrix.c      ****             matrix[ROW(code)] |=  (1<<COL(code));
+ 177               		.loc 1 77 14 is_stmt 0 view .LVU37
+ 178 0074 612F      		mov r22,r17
+ 179 0076 8C2F      		mov r24,r28
+ 180 0078 0E94 0000 		call matrix_is_on
+ 181               	.LVL10:
+  77:matrix.c      ****             matrix[ROW(code)] |=  (1<<COL(code));
+ 182               		.loc 1 77 12 view .LVU38
+ 183 007c 8111      		cpse r24,__zero_reg__
+ 184 007e 00C0      		rjmp .L2
+  78:matrix.c      ****         }
+ 185               		.loc 1 78 13 is_stmt 1 view .LVU39
+  78:matrix.c      ****         }
+ 186               		.loc 1 78 31 is_stmt 0 view .LVU40
+ 187 0080 EC2F      		mov r30,r28
+ 188 0082 F0E0      		ldi r31,0
+ 189 0084 E050      		subi r30,lo8(-(matrix))
+ 190 0086 F040      		sbci r31,hi8(-(matrix))
+  78:matrix.c      ****         }
+ 191               		.loc 1 78 37 view .LVU41
+ 192 0088 21E0      		ldi r18,lo8(1)
+ 193 008a 30E0      		ldi r19,0
+ 194 008c 00C0      		rjmp 2f
+ 195               		1:
+ 196 008e 220F      		lsl r18
+ 197               		2:
+ 198 0090 1A95      		dec r17
+ 199 0092 02F4      		brpl 1b
+  78:matrix.c      ****         }
+ 200               		.loc 1 78 31 view .LVU42
+ 201 0094 8081      		ld r24,Z
+ 202 0096 822B      		or r24,r18
+ 203 0098 00C0      		rjmp .L11
+ 204               		.cfi_endproc
+ 205               	.LFE8:
+ 207               		.section	.text.matrix_get_row,"ax",@progbits
+ 208               	.global	matrix_get_row
+ 210               	matrix_get_row:
+ 211               	.LVL11:
+ 212               	.LFB9:
+  83:matrix.c      **** 
+  84:matrix.c      **** inline
+  85:matrix.c      **** uint8_t matrix_get_row(uint8_t row)
+  86:matrix.c      **** {
+ 213               		.loc 1 86 1 is_stmt 1 view -0
+ 214               		.cfi_startproc
+ 215               	/* prologue: function */
+ 216               	/* frame size = 0 */
+ 217               	/* stack size = 0 */
+ 218               	.L__stack_usage = 0
+  87:matrix.c      ****     return matrix[row];
+ 219               		.loc 1 87 5 view .LVU44
+ 220               		.loc 1 87 18 is_stmt 0 view .LVU45
+ 221 0000 E82F      		mov r30,r24
+ 222 0002 F0E0      		ldi r31,0
+ 223 0004 E050      		subi r30,lo8(-(matrix))
+ 224 0006 F040      		sbci r31,hi8(-(matrix))
+  88:matrix.c      **** }
+ 225               		.loc 1 88 1 view .LVU46
+ 226 0008 8081      		ld r24,Z
+ 227               	.LVL12:
+ 228               	/* epilogue start */
+ 229               		.loc 1 88 1 view .LVU47
+ 230 000a 0895      		ret
+ 231               		.cfi_endproc
+ 232               	.LFE9:
+ 234               		.section	.progmem.data.__c.0,"a"
+ 237               	__c.0:
+ 238 0000 2000      		.string	" "
+ 239               		.section	.progmem.data.__c.1,"a"
+ 242               	__c.1:
+ 243 0000 2530 3258 		.string	"%02X"
+ 243      00
+ 244               		.section	.bss.matrix,"aw",@nobits
+ 247               	matrix:
+ 248 0000 0000 0000 		.zero	16
+ 248      0000 0000 
+ 248      0000 0000 
+ 248      0000 0000 
+ 249               		.text
+ 250               	.Letext0:
+ 251               		.file 2 "../../tmk_core/protocol/news.h"
+ 252               		.file 3 "../../tmk_core/common/avr/xprintf.h"
+ 253               		.file 4 "../../tmk_core/common/matrix.h"
+ 254               		.file 5 "/usr/avr/include/stdint.h"
+DEFINED SYMBOLS
+                            *ABS*:0000000000000000 matrix.c
+     /tmp/cclVFdcQ.s:2      *ABS*:000000000000003e __SP_H__
+     /tmp/cclVFdcQ.s:3      *ABS*:000000000000003d __SP_L__
+     /tmp/cclVFdcQ.s:4      *ABS*:000000000000003f __SREG__
+     /tmp/cclVFdcQ.s:5      *ABS*:0000000000000000 __tmp_reg__
+     /tmp/cclVFdcQ.s:6      *ABS*:0000000000000001 __zero_reg__
+     /tmp/cclVFdcQ.s:13     .text.matrix_init:0000000000000000 matrix_init
+     /tmp/cclVFdcQ.s:247    .bss.matrix:0000000000000000 matrix
+     /tmp/cclVFdcQ.s:51     .text.matrix_scan:0000000000000000 matrix_scan
+     /tmp/cclVFdcQ.s:242    .progmem.data.__c.1:0000000000000000 __c.1
+     /tmp/cclVFdcQ.s:237    .progmem.data.__c.0:0000000000000000 __c.0
+     /tmp/cclVFdcQ.s:210    .text.matrix_get_row:0000000000000000 matrix_get_row
+
+UNDEFINED SYMBOLS
+news_init
+news_recv
+__xprintf
+xputs
+matrix_is_on
+__do_clear_bss

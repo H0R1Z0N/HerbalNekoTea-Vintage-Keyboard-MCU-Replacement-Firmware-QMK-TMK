@@ -1,0 +1,1134 @@
+   1               		.file	"keymap.c"
+   2               	__SP_H__ = 0x3e
+   3               	__SP_L__ = 0x3d
+   4               	__SREG__ = 0x3f
+   5               	__tmp_reg__ = 0
+   6               	__zero_reg__ = 1
+   7               		.text
+   8               	.Ltext0:
+   9               		.cfi_sections	.debug_frame
+  10               		.section	.text.keycode_to_action,"ax",@progbits
+  12               	keycode_to_action:
+  13               	.LVL0:
+  14               	.LFB106:
+  15               		.file 1 "../../tmk_core/common/keymap.c"
+   1:../../tmk_core/common/keymap.c **** /*
+   2:../../tmk_core/common/keymap.c **** Copyright 2013,2016 Jun Wako <wakojun@gmail.com>
+   3:../../tmk_core/common/keymap.c **** 
+   4:../../tmk_core/common/keymap.c **** This program is free software: you can redistribute it and/or modify
+   5:../../tmk_core/common/keymap.c **** it under the terms of the GNU General Public License as published by
+   6:../../tmk_core/common/keymap.c **** the Free Software Foundation, either version 2 of the License, or
+   7:../../tmk_core/common/keymap.c **** (at your option) any later version.
+   8:../../tmk_core/common/keymap.c **** 
+   9:../../tmk_core/common/keymap.c **** This program is distributed in the hope that it will be useful,
+  10:../../tmk_core/common/keymap.c **** but WITHOUT ANY WARRANTY; without even the implied warranty of
+  11:../../tmk_core/common/keymap.c **** MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+  12:../../tmk_core/common/keymap.c **** GNU General Public License for more details.
+  13:../../tmk_core/common/keymap.c **** 
+  14:../../tmk_core/common/keymap.c **** You should have received a copy of the GNU General Public License
+  15:../../tmk_core/common/keymap.c **** along with this program.  If not, see <http://www.gnu.org/licenses/>.
+  16:../../tmk_core/common/keymap.c **** */
+  17:../../tmk_core/common/keymap.c **** #include "keymap.h"
+  18:../../tmk_core/common/keymap.c **** #include "report.h"
+  19:../../tmk_core/common/keymap.c **** #include "keycode.h"
+  20:../../tmk_core/common/keymap.c **** #include "action_layer.h"
+  21:../../tmk_core/common/keymap.c **** #include "action.h"
+  22:../../tmk_core/common/keymap.c **** #include "action_macro.h"
+  23:../../tmk_core/common/keymap.c **** #include "wait.h"
+  24:../../tmk_core/common/keymap.c **** #include "debug.h"
+  25:../../tmk_core/common/keymap.c **** #include "bootloader.h"
+  26:../../tmk_core/common/keymap.c **** #if defined(__AVR__)
+  27:../../tmk_core/common/keymap.c **** #include <avr/pgmspace.h>
+  28:../../tmk_core/common/keymap.c **** #endif
+  29:../../tmk_core/common/keymap.c **** 
+  30:../../tmk_core/common/keymap.c **** #ifdef BOOTMAGIC_ENABLE
+  31:../../tmk_core/common/keymap.c **** extern keymap_config_t keymap_config;
+  32:../../tmk_core/common/keymap.c **** #endif
+  33:../../tmk_core/common/keymap.c **** 
+  34:../../tmk_core/common/keymap.c **** static action_t keycode_to_action(uint8_t keycode);
+  35:../../tmk_core/common/keymap.c **** 
+  36:../../tmk_core/common/keymap.c **** 
+  37:../../tmk_core/common/keymap.c **** /* converts key to action */
+  38:../../tmk_core/common/keymap.c **** __attribute__ ((weak))
+  39:../../tmk_core/common/keymap.c **** action_t action_for_key(uint8_t layer, keypos_t key)
+  40:../../tmk_core/common/keymap.c **** {
+  41:../../tmk_core/common/keymap.c ****     uint8_t keycode = keymap_key_to_keycode(layer, key);
+  42:../../tmk_core/common/keymap.c ****     switch (keycode) {
+  43:../../tmk_core/common/keymap.c ****         case KC_FN0 ... KC_FN31:
+  44:../../tmk_core/common/keymap.c ****             return keymap_fn_to_action(keycode);
+  45:../../tmk_core/common/keymap.c **** #ifdef BOOTMAGIC_ENABLE
+  46:../../tmk_core/common/keymap.c ****         case KC_CAPSLOCK:
+  47:../../tmk_core/common/keymap.c ****         case KC_LOCKING_CAPS:
+  48:../../tmk_core/common/keymap.c ****             if (keymap_config.swap_control_capslock || keymap_config.capslock_to_control) {
+  49:../../tmk_core/common/keymap.c ****                 return keycode_to_action(KC_LCTL);
+  50:../../tmk_core/common/keymap.c ****             }
+  51:../../tmk_core/common/keymap.c ****             return keycode_to_action(keycode);
+  52:../../tmk_core/common/keymap.c ****         case KC_LCTL:
+  53:../../tmk_core/common/keymap.c ****             if (keymap_config.swap_control_capslock) {
+  54:../../tmk_core/common/keymap.c ****                 return keycode_to_action(KC_CAPSLOCK);
+  55:../../tmk_core/common/keymap.c ****             }
+  56:../../tmk_core/common/keymap.c ****             return keycode_to_action(KC_LCTL);
+  57:../../tmk_core/common/keymap.c ****         case KC_LALT:
+  58:../../tmk_core/common/keymap.c ****             if (keymap_config.swap_lalt_lgui) {
+  59:../../tmk_core/common/keymap.c ****                 if (keymap_config.no_gui) {
+  60:../../tmk_core/common/keymap.c ****                     return keycode_to_action(KC_NO);
+  61:../../tmk_core/common/keymap.c ****                 }
+  62:../../tmk_core/common/keymap.c ****                 return keycode_to_action(KC_LGUI);
+  63:../../tmk_core/common/keymap.c ****             }
+  64:../../tmk_core/common/keymap.c ****             return keycode_to_action(KC_LALT);
+  65:../../tmk_core/common/keymap.c ****         case KC_LGUI:
+  66:../../tmk_core/common/keymap.c ****             if (keymap_config.swap_lalt_lgui) {
+  67:../../tmk_core/common/keymap.c ****                 return keycode_to_action(KC_LALT);
+  68:../../tmk_core/common/keymap.c ****             }
+  69:../../tmk_core/common/keymap.c ****             if (keymap_config.no_gui) {
+  70:../../tmk_core/common/keymap.c ****                 return keycode_to_action(KC_NO);
+  71:../../tmk_core/common/keymap.c ****             }
+  72:../../tmk_core/common/keymap.c ****             return keycode_to_action(KC_LGUI);
+  73:../../tmk_core/common/keymap.c ****         case KC_RALT:
+  74:../../tmk_core/common/keymap.c ****             if (keymap_config.swap_ralt_rgui) {
+  75:../../tmk_core/common/keymap.c ****                 if (keymap_config.no_gui) {
+  76:../../tmk_core/common/keymap.c ****                     return keycode_to_action(KC_NO);
+  77:../../tmk_core/common/keymap.c ****                 }
+  78:../../tmk_core/common/keymap.c ****                 return keycode_to_action(KC_RGUI);
+  79:../../tmk_core/common/keymap.c ****             }
+  80:../../tmk_core/common/keymap.c ****             return keycode_to_action(KC_RALT);
+  81:../../tmk_core/common/keymap.c ****         case KC_RGUI:
+  82:../../tmk_core/common/keymap.c ****             if (keymap_config.swap_ralt_rgui) {
+  83:../../tmk_core/common/keymap.c ****                 return keycode_to_action(KC_RALT);
+  84:../../tmk_core/common/keymap.c ****             }
+  85:../../tmk_core/common/keymap.c ****             if (keymap_config.no_gui) {
+  86:../../tmk_core/common/keymap.c ****                 return keycode_to_action(KC_NO);
+  87:../../tmk_core/common/keymap.c ****             }
+  88:../../tmk_core/common/keymap.c ****             return keycode_to_action(KC_RGUI);
+  89:../../tmk_core/common/keymap.c ****         case KC_GRAVE:
+  90:../../tmk_core/common/keymap.c ****             if (keymap_config.swap_grave_esc) {
+  91:../../tmk_core/common/keymap.c ****                 return keycode_to_action(KC_ESC);
+  92:../../tmk_core/common/keymap.c ****             }
+  93:../../tmk_core/common/keymap.c ****             return keycode_to_action(KC_GRAVE);
+  94:../../tmk_core/common/keymap.c ****         case KC_ESC:
+  95:../../tmk_core/common/keymap.c ****             if (keymap_config.swap_grave_esc) {
+  96:../../tmk_core/common/keymap.c ****                 return keycode_to_action(KC_GRAVE);
+  97:../../tmk_core/common/keymap.c ****             }
+  98:../../tmk_core/common/keymap.c ****             return keycode_to_action(KC_ESC);
+  99:../../tmk_core/common/keymap.c ****         case KC_BSLASH:
+ 100:../../tmk_core/common/keymap.c ****             if (keymap_config.swap_backslash_backspace) {
+ 101:../../tmk_core/common/keymap.c ****                 return keycode_to_action(KC_BSPACE);
+ 102:../../tmk_core/common/keymap.c ****             }
+ 103:../../tmk_core/common/keymap.c ****             return keycode_to_action(KC_BSLASH);
+ 104:../../tmk_core/common/keymap.c ****         case KC_BSPACE:
+ 105:../../tmk_core/common/keymap.c ****             if (keymap_config.swap_backslash_backspace) {
+ 106:../../tmk_core/common/keymap.c ****                 return keycode_to_action(KC_BSLASH);
+ 107:../../tmk_core/common/keymap.c ****             }
+ 108:../../tmk_core/common/keymap.c ****             return keycode_to_action(KC_BSPACE);
+ 109:../../tmk_core/common/keymap.c **** #endif
+ 110:../../tmk_core/common/keymap.c ****         default:
+ 111:../../tmk_core/common/keymap.c ****             return keycode_to_action(keycode);
+ 112:../../tmk_core/common/keymap.c ****     }
+ 113:../../tmk_core/common/keymap.c **** }
+ 114:../../tmk_core/common/keymap.c **** 
+ 115:../../tmk_core/common/keymap.c **** 
+ 116:../../tmk_core/common/keymap.c **** /* Macro */
+ 117:../../tmk_core/common/keymap.c **** __attribute__ ((weak))
+ 118:../../tmk_core/common/keymap.c **** const macro_t *action_get_macro(keyrecord_t *record, uint8_t id, uint8_t opt)
+ 119:../../tmk_core/common/keymap.c **** {
+ 120:../../tmk_core/common/keymap.c ****     (void)record;
+ 121:../../tmk_core/common/keymap.c ****     (void)id;
+ 122:../../tmk_core/common/keymap.c ****     (void)opt;
+ 123:../../tmk_core/common/keymap.c ****     return MACRO_NONE;
+ 124:../../tmk_core/common/keymap.c **** }
+ 125:../../tmk_core/common/keymap.c **** 
+ 126:../../tmk_core/common/keymap.c **** /* Function */
+ 127:../../tmk_core/common/keymap.c **** __attribute__ ((weak))
+ 128:../../tmk_core/common/keymap.c **** void action_function(keyrecord_t *record, uint8_t id, uint8_t opt)
+ 129:../../tmk_core/common/keymap.c **** {
+ 130:../../tmk_core/common/keymap.c ****     (void)record;
+ 131:../../tmk_core/common/keymap.c ****     (void)id;
+ 132:../../tmk_core/common/keymap.c ****     (void)opt;
+ 133:../../tmk_core/common/keymap.c **** }
+ 134:../../tmk_core/common/keymap.c **** 
+ 135:../../tmk_core/common/keymap.c **** 
+ 136:../../tmk_core/common/keymap.c **** 
+ 137:../../tmk_core/common/keymap.c **** /* translates keycode to action */
+ 138:../../tmk_core/common/keymap.c **** static action_t keycode_to_action(uint8_t keycode)
+ 139:../../tmk_core/common/keymap.c **** {
+  16               		.loc 1 139 1 view -0
+  17               		.cfi_startproc
+  18               	/* prologue: function */
+  19               	/* frame size = 0 */
+  20               	/* stack size = 0 */
+  21               	.L__stack_usage = 0
+ 140:../../tmk_core/common/keymap.c ****     switch (keycode) {
+  22               		.loc 1 140 5 view .LVU1
+  23 0000 8D3B      		cpi r24,lo8(-67)
+  24 0002 00F4      		brsh .L2
+  25 0004 883A      		cpi r24,lo8(-88)
+  26 0006 00F4      		brsh .L3
+  27 0008 853A      		cpi r24,lo8(-91)
+  28 000a 00F4      		brsh .L4
+  29 000c 8430      		cpi r24,lo8(4)
+  30 000e 00F4      		brsh .L5
+  31 0010 8130      		cpi r24,lo8(1)
+  32 0012 01F4      		brne .+2
+  33 0014 00C0      		rjmp .L6
+  34               	.L7:
+ 141:../../tmk_core/common/keymap.c ****         case KC_A ... KC_EXSEL:
+ 142:../../tmk_core/common/keymap.c ****         case KC_LCTRL ... KC_RGUI:
+ 143:../../tmk_core/common/keymap.c ****             return (action_t)ACTION_KEY(keycode);
+ 144:../../tmk_core/common/keymap.c ****             break;
+ 145:../../tmk_core/common/keymap.c ****         case KC_SYSTEM_POWER ... KC_SYSTEM_WAKE:
+ 146:../../tmk_core/common/keymap.c ****             return (action_t)ACTION_USAGE_SYSTEM(KEYCODE2SYSTEM(keycode));
+ 147:../../tmk_core/common/keymap.c ****             break;
+ 148:../../tmk_core/common/keymap.c ****         case KC_AUDIO_MUTE ... KC_WWW_FAVORITES:
+ 149:../../tmk_core/common/keymap.c ****             return (action_t)ACTION_USAGE_CONSUMER(KEYCODE2CONSUMER(keycode));
+ 150:../../tmk_core/common/keymap.c ****             break;
+ 151:../../tmk_core/common/keymap.c ****         case KC_MS_UP ... KC_MS_ACCEL2:
+ 152:../../tmk_core/common/keymap.c ****             return (action_t)ACTION_MOUSEKEY(keycode);
+ 153:../../tmk_core/common/keymap.c ****             break;
+ 154:../../tmk_core/common/keymap.c ****         case KC_TRNS:
+ 155:../../tmk_core/common/keymap.c ****             return (action_t)ACTION_TRANSPARENT;
+ 156:../../tmk_core/common/keymap.c ****             break;
+ 157:../../tmk_core/common/keymap.c ****         case KC_BOOTLOADER:
+ 158:../../tmk_core/common/keymap.c ****             return (action_t)ACTION_COMMAND(COMMAND_BOOTLOADER, 0);
+ 159:../../tmk_core/common/keymap.c ****             break;
+  35               		.loc 1 159 13 view .LVU2
+ 160:../../tmk_core/common/keymap.c ****         default:
+ 161:../../tmk_core/common/keymap.c ****             return (action_t)ACTION_NO;
+  36               		.loc 1 161 13 view .LVU3
+  37               		.loc 1 161 20 is_stmt 0 view .LVU4
+  38 0016 90E0      		ldi r25,0
+  39 0018 80E0      		ldi r24,0
+  40               	.LVL1:
+  41               	/* epilogue start */
+ 162:../../tmk_core/common/keymap.c ****             break;
+ 163:../../tmk_core/common/keymap.c ****     }
+ 164:../../tmk_core/common/keymap.c ****     return (action_t)ACTION_NO;
+ 165:../../tmk_core/common/keymap.c **** }
+  42               		.loc 1 165 1 view .LVU5
+  43 001a 0895      		ret
+  44               	.LVL2:
+  45               	.L2:
+ 140:../../tmk_core/common/keymap.c ****         case KC_A ... KC_EXSEL:
+  46               		.loc 1 140 5 view .LVU6
+  47 001c 883E      		cpi r24,lo8(-24)
+  48 001e 00F4      		brsh .L8
+  49 0020 803E      		cpi r24,lo8(-32)
+  50 0022 00F4      		brsh .L5
+  51 0024 8F3B      		cpi r24,lo8(-65)
+  52 0026 01F4      		brne .L7
+ 156:../../tmk_core/common/keymap.c ****         case KC_BOOTLOADER:
+  53               		.loc 1 156 13 is_stmt 1 view .LVU7
+ 158:../../tmk_core/common/keymap.c ****             break;
+  54               		.loc 1 158 13 view .LVU8
+ 158:../../tmk_core/common/keymap.c ****             break;
+  55               		.loc 1 158 20 is_stmt 0 view .LVU9
+  56 0028 80E0      		ldi r24,0
+  57 002a 90EE      		ldi r25,lo8(-32)
+  58               	.LVL3:
+ 158:../../tmk_core/common/keymap.c ****             break;
+  59               		.loc 1 158 20 view .LVU10
+  60 002c 0895      		ret
+  61               	.LVL4:
+  62               	.L8:
+ 140:../../tmk_core/common/keymap.c ****         case KC_A ... KC_EXSEL:
+  63               		.loc 1 140 5 view .LVU11
+  64 002e 803F      		cpi r24,lo8(-16)
+  65 0030 00F0      		brlo .L7
+ 150:../../tmk_core/common/keymap.c ****         case KC_MS_UP ... KC_MS_ACCEL2:
+  66               		.loc 1 150 13 is_stmt 1 view .LVU12
+ 152:../../tmk_core/common/keymap.c ****             break;
+  67               		.loc 1 152 13 view .LVU13
+ 140:../../tmk_core/common/keymap.c ****         case KC_A ... KC_EXSEL:
+  68               		.loc 1 140 5 is_stmt 0 view .LVU14
+  69 0032 90E0      		ldi r25,0
+ 152:../../tmk_core/common/keymap.c ****             break;
+  70               		.loc 1 152 20 view .LVU15
+  71 0034 9065      		ori r25,80
+  72               	.LVL5:
+ 152:../../tmk_core/common/keymap.c ****             break;
+  73               		.loc 1 152 20 view .LVU16
+  74 0036 0895      		ret
+  75               	.LVL6:
+  76               	.L5:
+ 143:../../tmk_core/common/keymap.c ****             break;
+  77               		.loc 1 143 13 is_stmt 1 view .LVU17
+ 143:../../tmk_core/common/keymap.c ****             break;
+  78               		.loc 1 143 30 is_stmt 0 view .LVU18
+  79 0038 90E0      		ldi r25,0
+ 143:../../tmk_core/common/keymap.c ****             break;
+  80               		.loc 1 143 20 view .LVU19
+  81 003a 0895      		ret
+  82               	.L4:
+ 144:../../tmk_core/common/keymap.c ****         case KC_SYSTEM_POWER ... KC_SYSTEM_WAKE:
+  83               		.loc 1 144 13 is_stmt 1 view .LVU20
+ 146:../../tmk_core/common/keymap.c ****             break;
+  84               		.loc 1 146 13 view .LVU21
+ 146:../../tmk_core/common/keymap.c ****             break;
+  85               		.loc 1 146 30 is_stmt 0 view .LVU22
+  86 003c 31E8      		ldi r19,lo8(-127)
+  87 003e 853A      		cpi r24,lo8(-91)
+  88 0040 01F0      		breq .L38
+ 146:../../tmk_core/common/keymap.c ****             break;
+  89               		.loc 1 146 30 discriminator 1 view .LVU23
+  90 0042 33E8      		ldi r19,lo8(-125)
+  91 0044 863A      		cpi r24,lo8(-90)
+  92 0046 01F4      		brne .L38
+ 146:../../tmk_core/common/keymap.c ****             break;
+  93               		.loc 1 146 30 view .LVU24
+  94 0048 32E8      		ldi r19,lo8(-126)
+  95               	.L38:
+  96 004a 20E4      		ldi r18,lo8(64)
+  97               	.L13:
+ 149:../../tmk_core/common/keymap.c ****             break;
+  98               		.loc 1 149 20 discriminator 84 view .LVU25
+  99 004c 832F      		mov r24,r19
+ 100               	.LVL7:
+ 149:../../tmk_core/common/keymap.c ****             break;
+ 101               		.loc 1 149 20 discriminator 84 view .LVU26
+ 102 004e 922F      		mov r25,r18
+ 103 0050 0895      		ret
+ 104               	.LVL8:
+ 105               	.L3:
+ 147:../../tmk_core/common/keymap.c ****         case KC_AUDIO_MUTE ... KC_WWW_FAVORITES:
+ 106               		.loc 1 147 13 is_stmt 1 view .LVU27
+ 149:../../tmk_core/common/keymap.c ****             break;
+ 107               		.loc 1 149 13 view .LVU28
+ 149:../../tmk_core/common/keymap.c ****             break;
+ 108               		.loc 1 149 30 is_stmt 0 view .LVU29
+ 109 0052 883A      		cpi r24,lo8(-88)
+ 110 0054 01F0      		breq .L16
+ 149:../../tmk_core/common/keymap.c ****             break;
+ 111               		.loc 1 149 30 discriminator 1 view .LVU30
+ 112 0056 893A      		cpi r24,lo8(-87)
+ 113 0058 01F0      		breq .L17
+ 149:../../tmk_core/common/keymap.c ****             break;
+ 114               		.loc 1 149 30 discriminator 3 view .LVU31
+ 115 005a 8A3A      		cpi r24,lo8(-86)
+ 116 005c 01F0      		breq .L18
+ 149:../../tmk_core/common/keymap.c ****             break;
+ 117               		.loc 1 149 30 discriminator 5 view .LVU32
+ 118 005e 8B3A      		cpi r24,lo8(-85)
+ 119 0060 01F0      		breq .L19
+ 149:../../tmk_core/common/keymap.c ****             break;
+ 120               		.loc 1 149 30 discriminator 7 view .LVU33
+ 121 0062 8C3A      		cpi r24,lo8(-84)
+ 122 0064 01F0      		breq .L20
+ 149:../../tmk_core/common/keymap.c ****             break;
+ 123               		.loc 1 149 30 discriminator 9 view .LVU34
+ 124 0066 8D3A      		cpi r24,lo8(-83)
+ 125 0068 01F0      		breq .L21
+ 149:../../tmk_core/common/keymap.c ****             break;
+ 126               		.loc 1 149 30 discriminator 11 view .LVU35
+ 127 006a 8E3A      		cpi r24,lo8(-82)
+ 128 006c 01F0      		breq .L22
+ 149:../../tmk_core/common/keymap.c ****             break;
+ 129               		.loc 1 149 30 discriminator 13 view .LVU36
+ 130 006e 8F3A      		cpi r24,lo8(-81)
+ 131 0070 01F0      		breq .L23
+ 149:../../tmk_core/common/keymap.c ****             break;
+ 132               		.loc 1 149 30 discriminator 15 view .LVU37
+ 133 0072 813B      		cpi r24,lo8(-79)
+ 134 0074 01F0      		breq .L24
+ 149:../../tmk_core/common/keymap.c ****             break;
+ 135               		.loc 1 149 30 discriminator 17 view .LVU38
+ 136 0076 803B      		cpi r24,lo8(-80)
+ 137 0078 01F0      		breq .L25
+ 149:../../tmk_core/common/keymap.c ****             break;
+ 138               		.loc 1 149 30 discriminator 19 view .LVU39
+ 139 007a 823B      		cpi r24,lo8(-78)
+ 140 007c 01F0      		breq .L26
+ 149:../../tmk_core/common/keymap.c ****             break;
+ 141               		.loc 1 149 30 discriminator 21 view .LVU40
+ 142 007e 833B      		cpi r24,lo8(-77)
+ 143 0080 01F0      		breq .L27
+ 149:../../tmk_core/common/keymap.c ****             break;
+ 144               		.loc 1 149 30 discriminator 23 view .LVU41
+ 145 0082 843B      		cpi r24,lo8(-76)
+ 146 0084 01F0      		breq .L28
+ 149:../../tmk_core/common/keymap.c ****             break;
+ 147               		.loc 1 149 30 discriminator 25 view .LVU42
+ 148 0086 853B      		cpi r24,lo8(-75)
+ 149 0088 01F0      		breq .L29
+ 149:../../tmk_core/common/keymap.c ****             break;
+ 150               		.loc 1 149 30 discriminator 27 view .LVU43
+ 151 008a 863B      		cpi r24,lo8(-74)
+ 152 008c 01F0      		breq .L30
+ 149:../../tmk_core/common/keymap.c ****             break;
+ 153               		.loc 1 149 30 discriminator 29 view .LVU44
+ 154 008e 873B      		cpi r24,lo8(-73)
+ 155 0090 01F0      		breq .L31
+ 149:../../tmk_core/common/keymap.c ****             break;
+ 156               		.loc 1 149 30 discriminator 31 view .LVU45
+ 157 0092 883B      		cpi r24,lo8(-72)
+ 158 0094 01F0      		breq .L32
+ 149:../../tmk_core/common/keymap.c ****             break;
+ 159               		.loc 1 149 30 discriminator 33 view .LVU46
+ 160 0096 893B      		cpi r24,lo8(-71)
+ 161 0098 01F0      		breq .L33
+ 149:../../tmk_core/common/keymap.c ****             break;
+ 162               		.loc 1 149 30 discriminator 35 view .LVU47
+ 163 009a 8A3B      		cpi r24,lo8(-70)
+ 164 009c 01F0      		breq .L34
+ 149:../../tmk_core/common/keymap.c ****             break;
+ 165               		.loc 1 149 30 discriminator 37 view .LVU48
+ 166 009e 8B3B      		cpi r24,lo8(-69)
+ 167 00a0 01F0      		breq .L35
+ 149:../../tmk_core/common/keymap.c ****             break;
+ 168               		.loc 1 149 30 discriminator 39 view .LVU49
+ 169 00a2 30E0      		ldi r19,0
+ 170 00a4 8C3B      		cpi r24,lo8(-68)
+ 171 00a6 01F4      		brne .L41
+ 149:../../tmk_core/common/keymap.c ****             break;
+ 172               		.loc 1 149 30 view .LVU50
+ 173 00a8 3AE2      		ldi r19,lo8(42)
+ 174 00aa 00C0      		rjmp .L39
+ 175               	.L16:
+ 176 00ac 32EE      		ldi r19,lo8(-30)
+ 177               	.L41:
+ 178 00ae 24E4      		ldi r18,lo8(68)
+ 179 00b0 00C0      		rjmp .L13
+ 180               	.L17:
+ 181 00b2 39EE      		ldi r19,lo8(-23)
+ 182 00b4 00C0      		rjmp .L41
+ 183               	.L18:
+ 184 00b6 3AEE      		ldi r19,lo8(-22)
+ 185 00b8 00C0      		rjmp .L41
+ 186               	.L19:
+ 187 00ba 35EB      		ldi r19,lo8(-75)
+ 188 00bc 00C0      		rjmp .L41
+ 189               	.L20:
+ 190 00be 36EB      		ldi r19,lo8(-74)
+ 191 00c0 00C0      		rjmp .L41
+ 192               	.L21:
+ 193 00c2 33EB      		ldi r19,lo8(-77)
+ 194 00c4 00C0      		rjmp .L41
+ 195               	.L22:
+ 196 00c6 34EB      		ldi r19,lo8(-76)
+ 197 00c8 00C0      		rjmp .L41
+ 198               	.L23:
+ 199 00ca 37EB      		ldi r19,lo8(-73)
+ 200 00cc 00C0      		rjmp .L41
+ 201               	.L24:
+ 202 00ce 3CEC      		ldi r19,lo8(-52)
+ 203 00d0 00C0      		rjmp .L41
+ 204               	.L25:
+ 205 00d2 3DEC      		ldi r19,lo8(-51)
+ 206 00d4 00C0      		rjmp .L41
+ 207               	.L26:
+ 208 00d6 33E8      		ldi r19,lo8(-125)
+ 209               	.L40:
+ 210 00d8 25E4      		ldi r18,lo8(69)
+ 211 00da 00C0      		rjmp .L13
+ 212               	.L27:
+ 213 00dc 3AE8      		ldi r19,lo8(-118)
+ 214 00de 00C0      		rjmp .L40
+ 215               	.L28:
+ 216 00e0 32E9      		ldi r19,lo8(-110)
+ 217 00e2 00C0      		rjmp .L40
+ 218               	.L29:
+ 219 00e4 34E9      		ldi r19,lo8(-108)
+ 220 00e6 00C0      		rjmp .L40
+ 221               	.L30:
+ 222 00e8 31E2      		ldi r19,lo8(33)
+ 223               	.L39:
+ 224 00ea 26E4      		ldi r18,lo8(70)
+ 225 00ec 00C0      		rjmp .L13
+ 226               	.L31:
+ 227 00ee 33E2      		ldi r19,lo8(35)
+ 228 00f0 00C0      		rjmp .L39
+ 229               	.L32:
+ 230 00f2 34E2      		ldi r19,lo8(36)
+ 231 00f4 00C0      		rjmp .L39
+ 232               	.L33:
+ 233 00f6 35E2      		ldi r19,lo8(37)
+ 234 00f8 00C0      		rjmp .L39
+ 235               	.L34:
+ 236 00fa 36E2      		ldi r19,lo8(38)
+ 237 00fc 00C0      		rjmp .L39
+ 238               	.L35:
+ 239 00fe 37E2      		ldi r19,lo8(39)
+ 240 0100 00C0      		rjmp .L39
+ 241               	.L6:
+ 153:../../tmk_core/common/keymap.c ****         case KC_TRNS:
+ 242               		.loc 1 153 13 is_stmt 1 view .LVU51
+ 155:../../tmk_core/common/keymap.c ****             break;
+ 243               		.loc 1 155 13 view .LVU52
+ 155:../../tmk_core/common/keymap.c ****             break;
+ 244               		.loc 1 155 20 is_stmt 0 view .LVU53
+ 245 0102 81E0      		ldi r24,lo8(1)
+ 246 0104 90E0      		ldi r25,0
+ 247               	.LVL9:
+ 155:../../tmk_core/common/keymap.c ****             break;
+ 248               		.loc 1 155 20 view .LVU54
+ 249 0106 0895      		ret
+ 250               		.cfi_endproc
+ 251               	.LFE106:
+ 253               		.section	.text.action_get_macro,"ax",@progbits
+ 254               		.weak	action_get_macro
+ 256               	action_get_macro:
+ 257               	.LVL10:
+ 258               	.LFB104:
+ 119:../../tmk_core/common/keymap.c ****     (void)record;
+ 259               		.loc 1 119 1 is_stmt 1 view -0
+ 260               		.cfi_startproc
+ 261               	/* prologue: function */
+ 262               	/* frame size = 0 */
+ 263               	/* stack size = 0 */
+ 264               	.L__stack_usage = 0
+ 120:../../tmk_core/common/keymap.c ****     (void)id;
+ 265               		.loc 1 120 5 view .LVU56
+ 121:../../tmk_core/common/keymap.c ****     (void)opt;
+ 266               		.loc 1 121 5 view .LVU57
+ 122:../../tmk_core/common/keymap.c ****     return MACRO_NONE;
+ 267               		.loc 1 122 5 view .LVU58
+ 123:../../tmk_core/common/keymap.c **** }
+ 268               		.loc 1 123 5 view .LVU59
+ 124:../../tmk_core/common/keymap.c **** 
+ 269               		.loc 1 124 1 is_stmt 0 view .LVU60
+ 270 0000 90E0      		ldi r25,0
+ 271 0002 80E0      		ldi r24,0
+ 272               	.LVL11:
+ 273               	/* epilogue start */
+ 124:../../tmk_core/common/keymap.c **** 
+ 274               		.loc 1 124 1 view .LVU61
+ 275 0004 0895      		ret
+ 276               		.cfi_endproc
+ 277               	.LFE104:
+ 279               		.section	.text.action_function,"ax",@progbits
+ 280               		.weak	action_function
+ 282               	action_function:
+ 283               	.LVL12:
+ 284               	.LFB105:
+ 129:../../tmk_core/common/keymap.c ****     (void)record;
+ 285               		.loc 1 129 1 is_stmt 1 view -0
+ 286               		.cfi_startproc
+ 287               	/* prologue: function */
+ 288               	/* frame size = 0 */
+ 289               	/* stack size = 0 */
+ 290               	.L__stack_usage = 0
+ 130:../../tmk_core/common/keymap.c ****     (void)id;
+ 291               		.loc 1 130 5 view .LVU63
+ 131:../../tmk_core/common/keymap.c ****     (void)opt;
+ 292               		.loc 1 131 5 view .LVU64
+ 132:../../tmk_core/common/keymap.c **** }
+ 293               		.loc 1 132 5 view .LVU65
+ 294               	/* epilogue start */
+ 133:../../tmk_core/common/keymap.c **** 
+ 295               		.loc 1 133 1 is_stmt 0 view .LVU66
+ 296 0000 0895      		ret
+ 297               		.cfi_endproc
+ 298               	.LFE105:
+ 300               		.section	.text.keymap_get_keycode,"ax",@progbits
+ 301               		.weak	keymap_get_keycode
+ 303               	keymap_get_keycode:
+ 304               	.LVL13:
+ 305               	.LFB107:
+ 166:../../tmk_core/common/keymap.c **** 
+ 167:../../tmk_core/common/keymap.c **** 
+ 168:../../tmk_core/common/keymap.c **** 
+ 169:../../tmk_core/common/keymap.c **** #ifdef USE_LEGACY_KEYMAP
+ 170:../../tmk_core/common/keymap.c **** /*
+ 171:../../tmk_core/common/keymap.c ****  * Legacy keymap support
+ 172:../../tmk_core/common/keymap.c ****  *      Consider using new keymap API instead.
+ 173:../../tmk_core/common/keymap.c ****  */
+ 174:../../tmk_core/common/keymap.c **** extern const uint8_t keymaps[][MATRIX_ROWS][MATRIX_COLS];
+ 175:../../tmk_core/common/keymap.c **** extern const uint8_t fn_layer[];
+ 176:../../tmk_core/common/keymap.c **** extern const uint8_t fn_keycode[];
+ 177:../../tmk_core/common/keymap.c **** 
+ 178:../../tmk_core/common/keymap.c **** __attribute__ ((weak))
+ 179:../../tmk_core/common/keymap.c **** uint8_t keymap_get_keycode(uint8_t layer, uint8_t row, uint8_t col)
+ 180:../../tmk_core/common/keymap.c **** {
+ 306               		.loc 1 180 1 is_stmt 1 view -0
+ 307               		.cfi_startproc
+ 308               	/* prologue: function */
+ 309               	/* frame size = 0 */
+ 310               	/* stack size = 0 */
+ 311               	.L__stack_usage = 0
+ 181:../../tmk_core/common/keymap.c ****     return pgm_read_byte(&keymaps[(layer)][(row)][(col)]);
+ 312               		.loc 1 181 5 view .LVU68
+ 313               	.LBB2:
+ 314               		.loc 1 181 12 view .LVU69
+ 315               		.loc 1 181 12 view .LVU70
+ 316               		.loc 1 181 12 view .LVU71
+ 317 0000 20E1      		ldi r18,lo8(16)
+ 318 0002 829F      		mul r24,r18
+ 319 0004 C001      		movw r24,r0
+ 320 0006 1124      		clr __zero_reg__
+ 321               	.LVL14:
+ 322               		.loc 1 181 12 is_stmt 0 view .LVU72
+ 323 0008 FC01      		movw r30,r24
+ 324 000a E60F      		add r30,r22
+ 325 000c F11D      		adc r31,__zero_reg__
+ 326 000e 83E0      		ldi r24,3
+ 327               		1:
+ 328 0010 EE0F      		lsl r30
+ 329 0012 FF1F      		rol r31
+ 330 0014 8A95      		dec r24
+ 331 0016 01F4      		brne 1b
+ 332 0018 E40F      		add r30,r20
+ 333 001a F11D      		adc r31,__zero_reg__
+ 334 001c E050      		subi r30,lo8(-(keymaps))
+ 335 001e F040      		sbci r31,hi8(-(keymaps))
+ 336               	/* #APP */
+ 337               	 ;  181 "../../tmk_core/common/keymap.c" 1
+ 338 0020 8491      		lpm r24, Z
+ 339               		
+ 340               	 ;  0 "" 2
+ 341               	.LVL15:
+ 342               		.loc 1 181 12 is_stmt 1 view .LVU73
+ 343               	/* #NOAPP */
+ 344               	/* epilogue start */
+ 345               	.LBE2:
+ 182:../../tmk_core/common/keymap.c **** }
+ 346               		.loc 1 182 1 is_stmt 0 view .LVU74
+ 347 0022 0895      		ret
+ 348               		.cfi_endproc
+ 349               	.LFE107:
+ 351               		.section	.text.keymap_fn_layer,"ax",@progbits
+ 352               		.weak	keymap_fn_layer
+ 354               	keymap_fn_layer:
+ 355               	.LVL16:
+ 356               	.LFB108:
+ 183:../../tmk_core/common/keymap.c **** 
+ 184:../../tmk_core/common/keymap.c **** __attribute__ ((weak))
+ 185:../../tmk_core/common/keymap.c **** uint8_t keymap_fn_layer(uint8_t index)
+ 186:../../tmk_core/common/keymap.c **** {
+ 357               		.loc 1 186 1 is_stmt 1 view -0
+ 358               		.cfi_startproc
+ 359               	/* prologue: function */
+ 360               	/* frame size = 0 */
+ 361               	/* stack size = 0 */
+ 362               	.L__stack_usage = 0
+ 187:../../tmk_core/common/keymap.c ****     return pgm_read_byte(&fn_layer[index]);
+ 363               		.loc 1 187 5 view .LVU76
+ 364               	.LBB3:
+ 365               		.loc 1 187 12 view .LVU77
+ 366               		.loc 1 187 12 view .LVU78
+ 367               		.loc 1 187 12 view .LVU79
+ 368 0000 E82F      		mov r30,r24
+ 369 0002 F0E0      		ldi r31,0
+ 370 0004 E050      		subi r30,lo8(-(fn_layer))
+ 371 0006 F040      		sbci r31,hi8(-(fn_layer))
+ 372               	/* #APP */
+ 373               	 ;  187 "../../tmk_core/common/keymap.c" 1
+ 374 0008 8491      		lpm r24, Z
+ 375               		
+ 376               	 ;  0 "" 2
+ 377               	.LVL17:
+ 378               		.loc 1 187 12 view .LVU80
+ 379               	/* #NOAPP */
+ 380               	/* epilogue start */
+ 381               	.LBE3:
+ 188:../../tmk_core/common/keymap.c **** }
+ 382               		.loc 1 188 1 is_stmt 0 view .LVU81
+ 383 000a 0895      		ret
+ 384               		.cfi_endproc
+ 385               	.LFE108:
+ 387               		.section	.text.keymap_fn_keycode,"ax",@progbits
+ 388               		.weak	keymap_fn_keycode
+ 390               	keymap_fn_keycode:
+ 391               	.LVL18:
+ 392               	.LFB109:
+ 189:../../tmk_core/common/keymap.c **** 
+ 190:../../tmk_core/common/keymap.c **** __attribute__ ((weak))
+ 191:../../tmk_core/common/keymap.c **** uint8_t keymap_fn_keycode(uint8_t index)
+ 192:../../tmk_core/common/keymap.c **** {
+ 393               		.loc 1 192 1 is_stmt 1 view -0
+ 394               		.cfi_startproc
+ 395               	/* prologue: function */
+ 396               	/* frame size = 0 */
+ 397               	/* stack size = 0 */
+ 398               	.L__stack_usage = 0
+ 193:../../tmk_core/common/keymap.c ****     return pgm_read_byte(&fn_keycode[index]);
+ 399               		.loc 1 193 5 view .LVU83
+ 400               	.LBB4:
+ 401               		.loc 1 193 12 view .LVU84
+ 402               		.loc 1 193 12 view .LVU85
+ 403               		.loc 1 193 12 view .LVU86
+ 404 0000 E82F      		mov r30,r24
+ 405 0002 F0E0      		ldi r31,0
+ 406 0004 E050      		subi r30,lo8(-(fn_keycode))
+ 407 0006 F040      		sbci r31,hi8(-(fn_keycode))
+ 408               	/* #APP */
+ 409               	 ;  193 "../../tmk_core/common/keymap.c" 1
+ 410 0008 8491      		lpm r24, Z
+ 411               		
+ 412               	 ;  0 "" 2
+ 413               	.LVL19:
+ 414               		.loc 1 193 12 view .LVU87
+ 415               	/* #NOAPP */
+ 416               	/* epilogue start */
+ 417               	.LBE4:
+ 194:../../tmk_core/common/keymap.c **** }
+ 418               		.loc 1 194 1 is_stmt 0 view .LVU88
+ 419 000a 0895      		ret
+ 420               		.cfi_endproc
+ 421               	.LFE109:
+ 423               		.section	.text.keymap_key_to_keycode,"ax",@progbits
+ 424               		.weak	keymap_key_to_keycode
+ 426               	keymap_key_to_keycode:
+ 427               	.LVL20:
+ 428               	.LFB110:
+ 195:../../tmk_core/common/keymap.c **** 
+ 196:../../tmk_core/common/keymap.c **** __attribute__ ((weak))
+ 197:../../tmk_core/common/keymap.c **** uint8_t keymap_key_to_keycode(uint8_t layer, keypos_t key)
+ 198:../../tmk_core/common/keymap.c **** {
+ 429               		.loc 1 198 1 is_stmt 1 view -0
+ 430               		.cfi_startproc
+ 431               	/* prologue: function */
+ 432               	/* frame size = 0 */
+ 433               	/* stack size = 0 */
+ 434               	.L__stack_usage = 0
+ 435               		.loc 1 198 1 is_stmt 0 view .LVU90
+ 436 0000 462F      		mov r20,r22
+ 199:../../tmk_core/common/keymap.c ****     return keymap_get_keycode(layer, key.row, key.col);
+ 437               		.loc 1 199 5 is_stmt 1 view .LVU91
+ 438               		.loc 1 199 12 is_stmt 0 view .LVU92
+ 439 0002 672F      		mov r22,r23
+ 440               	.LVL21:
+ 441               		.loc 1 199 12 view .LVU93
+ 442 0004 0C94 0000 		jmp keymap_get_keycode
+ 443               	.LVL22:
+ 444               		.loc 1 199 12 view .LVU94
+ 445               		.cfi_endproc
+ 446               	.LFE110:
+ 448               		.section	.text.keymap_fn_to_action,"ax",@progbits
+ 449               		.weak	keymap_fn_to_action
+ 451               	keymap_fn_to_action:
+ 452               	.LVL23:
+ 453               	.LFB111:
+ 200:../../tmk_core/common/keymap.c **** }
+ 201:../../tmk_core/common/keymap.c **** 
+ 202:../../tmk_core/common/keymap.c **** 
+ 203:../../tmk_core/common/keymap.c **** /* Legacy keymap support */
+ 204:../../tmk_core/common/keymap.c **** __attribute__ ((weak))
+ 205:../../tmk_core/common/keymap.c **** action_t keymap_fn_to_action(uint8_t keycode)
+ 206:../../tmk_core/common/keymap.c **** {
+ 454               		.loc 1 206 1 is_stmt 1 view -0
+ 455               		.cfi_startproc
+ 456               		.loc 1 206 1 is_stmt 0 view .LVU96
+ 457 0000 CF93      		push r28
+ 458               	.LCFI0:
+ 459               		.cfi_def_cfa_offset 3
+ 460               		.cfi_offset 28, -2
+ 461 0002 DF93      		push r29
+ 462               	.LCFI1:
+ 463               		.cfi_def_cfa_offset 4
+ 464               		.cfi_offset 29, -3
+ 465               	/* prologue: function */
+ 466               	/* frame size = 0 */
+ 467               	/* stack size = 2 */
+ 468               	.L__stack_usage = 2
+ 207:../../tmk_core/common/keymap.c ****     switch (keycode) {
+ 469               		.loc 1 207 5 is_stmt 1 view .LVU97
+ 470 0004 482F      		mov r20,r24
+ 471 0006 405C      		subi r20,192
+ 472 0008 550B      		sbc r21,r21
+ 473 000a 4032      		cpi r20,32
+ 474 000c 5105      		cpc r21,__zero_reg__
+ 475 000e 00F4      		brsh .L49
+ 476               	.LBB5:
+ 208:../../tmk_core/common/keymap.c ****         case KC_FN0 ... KC_FN31:
+ 209:../../tmk_core/common/keymap.c ****             {
+ 210:../../tmk_core/common/keymap.c ****                 uint8_t layer = keymap_fn_layer(FN_INDEX(keycode));
+ 477               		.loc 1 210 17 view .LVU98
+ 478               		.loc 1 210 33 is_stmt 0 view .LVU99
+ 479 0010 D0E4      		ldi r29,lo8(64)
+ 480 0012 D80F      		add r29,r24
+ 481 0014 8D2F      		mov r24,r29
+ 482               	.LVL24:
+ 483               		.loc 1 210 33 view .LVU100
+ 484 0016 0E94 0000 		call keymap_fn_layer
+ 485               	.LVL25:
+ 486 001a C82F      		mov r28,r24
+ 487               	.LVL26:
+ 211:../../tmk_core/common/keymap.c ****                 uint8_t key = keymap_fn_keycode(FN_INDEX(keycode));
+ 488               		.loc 1 211 17 is_stmt 1 view .LVU101
+ 489               		.loc 1 211 31 is_stmt 0 view .LVU102
+ 490 001c 8D2F      		mov r24,r29
+ 491               	.LVL27:
+ 492               		.loc 1 211 31 view .LVU103
+ 493 001e 0E94 0000 		call keymap_fn_keycode
+ 494               	.LVL28:
+ 212:../../tmk_core/common/keymap.c ****                 if (key) {
+ 495               		.loc 1 212 17 is_stmt 1 view .LVU104
+ 496 0022 D0E0      		ldi r29,0
+ 497               		.loc 1 212 20 is_stmt 0 view .LVU105
+ 498 0024 8823      		tst r24
+ 499 0026 01F0      		breq .L50
+ 213:../../tmk_core/common/keymap.c ****                     return (action_t)ACTION_LAYER_TAP_KEY(layer, key);
+ 500               		.loc 1 213 21 is_stmt 1 view .LVU106
+ 501               		.loc 1 213 38 is_stmt 0 view .LVU107
+ 502 0028 9C2F      		mov r25,r28
+ 503               		.loc 1 213 28 view .LVU108
+ 504 002a 906A      		ori r25,160
+ 505               	.LVL29:
+ 506               	.L51:
+ 507               	/* epilogue start */
+ 508               		.loc 1 213 28 view .LVU109
+ 509               	.LBE5:
+ 214:../../tmk_core/common/keymap.c ****                 } else {
+ 215:../../tmk_core/common/keymap.c ****                     return (action_t)ACTION_LAYER_MOMENTARY(layer);
+ 216:../../tmk_core/common/keymap.c ****                 }
+ 217:../../tmk_core/common/keymap.c ****             }
+ 218:../../tmk_core/common/keymap.c ****             return (action_t)ACTION_NO;
+ 219:../../tmk_core/common/keymap.c ****         default:
+ 220:../../tmk_core/common/keymap.c ****             return (action_t)ACTION_NO;
+ 221:../../tmk_core/common/keymap.c ****     }
+ 222:../../tmk_core/common/keymap.c **** }
+ 510               		.loc 1 222 1 view .LVU110
+ 511 002c DF91      		pop r29
+ 512 002e CF91      		pop r28
+ 513 0030 0895      		ret
+ 514               	.LVL30:
+ 515               	.L50:
+ 516               	.LBB6:
+ 215:../../tmk_core/common/keymap.c ****                 }
+ 517               		.loc 1 215 21 is_stmt 1 view .LVU111
+ 215:../../tmk_core/common/keymap.c ****                 }
+ 518               		.loc 1 215 38 is_stmt 0 view .LVU112
+ 519 0032 9C2F      		mov r25,r28
+ 520 0034 8827      		clr r24
+ 521               	.LVL31:
+ 215:../../tmk_core/common/keymap.c ****                 }
+ 522               		.loc 1 215 28 view .LVU113
+ 523 0036 816F      		ori r24,241
+ 524 0038 906A      		ori r25,160
+ 525 003a 00C0      		rjmp .L51
+ 526               	.LVL32:
+ 527               	.L49:
+ 215:../../tmk_core/common/keymap.c ****                 }
+ 528               		.loc 1 215 28 view .LVU114
+ 529               	.LBE6:
+ 220:../../tmk_core/common/keymap.c ****     }
+ 530               		.loc 1 220 13 is_stmt 1 view .LVU115
+ 220:../../tmk_core/common/keymap.c ****     }
+ 531               		.loc 1 220 20 is_stmt 0 view .LVU116
+ 532 003c 90E0      		ldi r25,0
+ 533 003e 80E0      		ldi r24,0
+ 534               	.LVL33:
+ 220:../../tmk_core/common/keymap.c ****     }
+ 535               		.loc 1 220 20 view .LVU117
+ 536 0040 00C0      		rjmp .L51
+ 537               		.cfi_endproc
+ 538               	.LFE111:
+ 540               		.section	.text.action_for_key,"ax",@progbits
+ 541               		.weak	action_for_key
+ 543               	action_for_key:
+ 544               	.LVL34:
+ 545               	.LFB103:
+  40:../../tmk_core/common/keymap.c ****     uint8_t keycode = keymap_key_to_keycode(layer, key);
+ 546               		.loc 1 40 1 is_stmt 1 view -0
+ 547               		.cfi_startproc
+ 548               	/* prologue: function */
+ 549               	/* frame size = 0 */
+ 550               	/* stack size = 0 */
+ 551               	.L__stack_usage = 0
+  41:../../tmk_core/common/keymap.c ****     switch (keycode) {
+ 552               		.loc 1 41 5 view .LVU119
+  41:../../tmk_core/common/keymap.c ****     switch (keycode) {
+ 553               		.loc 1 41 23 is_stmt 0 view .LVU120
+ 554 0000 0E94 0000 		call keymap_key_to_keycode
+ 555               	.LVL35:
+  42:../../tmk_core/common/keymap.c ****         case KC_FN0 ... KC_FN31:
+ 556               		.loc 1 42 5 is_stmt 1 view .LVU121
+ 557 0004 803E      		cpi r24,lo8(-32)
+ 558 0006 00F4      		brsh .L53
+ 559 0008 803C      		cpi r24,lo8(-64)
+ 560 000a 00F4      		brsh .L54
+ 561 000c 8133      		cpi r24,lo8(49)
+ 562 000e 01F4      		brne .+2
+ 563 0010 00C0      		rjmp .L55
+ 564 0012 00F4      		brsh .L56
+ 565 0014 8932      		cpi r24,lo8(41)
+ 566 0016 01F4      		brne .+2
+ 567 0018 00C0      		rjmp .L57
+ 568 001a 8A32      		cpi r24,lo8(42)
+ 569 001c 01F4      		brne .+2
+ 570 001e 00C0      		rjmp .L58
+ 571               	.LVL36:
+ 572               	.L59:
+ 111:../../tmk_core/common/keymap.c ****     }
+ 573               		.loc 1 111 13 view .LVU122
+ 111:../../tmk_core/common/keymap.c ****     }
+ 574               		.loc 1 111 20 is_stmt 0 view .LVU123
+ 575 0020 0C94 0000 		jmp keycode_to_action
+ 576               	.LVL37:
+ 577               	.L56:
+  42:../../tmk_core/common/keymap.c ****         case KC_FN0 ... KC_FN31:
+ 578               		.loc 1 42 5 view .LVU124
+ 579 0024 8933      		cpi r24,lo8(57)
+ 580 0026 01F0      		breq .L60
+ 581 0028 8238      		cpi r24,lo8(-126)
+ 582 002a 01F0      		breq .L60
+ 583 002c 8533      		cpi r24,lo8(53)
+ 584 002e 01F4      		brne .L59
+  90:../../tmk_core/common/keymap.c ****                 return keycode_to_action(KC_ESC);
+ 585               		.loc 1 90 13 is_stmt 1 view .LVU125
+  90:../../tmk_core/common/keymap.c ****                 return keycode_to_action(KC_ESC);
+ 586               		.loc 1 90 17 is_stmt 0 view .LVU126
+ 587 0030 8091 0000 		lds r24,keymap_config
+ 588               	.LVL38:
+  90:../../tmk_core/common/keymap.c ****                 return keycode_to_action(KC_ESC);
+ 589               		.loc 1 90 16 view .LVU127
+ 590 0034 85FF      		sbrs r24,5
+ 591 0036 00C0      		rjmp .L75
+ 592               	.L76:
+  91:../../tmk_core/common/keymap.c ****             }
+ 593               		.loc 1 91 17 is_stmt 1 view .LVU128
+  91:../../tmk_core/common/keymap.c ****             }
+ 594               		.loc 1 91 24 is_stmt 0 view .LVU129
+ 595 0038 89E2      		ldi r24,lo8(41)
+ 596 003a 00C0      		rjmp .L59
+ 597               	.LVL39:
+ 598               	.L53:
+  42:../../tmk_core/common/keymap.c ****         case KC_FN0 ... KC_FN31:
+ 599               		.loc 1 42 5 view .LVU130
+ 600 003c 833E      		cpi r24,lo8(-29)
+ 601 003e 01F0      		breq .L62
+ 602 0040 00F4      		brsh .L63
+ 603 0042 803E      		cpi r24,lo8(-32)
+ 604 0044 01F0      		breq .L64
+ 605 0046 823E      		cpi r24,lo8(-30)
+ 606 0048 01F4      		brne .L59
+  58:../../tmk_core/common/keymap.c ****                 if (keymap_config.no_gui) {
+ 607               		.loc 1 58 13 is_stmt 1 view .LVU131
+  58:../../tmk_core/common/keymap.c ****                 if (keymap_config.no_gui) {
+ 608               		.loc 1 58 17 is_stmt 0 view .LVU132
+ 609 004a 8091 0000 		lds r24,keymap_config
+ 610               	.LVL40:
+  58:../../tmk_core/common/keymap.c ****                 if (keymap_config.no_gui) {
+ 611               		.loc 1 58 16 view .LVU133
+ 612 004e 82FF      		sbrs r24,2
+ 613 0050 00C0      		rjmp .L70
+ 614               	.L104:
+  59:../../tmk_core/common/keymap.c ****                     return keycode_to_action(KC_NO);
+ 615               		.loc 1 59 17 is_stmt 1 view .LVU134
+  59:../../tmk_core/common/keymap.c ****                     return keycode_to_action(KC_NO);
+ 616               		.loc 1 59 20 is_stmt 0 view .LVU135
+ 617 0052 84FF      		sbrs r24,4
+ 618 0054 00C0      		rjmp .L71
+ 619               	.L72:
+  60:../../tmk_core/common/keymap.c ****                 }
+ 620               		.loc 1 60 21 is_stmt 1 view .LVU136
+  60:../../tmk_core/common/keymap.c ****                 }
+ 621               		.loc 1 60 28 is_stmt 0 view .LVU137
+ 622 0056 80E0      		ldi r24,0
+ 623 0058 00C0      		rjmp .L59
+ 624               	.LVL41:
+ 625               	.L63:
+  42:../../tmk_core/common/keymap.c ****         case KC_FN0 ... KC_FN31:
+ 626               		.loc 1 42 5 view .LVU138
+ 627 005a 863E      		cpi r24,lo8(-26)
+ 628 005c 01F0      		breq .L66
+ 629 005e 873E      		cpi r24,lo8(-25)
+ 630 0060 01F4      		brne .L59
+  82:../../tmk_core/common/keymap.c ****                 return keycode_to_action(KC_RALT);
+ 631               		.loc 1 82 13 is_stmt 1 view .LVU139
+  82:../../tmk_core/common/keymap.c ****                 return keycode_to_action(KC_RALT);
+ 632               		.loc 1 82 17 is_stmt 0 view .LVU140
+ 633 0062 8091 0000 		lds r24,keymap_config
+ 634               	.LVL42:
+  82:../../tmk_core/common/keymap.c ****                 return keycode_to_action(KC_RALT);
+ 635               		.loc 1 82 16 view .LVU141
+ 636 0066 83FF      		sbrs r24,3
+ 637 0068 00C0      		rjmp .L105
+ 638               	.L73:
+  80:../../tmk_core/common/keymap.c ****         case KC_RGUI:
+ 639               		.loc 1 80 13 is_stmt 1 view .LVU142
+  80:../../tmk_core/common/keymap.c ****         case KC_RGUI:
+ 640               		.loc 1 80 20 is_stmt 0 view .LVU143
+ 641 006a 86EE      		ldi r24,lo8(-26)
+ 642 006c 00C0      		rjmp .L59
+ 643               	.LVL43:
+ 644               	.L54:
+  44:../../tmk_core/common/keymap.c **** #ifdef BOOTMAGIC_ENABLE
+ 645               		.loc 1 44 13 is_stmt 1 view .LVU144
+  44:../../tmk_core/common/keymap.c **** #ifdef BOOTMAGIC_ENABLE
+ 646               		.loc 1 44 20 is_stmt 0 view .LVU145
+ 647 006e 0C94 0000 		jmp keymap_fn_to_action
+ 648               	.LVL44:
+ 649               	.L60:
+  48:../../tmk_core/common/keymap.c ****                 return keycode_to_action(KC_LCTL);
+ 650               		.loc 1 48 13 is_stmt 1 view .LVU146
+  48:../../tmk_core/common/keymap.c ****                 return keycode_to_action(KC_LCTL);
+ 651               		.loc 1 48 53 is_stmt 0 view .LVU147
+ 652 0072 9091 0000 		lds r25,keymap_config
+ 653 0076 9370      		andi r25,lo8(3)
+  48:../../tmk_core/common/keymap.c ****                 return keycode_to_action(KC_LCTL);
+ 654               		.loc 1 48 16 view .LVU148
+ 655 0078 01F0      		breq .L59
+ 656               	.LVL45:
+ 657               	.L69:
+  49:../../tmk_core/common/keymap.c ****             }
+ 658               		.loc 1 49 17 is_stmt 1 view .LVU149
+  49:../../tmk_core/common/keymap.c ****             }
+ 659               		.loc 1 49 24 is_stmt 0 view .LVU150
+ 660 007a 80EE      		ldi r24,lo8(-32)
+ 661 007c 00C0      		rjmp .L59
+ 662               	.LVL46:
+ 663               	.L64:
+  53:../../tmk_core/common/keymap.c ****                 return keycode_to_action(KC_CAPSLOCK);
+ 664               		.loc 1 53 13 is_stmt 1 view .LVU151
+  53:../../tmk_core/common/keymap.c ****                 return keycode_to_action(KC_CAPSLOCK);
+ 665               		.loc 1 53 17 is_stmt 0 view .LVU152
+ 666 007e 8091 0000 		lds r24,keymap_config
+ 667               	.LVL47:
+  53:../../tmk_core/common/keymap.c ****                 return keycode_to_action(KC_CAPSLOCK);
+ 668               		.loc 1 53 16 view .LVU153
+ 669 0082 80FF      		sbrs r24,0
+ 670 0084 00C0      		rjmp .L69
+  54:../../tmk_core/common/keymap.c ****             }
+ 671               		.loc 1 54 17 is_stmt 1 view .LVU154
+  54:../../tmk_core/common/keymap.c ****             }
+ 672               		.loc 1 54 24 is_stmt 0 view .LVU155
+ 673 0086 89E3      		ldi r24,lo8(57)
+ 674 0088 00C0      		rjmp .L59
+ 675               	.L71:
+  62:../../tmk_core/common/keymap.c ****             }
+ 676               		.loc 1 62 17 is_stmt 1 view .LVU156
+  62:../../tmk_core/common/keymap.c ****             }
+ 677               		.loc 1 62 24 is_stmt 0 view .LVU157
+ 678 008a 83EE      		ldi r24,lo8(-29)
+ 679 008c 00C0      		rjmp .L59
+ 680               	.LVL48:
+ 681               	.L62:
+  66:../../tmk_core/common/keymap.c ****                 return keycode_to_action(KC_LALT);
+ 682               		.loc 1 66 13 is_stmt 1 view .LVU158
+  66:../../tmk_core/common/keymap.c ****                 return keycode_to_action(KC_LALT);
+ 683               		.loc 1 66 17 is_stmt 0 view .LVU159
+ 684 008e 8091 0000 		lds r24,keymap_config
+ 685               	.LVL49:
+  66:../../tmk_core/common/keymap.c ****                 return keycode_to_action(KC_LALT);
+ 686               		.loc 1 66 16 view .LVU160
+ 687 0092 82FF      		sbrs r24,2
+ 688 0094 00C0      		rjmp .L104
+ 689               	.L70:
+  64:../../tmk_core/common/keymap.c ****         case KC_LGUI:
+ 690               		.loc 1 64 13 is_stmt 1 view .LVU161
+  64:../../tmk_core/common/keymap.c ****         case KC_LGUI:
+ 691               		.loc 1 64 20 is_stmt 0 view .LVU162
+ 692 0096 82EE      		ldi r24,lo8(-30)
+ 693 0098 00C0      		rjmp .L59
+ 694               	.LVL50:
+ 695               	.L66:
+  74:../../tmk_core/common/keymap.c ****                 if (keymap_config.no_gui) {
+ 696               		.loc 1 74 13 is_stmt 1 view .LVU163
+  74:../../tmk_core/common/keymap.c ****                 if (keymap_config.no_gui) {
+ 697               		.loc 1 74 17 is_stmt 0 view .LVU164
+ 698 009a 8091 0000 		lds r24,keymap_config
+ 699               	.LVL51:
+  74:../../tmk_core/common/keymap.c ****                 if (keymap_config.no_gui) {
+ 700               		.loc 1 74 16 view .LVU165
+ 701 009e 83FF      		sbrs r24,3
+ 702 00a0 00C0      		rjmp .L73
+ 703               	.L105:
+  85:../../tmk_core/common/keymap.c ****                 return keycode_to_action(KC_NO);
+ 704               		.loc 1 85 13 is_stmt 1 view .LVU166
+  85:../../tmk_core/common/keymap.c ****                 return keycode_to_action(KC_NO);
+ 705               		.loc 1 85 16 is_stmt 0 view .LVU167
+ 706 00a2 84FD      		sbrc r24,4
+ 707 00a4 00C0      		rjmp .L72
+  78:../../tmk_core/common/keymap.c ****             }
+ 708               		.loc 1 78 17 is_stmt 1 view .LVU168
+  78:../../tmk_core/common/keymap.c ****             }
+ 709               		.loc 1 78 24 is_stmt 0 view .LVU169
+ 710 00a6 87EE      		ldi r24,lo8(-25)
+ 711 00a8 00C0      		rjmp .L59
+ 712               	.LVL52:
+ 713               	.L57:
+  95:../../tmk_core/common/keymap.c ****                 return keycode_to_action(KC_GRAVE);
+ 714               		.loc 1 95 13 is_stmt 1 view .LVU170
+  95:../../tmk_core/common/keymap.c ****                 return keycode_to_action(KC_GRAVE);
+ 715               		.loc 1 95 17 is_stmt 0 view .LVU171
+ 716 00aa 8091 0000 		lds r24,keymap_config
+ 717               	.LVL53:
+  95:../../tmk_core/common/keymap.c ****                 return keycode_to_action(KC_GRAVE);
+ 718               		.loc 1 95 16 view .LVU172
+ 719 00ae 85FF      		sbrs r24,5
+ 720 00b0 00C0      		rjmp .L76
+ 721               	.L75:
+  93:../../tmk_core/common/keymap.c ****         case KC_ESC:
+ 722               		.loc 1 93 13 is_stmt 1 view .LVU173
+  93:../../tmk_core/common/keymap.c ****         case KC_ESC:
+ 723               		.loc 1 93 20 is_stmt 0 view .LVU174
+ 724 00b2 85E3      		ldi r24,lo8(53)
+ 725 00b4 00C0      		rjmp .L59
+ 726               	.LVL54:
+ 727               	.L55:
+ 100:../../tmk_core/common/keymap.c ****                 return keycode_to_action(KC_BSPACE);
+ 728               		.loc 1 100 13 is_stmt 1 view .LVU175
+ 100:../../tmk_core/common/keymap.c ****                 return keycode_to_action(KC_BSPACE);
+ 729               		.loc 1 100 17 is_stmt 0 view .LVU176
+ 730 00b6 8091 0000 		lds r24,keymap_config
+ 731               	.LVL55:
+ 100:../../tmk_core/common/keymap.c ****                 return keycode_to_action(KC_BSPACE);
+ 732               		.loc 1 100 16 view .LVU177
+ 733 00ba 86FF      		sbrs r24,6
+ 734 00bc 00C0      		rjmp .L77
+ 735               	.L78:
+ 101:../../tmk_core/common/keymap.c ****             }
+ 736               		.loc 1 101 17 is_stmt 1 view .LVU178
+ 101:../../tmk_core/common/keymap.c ****             }
+ 737               		.loc 1 101 24 is_stmt 0 view .LVU179
+ 738 00be 8AE2      		ldi r24,lo8(42)
+ 739 00c0 00C0      		rjmp .L59
+ 740               	.LVL56:
+ 741               	.L58:
+ 105:../../tmk_core/common/keymap.c ****                 return keycode_to_action(KC_BSLASH);
+ 742               		.loc 1 105 13 is_stmt 1 view .LVU180
+ 105:../../tmk_core/common/keymap.c ****                 return keycode_to_action(KC_BSLASH);
+ 743               		.loc 1 105 17 is_stmt 0 view .LVU181
+ 744 00c2 8091 0000 		lds r24,keymap_config
+ 745               	.LVL57:
+ 105:../../tmk_core/common/keymap.c ****                 return keycode_to_action(KC_BSLASH);
+ 746               		.loc 1 105 16 view .LVU182
+ 747 00c6 86FF      		sbrs r24,6
+ 748 00c8 00C0      		rjmp .L78
+ 749               	.L77:
+ 103:../../tmk_core/common/keymap.c ****         case KC_BSPACE:
+ 750               		.loc 1 103 13 is_stmt 1 view .LVU183
+ 103:../../tmk_core/common/keymap.c ****         case KC_BSPACE:
+ 751               		.loc 1 103 20 is_stmt 0 view .LVU184
+ 752 00ca 81E3      		ldi r24,lo8(49)
+ 753 00cc 00C0      		rjmp .L59
+ 754               		.cfi_endproc
+ 755               	.LFE103:
+ 757               		.text
+ 758               	.Letext0:
+ 759               		.file 2 "/usr/avr/include/stdint.h"
+ 760               		.file 3 "../../tmk_core/common/keyboard.h"
+ 761               		.file 4 "../../tmk_core/common/keycode.h"
+ 762               		.file 5 "../../tmk_core/common/action_code.h"
+ 763               		.file 6 "../../tmk_core/common/action_macro.h"
+ 764               		.file 7 "../../tmk_core/common/action.h"
+ 765               		.file 8 "../../tmk_core/common/keymap.h"
+ 766               		.file 9 "../../tmk_core/protocol/lufa/lufa-abcminiuser/LUFA/Drivers/USB/Core/AVR8/../StdRequestTyp
+ 767               		.file 10 "../../tmk_core/protocol/lufa/lufa-abcminiuser/LUFA/Drivers/USB/Core/AVR8/../DeviceStanda
+ 768               		.file 11 "../../tmk_core/protocol/lufa/lufa-abcminiuser/LUFA/Drivers/USB/Core/USBTask.h"
+ 769               		.file 12 "../../tmk_core/protocol/lufa/lufa-abcminiuser/LUFA/Drivers/USB/Core/HostStandardReq.h"
+ 770               		.file 13 "/usr/avr/include/stdio.h"
+ 771               		.file 14 "../../tmk_core/common/action_layer.h"
+ 772               		.file 15 "../../tmk_core/common/avr/xprintf.h"
+ 773               		.file 16 "../../tmk_core/common/debug.h"
+DEFINED SYMBOLS
+                            *ABS*:0000000000000000 keymap.c
+     /tmp/cc7ZJe3U.s:2      *ABS*:000000000000003e __SP_H__
+     /tmp/cc7ZJe3U.s:3      *ABS*:000000000000003d __SP_L__
+     /tmp/cc7ZJe3U.s:4      *ABS*:000000000000003f __SREG__
+     /tmp/cc7ZJe3U.s:5      *ABS*:0000000000000000 __tmp_reg__
+     /tmp/cc7ZJe3U.s:6      *ABS*:0000000000000001 __zero_reg__
+     /tmp/cc7ZJe3U.s:12     .text.keycode_to_action:0000000000000000 keycode_to_action
+     /tmp/cc7ZJe3U.s:256    .text.action_get_macro:0000000000000000 action_get_macro
+     /tmp/cc7ZJe3U.s:282    .text.action_function:0000000000000000 action_function
+     /tmp/cc7ZJe3U.s:303    .text.keymap_get_keycode:0000000000000000 keymap_get_keycode
+     /tmp/cc7ZJe3U.s:354    .text.keymap_fn_layer:0000000000000000 keymap_fn_layer
+     /tmp/cc7ZJe3U.s:390    .text.keymap_fn_keycode:0000000000000000 keymap_fn_keycode
+     /tmp/cc7ZJe3U.s:426    .text.keymap_key_to_keycode:0000000000000000 keymap_key_to_keycode
+     /tmp/cc7ZJe3U.s:451    .text.keymap_fn_to_action:0000000000000000 keymap_fn_to_action
+     /tmp/cc7ZJe3U.s:543    .text.action_for_key:0000000000000000 action_for_key
+
+UNDEFINED SYMBOLS
+keymaps
+fn_layer
+fn_keycode
+keymap_config

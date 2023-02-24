@@ -1,0 +1,101 @@
+   1               		.file	"led.c"
+   2               	__SP_H__ = 0x3e
+   3               	__SP_L__ = 0x3d
+   4               	__SREG__ = 0x3f
+   5               	__tmp_reg__ = 0
+   6               	__zero_reg__ = 1
+   7               		.text
+   8               	.Ltext0:
+   9               		.cfi_sections	.debug_frame
+  10               		.section	.text.led_set,"ax",@progbits
+  11               	.global	led_set
+  13               	led_set:
+  14               	.LVL0:
+  15               	.LFB13:
+  16               		.file 1 "led.c"
+   1:led.c         **** /*
+   2:led.c         **** Copyright 2011 Jun Wako <wakojun@gmail.com>
+   3:led.c         **** 
+   4:led.c         **** This program is free software: you can redistribute it and/or modify
+   5:led.c         **** it under the terms of the GNU General Public License as published by
+   6:led.c         **** the Free Software Foundation, either version 2 of the License, or
+   7:led.c         **** (at your option) any later version.
+   8:led.c         **** 
+   9:led.c         **** This program is distributed in the hope that it will be useful,
+  10:led.c         **** but WITHOUT ANY WARRANTY; without even the implied warranty of
+  11:led.c         **** MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+  12:led.c         **** GNU General Public License for more details.
+  13:led.c         **** 
+  14:led.c         **** You should have received a copy of the GNU General Public License
+  15:led.c         **** along with this program.  If not, see <http://www.gnu.org/licenses/>.
+  16:led.c         **** */
+  17:led.c         **** 
+  18:led.c         **** #include "stdint.h"
+  19:led.c         **** #include "ps2.h"
+  20:led.c         **** #include "led.h"
+  21:led.c         **** 
+  22:led.c         **** 
+  23:led.c         **** void led_set(uint8_t usb_led)
+  24:led.c         **** {
+  17               		.loc 1 24 1 view -0
+  18               		.cfi_startproc
+  19               	/* prologue: function */
+  20               	/* frame size = 0 */
+  21               	/* stack size = 0 */
+  22               	.L__stack_usage = 0
+  23               		.loc 1 24 1 is_stmt 0 view .LVU1
+  24 0000 982F      		mov r25,r24
+  25:led.c         ****     uint8_t ps2_led = 0;
+  25               		.loc 1 25 5 is_stmt 1 view .LVU2
+  26               	.LVL1:
+  26:led.c         ****     if (usb_led &  (1<<USB_LED_SCROLL_LOCK))
+  27               		.loc 1 26 5 view .LVU3
+  28               		.loc 1 26 8 is_stmt 0 view .LVU4
+  29 0002 82FB      		bst r24,2
+  30 0004 8827      		clr r24
+  31 0006 80F9      		bld r24,0
+  32               	.LVL2:
+  27:led.c         ****         ps2_led |= (1<<PS2_LED_SCROLL_LOCK);
+  28:led.c         ****     if (usb_led &  (1<<USB_LED_NUM_LOCK))
+  33               		.loc 1 28 5 is_stmt 1 view .LVU5
+  34               		.loc 1 28 8 is_stmt 0 view .LVU6
+  35 0008 90FD      		sbrc r25,0
+  29:led.c         ****         ps2_led |= (1<<PS2_LED_NUM_LOCK);
+  36               		.loc 1 29 9 is_stmt 1 view .LVU7
+  37               		.loc 1 29 17 is_stmt 0 view .LVU8
+  38 000a 8260      		ori r24,lo8(2)
+  39               	.LVL3:
+  40               	.L2:
+  30:led.c         ****     if (usb_led &  (1<<USB_LED_CAPS_LOCK))
+  41               		.loc 1 30 5 is_stmt 1 view .LVU9
+  42               		.loc 1 30 8 is_stmt 0 view .LVU10
+  43 000c 91FD      		sbrc r25,1
+  31:led.c         ****         ps2_led |= (1<<PS2_LED_CAPS_LOCK);
+  44               		.loc 1 31 9 is_stmt 1 view .LVU11
+  45               		.loc 1 31 17 is_stmt 0 view .LVU12
+  46 000e 8460      		ori r24,lo8(4)
+  47               	.LVL4:
+  48               	.L3:
+  32:led.c         ****     ps2_host_set_led(ps2_led);
+  49               		.loc 1 32 5 is_stmt 1 view .LVU13
+  50 0010 0C94 0000 		jmp ps2_host_set_led
+  51               	.LVL5:
+  52               		.loc 1 32 5 is_stmt 0 view .LVU14
+  53               		.cfi_endproc
+  54               	.LFE13:
+  56               		.text
+  57               	.Letext0:
+  58               		.file 2 "../../tmk_core/common/avr/xprintf.h"
+  59               		.file 3 "../../tmk_core/protocol/ps2.h"
+  60               		.file 4 "/usr/avr/include/stdint.h"
+DEFINED SYMBOLS
+                            *ABS*:0000000000000000 led.c
+     /tmp/ccw7lMvm.s:2      *ABS*:000000000000003e __SP_H__
+     /tmp/ccw7lMvm.s:3      *ABS*:000000000000003d __SP_L__
+     /tmp/ccw7lMvm.s:4      *ABS*:000000000000003f __SREG__
+     /tmp/ccw7lMvm.s:5      *ABS*:0000000000000000 __tmp_reg__
+     /tmp/ccw7lMvm.s:6      *ABS*:0000000000000001 __zero_reg__
+     /tmp/ccw7lMvm.s:13     .text.led_set:0000000000000000 led_set
+
+UNDEFINED SYMBOLS
+ps2_host_set_led
