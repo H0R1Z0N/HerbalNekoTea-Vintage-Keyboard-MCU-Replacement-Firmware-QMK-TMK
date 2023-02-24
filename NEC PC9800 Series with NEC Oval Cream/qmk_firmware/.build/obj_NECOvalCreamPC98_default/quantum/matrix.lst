@@ -1,0 +1,960 @@
+   1               		.file	"matrix.c"
+   2               	__SP_H__ = 0x3e
+   3               	__SP_L__ = 0x3d
+   4               	__SREG__ = 0x3f
+   5               	__RAMPZ__ = 0x3b
+   6               	__tmp_reg__ = 0
+   7               	__zero_reg__ = 1
+   8               		.text
+   9               	.Ltext0:
+  10               		.cfi_sections	.debug_frame
+  11               		.section	.text.setPinInputHigh_atomic,"ax",@progbits
+  13               	setPinInputHigh_atomic:
+  14               	.LVL0:
+  15               	.LFB118:
+  16               		.file 1 "quantum/matrix.c"
+   1:quantum/matrix.c **** /*
+   2:quantum/matrix.c **** Copyright 2012-2018 Jun Wako, Jack Humbert, Yiancar
+   3:quantum/matrix.c **** 
+   4:quantum/matrix.c **** This program is free software: you can redistribute it and/or modify
+   5:quantum/matrix.c **** it under the terms of the GNU General Public License as published by
+   6:quantum/matrix.c **** the Free Software Foundation, either version 2 of the License, or
+   7:quantum/matrix.c **** (at your option) any later version.
+   8:quantum/matrix.c **** 
+   9:quantum/matrix.c **** This program is distributed in the hope that it will be useful,
+  10:quantum/matrix.c **** but WITHOUT ANY WARRANTY; without even the implied warranty of
+  11:quantum/matrix.c **** MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+  12:quantum/matrix.c **** GNU General Public License for more details.
+  13:quantum/matrix.c **** 
+  14:quantum/matrix.c **** You should have received a copy of the GNU General Public License
+  15:quantum/matrix.c **** along with this program.  If not, see <http://www.gnu.org/licenses/>.
+  16:quantum/matrix.c **** */
+  17:quantum/matrix.c **** #include <stdint.h>
+  18:quantum/matrix.c **** #include <stdbool.h>
+  19:quantum/matrix.c **** #include "util.h"
+  20:quantum/matrix.c **** #include "matrix.h"
+  21:quantum/matrix.c **** #include "debounce.h"
+  22:quantum/matrix.c **** #include "quantum.h"
+  23:quantum/matrix.c **** 
+  24:quantum/matrix.c **** #ifdef DIRECT_PINS
+  25:quantum/matrix.c **** static pin_t direct_pins[MATRIX_ROWS][MATRIX_COLS] = DIRECT_PINS;
+  26:quantum/matrix.c **** #elif (DIODE_DIRECTION == ROW2COL) || (DIODE_DIRECTION == COL2ROW)
+  27:quantum/matrix.c **** static const pin_t row_pins[MATRIX_ROWS] = MATRIX_ROW_PINS;
+  28:quantum/matrix.c **** static const pin_t col_pins[MATRIX_COLS] = MATRIX_COL_PINS;
+  29:quantum/matrix.c **** #endif
+  30:quantum/matrix.c **** 
+  31:quantum/matrix.c **** /* matrix state(1:on, 0:off) */
+  32:quantum/matrix.c **** extern matrix_row_t raw_matrix[MATRIX_ROWS];  // raw values
+  33:quantum/matrix.c **** extern matrix_row_t matrix[MATRIX_ROWS];      // debounced values
+  34:quantum/matrix.c **** 
+  35:quantum/matrix.c **** static inline void setPinOutput_writeLow(pin_t pin) {
+  36:quantum/matrix.c ****     ATOMIC_BLOCK_FORCEON {
+  37:quantum/matrix.c ****         setPinOutput(pin);
+  38:quantum/matrix.c ****         writePinLow(pin);
+  39:quantum/matrix.c ****     }
+  40:quantum/matrix.c **** }
+  41:quantum/matrix.c **** 
+  42:quantum/matrix.c **** static inline void setPinInputHigh_atomic(pin_t pin) {
+  17               		.loc 1 42 54 view -0
+  18               		.cfi_startproc
+  19               	/* prologue: function */
+  20               	/* frame size = 0 */
+  21               	/* stack size = 0 */
+  22               	.L__stack_usage = 0
+  43:quantum/matrix.c ****     ATOMIC_BLOCK_FORCEON { setPinInputHigh(pin); }
+  23               		.loc 1 43 5 view .LVU1
+  24               	.LBB15:
+  25               		.loc 1 43 5 view .LVU2
+  26               	.LBB16:
+  27               	.LBI16:
+  28               		.file 2 "/usr/avr/include/util/atomic.h"
+   1:/usr/avr/include/util/atomic.h **** /* Copyright (c) 2007 Dean Camera
+   2:/usr/avr/include/util/atomic.h ****    All rights reserved.
+   3:/usr/avr/include/util/atomic.h **** 
+   4:/usr/avr/include/util/atomic.h ****    Redistribution and use in source and binary forms, with or without
+   5:/usr/avr/include/util/atomic.h ****    modification, are permitted provided that the following conditions are met:
+   6:/usr/avr/include/util/atomic.h **** 
+   7:/usr/avr/include/util/atomic.h ****    * Redistributions of source code must retain the above copyright
+   8:/usr/avr/include/util/atomic.h ****      notice, this list of conditions and the following disclaimer.
+   9:/usr/avr/include/util/atomic.h **** 
+  10:/usr/avr/include/util/atomic.h ****    * Redistributions in binary form must reproduce the above copyright
+  11:/usr/avr/include/util/atomic.h ****      notice, this list of conditions and the following disclaimer in
+  12:/usr/avr/include/util/atomic.h ****      the documentation and/or other materials provided with the
+  13:/usr/avr/include/util/atomic.h ****      distribution.
+  14:/usr/avr/include/util/atomic.h **** 
+  15:/usr/avr/include/util/atomic.h ****    * Neither the name of the copyright holders nor the names of
+  16:/usr/avr/include/util/atomic.h ****      contributors may be used to endorse or promote products derived
+  17:/usr/avr/include/util/atomic.h ****      from this software without specific prior written permission.
+  18:/usr/avr/include/util/atomic.h **** 
+  19:/usr/avr/include/util/atomic.h ****   THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
+  20:/usr/avr/include/util/atomic.h ****   AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+  21:/usr/avr/include/util/atomic.h ****   IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+  22:/usr/avr/include/util/atomic.h ****   ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE
+  23:/usr/avr/include/util/atomic.h ****   LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
+  24:/usr/avr/include/util/atomic.h ****   CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
+  25:/usr/avr/include/util/atomic.h ****   SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
+  26:/usr/avr/include/util/atomic.h ****   INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
+  27:/usr/avr/include/util/atomic.h ****   CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+  28:/usr/avr/include/util/atomic.h ****   ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+  29:/usr/avr/include/util/atomic.h ****   POSSIBILITY OF SUCH DAMAGE.
+  30:/usr/avr/include/util/atomic.h **** */
+  31:/usr/avr/include/util/atomic.h **** 
+  32:/usr/avr/include/util/atomic.h **** /* $Id: atomic.h 2158 2010-06-10 15:48:28Z joerg_wunsch $ */
+  33:/usr/avr/include/util/atomic.h **** 
+  34:/usr/avr/include/util/atomic.h **** #ifndef _UTIL_ATOMIC_H_
+  35:/usr/avr/include/util/atomic.h **** #define _UTIL_ATOMIC_H_ 1
+  36:/usr/avr/include/util/atomic.h **** 
+  37:/usr/avr/include/util/atomic.h **** #include <avr/io.h>
+  38:/usr/avr/include/util/atomic.h **** #include <avr/interrupt.h>
+  39:/usr/avr/include/util/atomic.h **** 
+  40:/usr/avr/include/util/atomic.h **** #if !defined(__DOXYGEN__)
+  41:/usr/avr/include/util/atomic.h **** /* Internal helper functions. */
+  42:/usr/avr/include/util/atomic.h **** static __inline__ uint8_t __iSeiRetVal(void)
+  43:/usr/avr/include/util/atomic.h **** {
+  44:/usr/avr/include/util/atomic.h ****     sei();
+  45:/usr/avr/include/util/atomic.h ****     return 1;
+  46:/usr/avr/include/util/atomic.h **** }
+  47:/usr/avr/include/util/atomic.h **** 
+  48:/usr/avr/include/util/atomic.h **** static __inline__ uint8_t __iCliRetVal(void)
+  29               		.loc 2 48 27 view .LVU3
+  30               	.LBB17:
+  49:/usr/avr/include/util/atomic.h **** {
+  50:/usr/avr/include/util/atomic.h ****     cli();
+  31               		.loc 2 50 5 view .LVU4
+  32               	/* #APP */
+  33               	 ;  50 "/usr/avr/include/util/atomic.h" 1
+  34 0000 F894      		cli
+  35               	 ;  0 "" 2
+  51:/usr/avr/include/util/atomic.h ****     return 1;
+  36               		.loc 2 51 5 view .LVU5
+  37               	.LVL1:
+  38               		.loc 2 51 5 is_stmt 0 view .LVU6
+  39               	/* #NOAPP */
+  40               	.LBE17:
+  41               	.LBE16:
+  42               		.loc 1 43 28 is_stmt 1 view .LVU7
+  43 0002 E82F      		mov r30,r24
+  44 0004 E295      		swap r30
+  45 0006 EF70      		andi r30,lo8(15)
+  46 0008 F0E0      		ldi r31,0
+  47 000a 31A1      		ldd r19,Z+33
+  48 000c 282F      		mov r18,r24
+  49 000e 2F70      		andi r18,lo8(15)
+  50 0010 81E0      		ldi r24,lo8(1)
+  51 0012 90E0      		ldi r25,0
+  52               	.LVL2:
+  53               		.loc 1 43 28 is_stmt 0 view .LVU8
+  54 0014 00C0      		rjmp 2f
+  55               		1:
+  56 0016 880F      		lsl r24
+  57               		2:
+  58 0018 2A95      		dec r18
+  59 001a 02F4      		brpl 1b
+  60 001c 982F      		mov r25,r24
+  61 001e 9095      		com r25
+  62 0020 9323      		and r25,r19
+  63 0022 91A3      		std Z+33,r25
+  64 0024 92A1      		ldd r25,Z+34
+  65 0026 892B      		or r24,r25
+  66 0028 82A3      		std Z+34,r24
+  67               	.LVL3:
+  68               	.LBB18:
+  69               	.LBI18:
+  52:/usr/avr/include/util/atomic.h **** }
+  53:/usr/avr/include/util/atomic.h **** 
+  54:/usr/avr/include/util/atomic.h **** static __inline__ void __iSeiParam(const uint8_t *__s)
+  70               		.loc 2 54 24 is_stmt 1 view .LVU9
+  71               	.LBB19:
+  55:/usr/avr/include/util/atomic.h **** {
+  56:/usr/avr/include/util/atomic.h ****     sei();
+  72               		.loc 2 56 5 view .LVU10
+  73               	/* #APP */
+  74               	 ;  56 "/usr/avr/include/util/atomic.h" 1
+  75 002a 7894      		sei
+  76               	 ;  0 "" 2
+  57:/usr/avr/include/util/atomic.h ****     __asm__ volatile ("" ::: "memory");
+  77               		.loc 2 57 5 view .LVU11
+  58:/usr/avr/include/util/atomic.h ****     (void)__s;
+  78               		.loc 2 58 5 view .LVU12
+  79               	.LVL4:
+  80               	/* #NOAPP */
+  81               	/* epilogue start */
+  82               		.loc 2 58 5 is_stmt 0 view .LVU13
+  83               	.LBE19:
+  84               	.LBE18:
+  85               	.LBE15:
+  44:quantum/matrix.c **** }
+  86               		.loc 1 44 1 view .LVU14
+  87 002c 0895      		ret
+  88               		.cfi_endproc
+  89               	.LFE118:
+  91               		.section	.text.matrix_init,"ax",@progbits
+  92               	.global	matrix_init
+  94               	matrix_init:
+  95               	.LFB124:
+  45:quantum/matrix.c **** 
+  46:quantum/matrix.c **** // matrix code
+  47:quantum/matrix.c **** 
+  48:quantum/matrix.c **** #ifdef DIRECT_PINS
+  49:quantum/matrix.c **** 
+  50:quantum/matrix.c **** static void init_pins(void) {
+  51:quantum/matrix.c ****     for (int row = 0; row < MATRIX_ROWS; row++) {
+  52:quantum/matrix.c ****         for (int col = 0; col < MATRIX_COLS; col++) {
+  53:quantum/matrix.c ****             pin_t pin = direct_pins[row][col];
+  54:quantum/matrix.c ****             if (pin != NO_PIN) {
+  55:quantum/matrix.c ****                 setPinInputHigh(pin);
+  56:quantum/matrix.c ****             }
+  57:quantum/matrix.c ****         }
+  58:quantum/matrix.c ****     }
+  59:quantum/matrix.c **** }
+  60:quantum/matrix.c **** 
+  61:quantum/matrix.c **** static bool read_cols_on_row(matrix_row_t current_matrix[], uint8_t current_row) {
+  62:quantum/matrix.c ****     // Start with a clear matrix row
+  63:quantum/matrix.c ****     matrix_row_t current_row_value = 0;
+  64:quantum/matrix.c **** 
+  65:quantum/matrix.c ****     for (uint8_t col_index = 0; col_index < MATRIX_COLS; col_index++) {
+  66:quantum/matrix.c ****         pin_t pin = direct_pins[current_row][col_index];
+  67:quantum/matrix.c ****         if (pin != NO_PIN) {
+  68:quantum/matrix.c ****             current_row_value |= readPin(pin) ? 0 : (MATRIX_ROW_SHIFTER << col_index);
+  69:quantum/matrix.c ****         }
+  70:quantum/matrix.c ****     }
+  71:quantum/matrix.c **** 
+  72:quantum/matrix.c ****     // If the row has changed, store the row and return the changed flag.
+  73:quantum/matrix.c ****     if (current_matrix[current_row] != current_row_value) {
+  74:quantum/matrix.c ****         current_matrix[current_row] = current_row_value;
+  75:quantum/matrix.c ****         return true;
+  76:quantum/matrix.c ****     }
+  77:quantum/matrix.c ****     return false;
+  78:quantum/matrix.c **** }
+  79:quantum/matrix.c **** 
+  80:quantum/matrix.c **** #elif defined(DIODE_DIRECTION)
+  81:quantum/matrix.c **** #    if (DIODE_DIRECTION == COL2ROW)
+  82:quantum/matrix.c **** 
+  83:quantum/matrix.c **** static void select_row(uint8_t row) { setPinOutput_writeLow(row_pins[row]); }
+  84:quantum/matrix.c **** 
+  85:quantum/matrix.c **** static void unselect_row(uint8_t row) { setPinInputHigh_atomic(row_pins[row]); }
+  86:quantum/matrix.c **** 
+  87:quantum/matrix.c **** static void unselect_rows(void) {
+  88:quantum/matrix.c ****     for (uint8_t x = 0; x < MATRIX_ROWS; x++) {
+  89:quantum/matrix.c ****         setPinInputHigh_atomic(row_pins[x]);
+  90:quantum/matrix.c ****     }
+  91:quantum/matrix.c **** }
+  92:quantum/matrix.c **** 
+  93:quantum/matrix.c **** static void init_pins(void) {
+  94:quantum/matrix.c ****     unselect_rows();
+  95:quantum/matrix.c ****     for (uint8_t x = 0; x < MATRIX_COLS; x++) {
+  96:quantum/matrix.c ****         setPinInputHigh_atomic(col_pins[x]);
+  97:quantum/matrix.c ****     }
+  98:quantum/matrix.c **** }
+  99:quantum/matrix.c **** 
+ 100:quantum/matrix.c **** static bool read_cols_on_row(matrix_row_t current_matrix[], uint8_t current_row) {
+ 101:quantum/matrix.c ****     // Start with a clear matrix row
+ 102:quantum/matrix.c ****     matrix_row_t current_row_value = 0;
+ 103:quantum/matrix.c **** 
+ 104:quantum/matrix.c ****     // Select row and wait for row selecton to stabilize
+ 105:quantum/matrix.c ****     select_row(current_row);
+ 106:quantum/matrix.c ****     matrix_io_delay();
+ 107:quantum/matrix.c **** 
+ 108:quantum/matrix.c ****     // For each col...
+ 109:quantum/matrix.c ****     for (uint8_t col_index = 0; col_index < MATRIX_COLS; col_index++) {
+ 110:quantum/matrix.c ****         // Select the col pin to read (active low)
+ 111:quantum/matrix.c ****         uint8_t pin_state = readPin(col_pins[col_index]);
+ 112:quantum/matrix.c **** 
+ 113:quantum/matrix.c ****         // Populate the matrix row with the state of the col pin
+ 114:quantum/matrix.c ****         current_row_value |= pin_state ? 0 : (MATRIX_ROW_SHIFTER << col_index);
+ 115:quantum/matrix.c ****     }
+ 116:quantum/matrix.c **** 
+ 117:quantum/matrix.c ****     // Unselect row
+ 118:quantum/matrix.c ****     unselect_row(current_row);
+ 119:quantum/matrix.c **** 
+ 120:quantum/matrix.c ****     // If the row has changed, store the row and return the changed flag.
+ 121:quantum/matrix.c ****     if (current_matrix[current_row] != current_row_value) {
+ 122:quantum/matrix.c ****         current_matrix[current_row] = current_row_value;
+ 123:quantum/matrix.c ****         return true;
+ 124:quantum/matrix.c ****     }
+ 125:quantum/matrix.c ****     return false;
+ 126:quantum/matrix.c **** }
+ 127:quantum/matrix.c **** 
+ 128:quantum/matrix.c **** #    elif (DIODE_DIRECTION == ROW2COL)
+ 129:quantum/matrix.c **** 
+ 130:quantum/matrix.c **** static void select_col(uint8_t col) { setPinOutput_writeLow(col_pins[col]); }
+ 131:quantum/matrix.c **** 
+ 132:quantum/matrix.c **** static void unselect_col(uint8_t col) { setPinInputHigh_atomic(col_pins[col]); }
+ 133:quantum/matrix.c **** 
+ 134:quantum/matrix.c **** static void unselect_cols(void) {
+ 135:quantum/matrix.c ****     for (uint8_t x = 0; x < MATRIX_COLS; x++) {
+ 136:quantum/matrix.c ****         setPinInputHigh_atomic(col_pins[x]);
+ 137:quantum/matrix.c ****     }
+ 138:quantum/matrix.c **** }
+ 139:quantum/matrix.c **** 
+ 140:quantum/matrix.c **** static void init_pins(void) {
+ 141:quantum/matrix.c ****     unselect_cols();
+ 142:quantum/matrix.c ****     for (uint8_t x = 0; x < MATRIX_ROWS; x++) {
+ 143:quantum/matrix.c ****         setPinInputHigh_atomic(row_pins[x]);
+ 144:quantum/matrix.c ****     }
+ 145:quantum/matrix.c **** }
+ 146:quantum/matrix.c **** 
+ 147:quantum/matrix.c **** static bool read_rows_on_col(matrix_row_t current_matrix[], uint8_t current_col) {
+ 148:quantum/matrix.c ****     bool matrix_changed = false;
+ 149:quantum/matrix.c **** 
+ 150:quantum/matrix.c ****     // Select col and wait for col selecton to stabilize
+ 151:quantum/matrix.c ****     select_col(current_col);
+ 152:quantum/matrix.c ****     matrix_io_delay();
+ 153:quantum/matrix.c **** 
+ 154:quantum/matrix.c ****     // For each row...
+ 155:quantum/matrix.c ****     for (uint8_t row_index = 0; row_index < MATRIX_ROWS; row_index++) {
+ 156:quantum/matrix.c ****         // Store last value of row prior to reading
+ 157:quantum/matrix.c ****         matrix_row_t last_row_value    = current_matrix[row_index];
+ 158:quantum/matrix.c ****         matrix_row_t current_row_value = last_row_value;
+ 159:quantum/matrix.c **** 
+ 160:quantum/matrix.c ****         // Check row pin state
+ 161:quantum/matrix.c ****         if (readPin(row_pins[row_index]) == 0) {
+ 162:quantum/matrix.c ****             // Pin LO, set col bit
+ 163:quantum/matrix.c ****             current_row_value |= (MATRIX_ROW_SHIFTER << current_col);
+ 164:quantum/matrix.c ****         } else {
+ 165:quantum/matrix.c ****             // Pin HI, clear col bit
+ 166:quantum/matrix.c ****             current_row_value &= ~(MATRIX_ROW_SHIFTER << current_col);
+ 167:quantum/matrix.c ****         }
+ 168:quantum/matrix.c **** 
+ 169:quantum/matrix.c ****         // Determine if the matrix changed state
+ 170:quantum/matrix.c ****         if ((last_row_value != current_row_value)) {
+ 171:quantum/matrix.c ****             matrix_changed |= true;
+ 172:quantum/matrix.c ****             current_matrix[row_index] = current_row_value;
+ 173:quantum/matrix.c ****         }
+ 174:quantum/matrix.c ****     }
+ 175:quantum/matrix.c **** 
+ 176:quantum/matrix.c ****     // Unselect col
+ 177:quantum/matrix.c ****     unselect_col(current_col);
+ 178:quantum/matrix.c **** 
+ 179:quantum/matrix.c ****     return matrix_changed;
+ 180:quantum/matrix.c **** }
+ 181:quantum/matrix.c **** 
+ 182:quantum/matrix.c **** #    else
+ 183:quantum/matrix.c **** #        error DIODE_DIRECTION must be one of COL2ROW or ROW2COL!
+ 184:quantum/matrix.c **** #    endif
+ 185:quantum/matrix.c **** #else
+ 186:quantum/matrix.c **** #    error DIODE_DIRECTION is not defined!
+ 187:quantum/matrix.c **** #endif
+ 188:quantum/matrix.c **** 
+ 189:quantum/matrix.c **** void matrix_init(void) {
+  96               		.loc 1 189 24 is_stmt 1 view -0
+  97               		.cfi_startproc
+  98 0000 CF93      		push r28
+  99               	.LCFI0:
+ 100               		.cfi_def_cfa_offset 3
+ 101               		.cfi_offset 28, -2
+ 102 0002 DF93      		push r29
+ 103               	.LCFI1:
+ 104               		.cfi_def_cfa_offset 4
+ 105               		.cfi_offset 29, -3
+ 106               	/* prologue: function */
+ 107               	/* frame size = 0 */
+ 108               	/* stack size = 2 */
+ 109               	.L__stack_usage = 2
+ 190:quantum/matrix.c ****     // initialize key pins
+ 191:quantum/matrix.c ****     init_pins();
+ 110               		.loc 1 191 5 view .LVU16
+ 111               	.LBB27:
+ 112               	.LBI27:
+  93:quantum/matrix.c ****     unselect_rows();
+ 113               		.loc 1 93 13 view .LVU17
+ 114               	.LBE27:
+  94:quantum/matrix.c ****     for (uint8_t x = 0; x < MATRIX_COLS; x++) {
+ 115               		.loc 1 94 5 view .LVU18
+ 116               	.LBB31:
+ 117               	.LBB28:
+ 118               	.LBI28:
+  87:quantum/matrix.c ****     for (uint8_t x = 0; x < MATRIX_ROWS; x++) {
+ 119               		.loc 1 87 13 view .LVU19
+ 120               	.LVL5:
+  87:quantum/matrix.c ****     for (uint8_t x = 0; x < MATRIX_ROWS; x++) {
+ 121               		.loc 1 87 13 is_stmt 0 view .LVU20
+ 122 0004 C0E0      		ldi r28,lo8(row_pins)
+ 123 0006 D0E0      		ldi r29,hi8(row_pins)
+ 124               	.LVL6:
+ 125               	.L3:
+ 126               	.LBB29:
+  89:quantum/matrix.c ****     }
+ 127               		.loc 1 89 9 is_stmt 1 view .LVU21
+ 128 0008 8991      		ld r24,Y+
+ 129               	.LVL7:
+  89:quantum/matrix.c ****     }
+ 130               		.loc 1 89 9 is_stmt 0 view .LVU22
+ 131 000a 0E94 0000 		call setPinInputHigh_atomic
+ 132               	.LVL8:
+  88:quantum/matrix.c ****         setPinInputHigh_atomic(row_pins[x]);
+ 133               		.loc 1 88 5 view .LVU23
+ 134 000e 80E0      		ldi r24,hi8(row_pins+8)
+ 135 0010 C030      		cpi r28,lo8(row_pins+8)
+ 136 0012 D807      		cpc r29,r24
+ 137 0014 01F4      		brne .L3
+ 138 0016 C0E0      		ldi r28,lo8(col_pins)
+ 139 0018 D0E0      		ldi r29,hi8(col_pins)
+ 140               	.LVL9:
+ 141               	.L4:
+  88:quantum/matrix.c ****         setPinInputHigh_atomic(row_pins[x]);
+ 142               		.loc 1 88 5 view .LVU24
+ 143               	.LBE29:
+ 144               	.LBE28:
+ 145               	.LBB30:
+  96:quantum/matrix.c ****     }
+ 146               		.loc 1 96 9 is_stmt 1 view .LVU25
+ 147 001a 8991      		ld r24,Y+
+ 148               	.LVL10:
+  96:quantum/matrix.c ****     }
+ 149               		.loc 1 96 9 is_stmt 0 view .LVU26
+ 150 001c 0E94 0000 		call setPinInputHigh_atomic
+ 151               	.LVL11:
+  95:quantum/matrix.c ****         setPinInputHigh_atomic(col_pins[x]);
+ 152               		.loc 1 95 5 view .LVU27
+ 153 0020 80E0      		ldi r24,hi8(col_pins+15)
+ 154 0022 C030      		cpi r28,lo8(col_pins+15)
+ 155 0024 D807      		cpc r29,r24
+ 156 0026 01F4      		brne .L4
+ 157 0028 E0E0      		ldi r30,lo8(raw_matrix)
+ 158 002a F0E0      		ldi r31,hi8(raw_matrix)
+ 159 002c A0E0      		ldi r26,lo8(matrix)
+ 160 002e B0E0      		ldi r27,hi8(matrix)
+ 161               	.L5:
+ 162               	.LBE30:
+ 163               	.LBE31:
+ 164               	.LBB32:
+ 192:quantum/matrix.c **** 
+ 193:quantum/matrix.c ****     // initialize matrix state: all keys off
+ 194:quantum/matrix.c ****     for (uint8_t i = 0; i < MATRIX_ROWS; i++) {
+ 195:quantum/matrix.c ****         raw_matrix[i] = 0;
+ 165               		.loc 1 195 9 is_stmt 1 discriminator 3 view .LVU28
+ 166               		.loc 1 195 23 is_stmt 0 discriminator 3 view .LVU29
+ 167 0030 1192      		st Z+,__zero_reg__
+ 168 0032 1192      		st Z+,__zero_reg__
+ 196:quantum/matrix.c ****         matrix[i]     = 0;
+ 169               		.loc 1 196 9 is_stmt 1 discriminator 3 view .LVU30
+ 170               		.loc 1 196 23 is_stmt 0 discriminator 3 view .LVU31
+ 171 0034 1D92      		st X+,__zero_reg__
+ 172 0036 1D92      		st X+,__zero_reg__
+ 173               	.LVL12:
+ 194:quantum/matrix.c ****         raw_matrix[i] = 0;
+ 174               		.loc 1 194 5 discriminator 3 view .LVU32
+ 175 0038 80E0      		ldi r24,hi8(raw_matrix+16)
+ 176 003a E030      		cpi r30,lo8(raw_matrix+16)
+ 177 003c F807      		cpc r31,r24
+ 178 003e 01F4      		brne .L5
+ 179               	.LBE32:
+ 197:quantum/matrix.c ****     }
+ 198:quantum/matrix.c **** 
+ 199:quantum/matrix.c ****     debounce_init(MATRIX_ROWS);
+ 180               		.loc 1 199 5 is_stmt 1 view .LVU33
+ 181 0040 88E0      		ldi r24,lo8(8)
+ 182 0042 0E94 0000 		call debounce_init
+ 183               	.LVL13:
+ 200:quantum/matrix.c **** 
+ 201:quantum/matrix.c ****     matrix_init_quantum();
+ 184               		.loc 1 201 5 view .LVU34
+ 185               	/* epilogue start */
+ 202:quantum/matrix.c **** }
+ 186               		.loc 1 202 1 is_stmt 0 view .LVU35
+ 187 0046 DF91      		pop r29
+ 188 0048 CF91      		pop r28
+ 189               	.LVL14:
+ 201:quantum/matrix.c **** }
+ 190               		.loc 1 201 5 view .LVU36
+ 191 004a 0C94 0000 		jmp matrix_init_quantum
+ 192               	.LVL15:
+ 193               		.cfi_endproc
+ 194               	.LFE124:
+ 196               		.section	.text.matrix_scan,"ax",@progbits
+ 197               	.global	matrix_scan
+ 199               	matrix_scan:
+ 200               	.LFB125:
+ 203:quantum/matrix.c **** 
+ 204:quantum/matrix.c **** uint8_t matrix_scan(void) {
+ 201               		.loc 1 204 27 is_stmt 1 view -0
+ 202               		.cfi_startproc
+ 203 0000 AF92      		push r10
+ 204               	.LCFI2:
+ 205               		.cfi_def_cfa_offset 3
+ 206               		.cfi_offset 10, -2
+ 207 0002 BF92      		push r11
+ 208               	.LCFI3:
+ 209               		.cfi_def_cfa_offset 4
+ 210               		.cfi_offset 11, -3
+ 211 0004 DF92      		push r13
+ 212               	.LCFI4:
+ 213               		.cfi_def_cfa_offset 5
+ 214               		.cfi_offset 13, -4
+ 215 0006 EF92      		push r14
+ 216               	.LCFI5:
+ 217               		.cfi_def_cfa_offset 6
+ 218               		.cfi_offset 14, -5
+ 219 0008 FF92      		push r15
+ 220               	.LCFI6:
+ 221               		.cfi_def_cfa_offset 7
+ 222               		.cfi_offset 15, -6
+ 223 000a 0F93      		push r16
+ 224               	.LCFI7:
+ 225               		.cfi_def_cfa_offset 8
+ 226               		.cfi_offset 16, -7
+ 227 000c 1F93      		push r17
+ 228               	.LCFI8:
+ 229               		.cfi_def_cfa_offset 9
+ 230               		.cfi_offset 17, -8
+ 231 000e CF93      		push r28
+ 232               	.LCFI9:
+ 233               		.cfi_def_cfa_offset 10
+ 234               		.cfi_offset 28, -9
+ 235 0010 DF93      		push r29
+ 236               	.LCFI10:
+ 237               		.cfi_def_cfa_offset 11
+ 238               		.cfi_offset 29, -10
+ 239               	/* prologue: function */
+ 240               	/* frame size = 0 */
+ 241               	/* stack size = 9 */
+ 242               	.L__stack_usage = 9
+ 205:quantum/matrix.c ****     bool changed = false;
+ 243               		.loc 1 205 5 view .LVU38
+ 244               	.LVL16:
+ 206:quantum/matrix.c **** 
+ 207:quantum/matrix.c **** #if defined(DIRECT_PINS) || (DIODE_DIRECTION == COL2ROW)
+ 208:quantum/matrix.c ****     // Set row, read cols
+ 209:quantum/matrix.c ****     for (uint8_t current_row = 0; current_row < MATRIX_ROWS; current_row++) {
+ 245               		.loc 1 209 5 view .LVU39
+ 246               	.LBB49:
+ 247               		.loc 1 209 10 view .LVU40
+ 248               		.loc 1 209 10 is_stmt 0 view .LVU41
+ 249 0012 C0E0      		ldi r28,lo8(row_pins)
+ 250 0014 D0E0      		ldi r29,hi8(row_pins)
+ 251 0016 00E0      		ldi r16,lo8(raw_matrix)
+ 252 0018 10E0      		ldi r17,hi8(raw_matrix)
+ 253               	.LBE49:
+ 205:quantum/matrix.c ****     bool changed = false;
+ 254               		.loc 1 205 10 view .LVU42
+ 255 001a D12C      		mov r13,__zero_reg__
+ 256               	.LBB80:
+ 257               	.LBB50:
+ 258               	.LBB51:
+ 259               	.LBB52:
+ 260               	.LBB53:
+ 261               	.LBB54:
+ 262               	.LBB55:
+  37:quantum/matrix.c ****         writePinLow(pin);
+ 263               		.loc 1 37 9 view .LVU43
+ 264 001c EE24      		clr r14
+ 265 001e E394      		inc r14
+ 266 0020 F12C      		mov r15,__zero_reg__
+ 267               	.LVL17:
+ 268               	.L13:
+  37:quantum/matrix.c ****         writePinLow(pin);
+ 269               		.loc 1 37 9 view .LVU44
+ 270               	.LBE55:
+ 271               	.LBE54:
+ 272               	.LBE53:
+ 273               	.LBE52:
+ 274               	.LBE51:
+ 275               	.LBE50:
+ 210:quantum/matrix.c ****         changed |= read_cols_on_row(raw_matrix, current_row);
+ 276               		.loc 1 210 9 is_stmt 1 view .LVU45
+ 277               	.LBB77:
+ 278               	.LBI50:
+ 100:quantum/matrix.c ****     // Start with a clear matrix row
+ 279               		.loc 1 100 13 view .LVU46
+ 280               	.LBB74:
+ 102:quantum/matrix.c **** 
+ 281               		.loc 1 102 5 view .LVU47
+ 105:quantum/matrix.c ****     matrix_io_delay();
+ 282               		.loc 1 105 5 view .LVU48
+ 283               	.LBB65:
+ 284               	.LBI52:
+  83:quantum/matrix.c **** 
+ 285               		.loc 1 83 13 view .LVU49
+ 286               	.LBB63:
+  83:quantum/matrix.c **** 
+ 287               		.loc 1 83 39 view .LVU50
+ 288 0022 8991      		ld r24,Y+
+ 289               	.LVL18:
+ 290               	.LBB61:
+ 291               	.LBI54:
+  35:quantum/matrix.c ****     ATOMIC_BLOCK_FORCEON {
+ 292               		.loc 1 35 20 view .LVU51
+ 293               	.LBE61:
+ 294               	.LBE63:
+ 295               	.LBE65:
+ 296               	.LBE74:
+ 297               	.LBE77:
+ 298               	.LBE80:
+  36:quantum/matrix.c ****         setPinOutput(pin);
+ 299               		.loc 1 36 5 view .LVU52
+ 300               	.LBB81:
+ 301               	.LBB78:
+ 302               	.LBB75:
+ 303               	.LBB66:
+ 304               	.LBB64:
+ 305               	.LBB62:
+ 306               	.LBB60:
+  36:quantum/matrix.c ****         setPinOutput(pin);
+ 307               		.loc 1 36 5 view .LVU53
+ 308               	.LBB56:
+ 309               	.LBI56:
+  48:/usr/avr/include/util/atomic.h **** {
+ 310               		.loc 2 48 27 view .LVU54
+ 311               	.LBB57:
+  50:/usr/avr/include/util/atomic.h ****     return 1;
+ 312               		.loc 2 50 5 view .LVU55
+ 313               	/* #APP */
+ 314               	 ;  50 "/usr/avr/include/util/atomic.h" 1
+ 315 0024 F894      		cli
+ 316               	 ;  0 "" 2
+  51:/usr/avr/include/util/atomic.h **** }
+ 317               		.loc 2 51 5 view .LVU56
+ 318               	.LVL19:
+  51:/usr/avr/include/util/atomic.h **** }
+ 319               		.loc 2 51 5 is_stmt 0 view .LVU57
+ 320               	/* #NOAPP */
+ 321               	.LBE57:
+ 322               	.LBE56:
+  37:quantum/matrix.c ****         writePinLow(pin);
+ 323               		.loc 1 37 9 is_stmt 1 view .LVU58
+ 324 0026 E82F      		mov r30,r24
+ 325 0028 E295      		swap r30
+ 326 002a EF70      		andi r30,lo8(15)
+ 327 002c F0E0      		ldi r31,0
+ 328 002e 21A1      		ldd r18,Z+33
+ 329 0030 8F70      		andi r24,lo8(15)
+ 330               	.LVL20:
+  37:quantum/matrix.c ****         writePinLow(pin);
+ 331               		.loc 1 37 9 is_stmt 0 view .LVU59
+ 332 0032 A701      		movw r20,r14
+ 333 0034 00C0      		rjmp 2f
+ 334               		1:
+ 335 0036 440F      		lsl r20
+ 336 0038 551F      		rol r21
+ 337               		2:
+ 338 003a 8A95      		dec r24
+ 339 003c 02F4      		brpl 1b
+ 340 003e CA01      		movw r24,r20
+ 341 0040 922F      		mov r25,r18
+ 342 0042 982B      		or r25,r24
+ 343 0044 91A3      		std Z+33,r25
+ 344               	.LVL21:
+  38:quantum/matrix.c ****     }
+ 345               		.loc 1 38 9 is_stmt 1 view .LVU60
+ 346 0046 92A1      		ldd r25,Z+34
+ 347 0048 8095      		com r24
+ 348 004a 8923      		and r24,r25
+ 349 004c 82A3      		std Z+34,r24
+ 350               	.LVL22:
+ 351               	.LBB58:
+ 352               	.LBI58:
+  54:/usr/avr/include/util/atomic.h **** {
+ 353               		.loc 2 54 24 view .LVU61
+ 354               	.LBB59:
+  56:/usr/avr/include/util/atomic.h ****     __asm__ volatile ("" ::: "memory");
+ 355               		.loc 2 56 5 view .LVU62
+ 356               	/* #APP */
+ 357               	 ;  56 "/usr/avr/include/util/atomic.h" 1
+ 358 004e 7894      		sei
+ 359               	 ;  0 "" 2
+  57:/usr/avr/include/util/atomic.h ****     (void)__s;
+ 360               		.loc 2 57 5 view .LVU63
+ 361               		.loc 2 58 5 view .LVU64
+ 362               	.LVL23:
+ 363               		.loc 2 58 5 is_stmt 0 view .LVU65
+ 364               	/* #NOAPP */
+ 365               	.LBE59:
+ 366               	.LBE58:
+ 367               	.LBE60:
+ 368               	.LBE62:
+ 369               	.LBE64:
+ 370               	.LBE66:
+ 106:quantum/matrix.c **** 
+ 371               		.loc 1 106 5 is_stmt 1 view .LVU66
+ 372 0050 0E94 0000 		call matrix_io_delay
+ 373               	.LVL24:
+ 109:quantum/matrix.c ****         // Select the col pin to read (active low)
+ 374               		.loc 1 109 5 view .LVU67
+ 375               	.LBB67:
+ 109:quantum/matrix.c ****         // Select the col pin to read (active low)
+ 376               		.loc 1 109 10 view .LVU68
+ 109:quantum/matrix.c ****         // Select the col pin to read (active low)
+ 377               		.loc 1 109 10 is_stmt 0 view .LVU69
+ 378 0054 E0E0      		ldi r30,lo8(col_pins)
+ 379 0056 F0E0      		ldi r31,hi8(col_pins)
+ 380               	.LBE67:
+ 106:quantum/matrix.c **** 
+ 381               		.loc 1 106 5 view .LVU70
+ 382 0058 30E0      		ldi r19,0
+ 383 005a 20E0      		ldi r18,0
+ 102:quantum/matrix.c **** 
+ 384               		.loc 1 102 18 view .LVU71
+ 385 005c B12C      		mov r11,__zero_reg__
+ 386 005e A12C      		mov r10,__zero_reg__
+ 387               	.LVL25:
+ 388               	.L11:
+ 389               	.LBB70:
+ 390               	.LBB68:
+ 111:quantum/matrix.c **** 
+ 391               		.loc 1 111 9 is_stmt 1 view .LVU72
+ 111:quantum/matrix.c **** 
+ 392               		.loc 1 111 29 is_stmt 0 view .LVU73
+ 393 0060 4191      		ld r20,Z+
+ 394 0062 A42F      		mov r26,r20
+ 395 0064 A295      		swap r26
+ 396 0066 AF70      		andi r26,lo8(15)
+ 397 0068 B0E0      		ldi r27,0
+ 398 006a 9096      		adiw r26,32
+ 399 006c 8C91      		ld r24,X
+ 400               	.LVL26:
+ 114:quantum/matrix.c ****     }
+ 401               		.loc 1 114 9 is_stmt 1 view .LVU74
+ 111:quantum/matrix.c **** 
+ 402               		.loc 1 111 29 is_stmt 0 view .LVU75
+ 403 006e 90E0      		ldi r25,0
+ 404 0070 4F70      		andi r20,lo8(15)
+ 405               	.LVL27:
+ 111:quantum/matrix.c **** 
+ 406               		.loc 1 111 29 view .LVU76
+ 407 0072 00C0      		rjmp 2f
+ 408               		1:
+ 409 0074 9595      		asr r25
+ 410 0076 8795      		ror r24
+ 411               		2:
+ 412 0078 4A95      		dec r20
+ 413 007a 02F4      		brpl 1b
+ 414               	.LVL28:
+ 114:quantum/matrix.c ****     }
+ 415               		.loc 1 114 44 view .LVU77
+ 416 007c 80FD      		sbrc r24,0
+ 417 007e 00C0      		rjmp .L14
+ 418 0080 C701      		movw r24,r14
+ 419 0082 022E      		mov r0,r18
+ 420 0084 00C0      		rjmp 2f
+ 421               		1:
+ 422 0086 880F      		lsl r24
+ 423 0088 991F      		rol r25
+ 424               		2:
+ 425 008a 0A94      		dec r0
+ 426 008c 02F4      		brpl 1b
+ 427               	.L10:
+ 114:quantum/matrix.c ****     }
+ 428               		.loc 1 114 27 view .LVU78
+ 429 008e A82A      		or r10,r24
+ 430               	.LVL29:
+ 114:quantum/matrix.c ****     }
+ 431               		.loc 1 114 27 view .LVU79
+ 432 0090 B92A      		or r11,r25
+ 433               	.LVL30:
+ 114:quantum/matrix.c ****     }
+ 434               		.loc 1 114 27 view .LVU80
+ 435 0092 2F5F      		subi r18,-1
+ 436 0094 3F4F      		sbci r19,-1
+ 437               	.LVL31:
+ 114:quantum/matrix.c ****     }
+ 438               		.loc 1 114 27 view .LVU81
+ 439               	.LBE68:
+ 109:quantum/matrix.c ****         // Select the col pin to read (active low)
+ 440               		.loc 1 109 5 view .LVU82
+ 441 0096 2F30      		cpi r18,15
+ 442 0098 3105      		cpc r19,__zero_reg__
+ 443 009a 01F4      		brne .L11
+ 444               	.LBE70:
+ 118:quantum/matrix.c **** 
+ 445               		.loc 1 118 5 is_stmt 1 view .LVU83
+ 446               	.LVL32:
+ 447               	.LBB71:
+ 448               	.LBI71:
+  85:quantum/matrix.c **** 
+ 449               		.loc 1 85 13 view .LVU84
+ 450               	.LBB72:
+  85:quantum/matrix.c **** 
+ 451               		.loc 1 85 41 view .LVU85
+ 452 009c FE01      		movw r30,r28
+ 453 009e 3197      		sbiw r30,1
+ 454 00a0 8081      		ld r24,Z
+ 455 00a2 0E94 0000 		call setPinInputHigh_atomic
+ 456               	.LVL33:
+  85:quantum/matrix.c **** 
+ 457               		.loc 1 85 41 is_stmt 0 view .LVU86
+ 458               	.LBE72:
+ 459               	.LBE71:
+ 121:quantum/matrix.c ****         current_matrix[current_row] = current_row_value;
+ 460               		.loc 1 121 5 is_stmt 1 view .LVU87
+ 121:quantum/matrix.c ****         current_matrix[current_row] = current_row_value;
+ 461               		.loc 1 121 8 is_stmt 0 view .LVU88
+ 462 00a6 F801      		movw r30,r16
+ 463 00a8 8081      		ld r24,Z
+ 464 00aa 9181      		ldd r25,Z+1
+ 465 00ac A816      		cp r10,r24
+ 466 00ae B906      		cpc r11,r25
+ 467 00b0 01F0      		breq .L15
+ 122:quantum/matrix.c ****         return true;
+ 468               		.loc 1 122 9 is_stmt 1 view .LVU89
+ 122:quantum/matrix.c ****         return true;
+ 469               		.loc 1 122 37 is_stmt 0 view .LVU90
+ 470 00b2 B182      		std Z+1,r11
+ 471 00b4 A082      		st Z,r10
+ 123:quantum/matrix.c ****     }
+ 472               		.loc 1 123 9 is_stmt 1 view .LVU91
+ 123:quantum/matrix.c ****     }
+ 473               		.loc 1 123 16 is_stmt 0 view .LVU92
+ 474 00b6 81E0      		ldi r24,lo8(1)
+ 475               	.L12:
+ 476               	.LVL34:
+ 123:quantum/matrix.c ****     }
+ 477               		.loc 1 123 16 view .LVU93
+ 478               	.LBE75:
+ 479               	.LBE78:
+ 480               		.loc 1 210 17 view .LVU94
+ 481 00b8 D82A      		or r13,r24
+ 482               	.LVL35:
+ 483               		.loc 1 210 17 view .LVU95
+ 484 00ba 0E5F      		subi r16,-2
+ 485 00bc 1F4F      		sbci r17,-1
+ 209:quantum/matrix.c ****         changed |= read_cols_on_row(raw_matrix, current_row);
+ 486               		.loc 1 209 5 view .LVU96
+ 487 00be F0E0      		ldi r31,hi8(row_pins+8)
+ 488 00c0 C030      		cpi r28,lo8(row_pins+8)
+ 489 00c2 DF07      		cpc r29,r31
+ 490 00c4 01F0      		breq .+2
+ 491 00c6 00C0      		rjmp .L13
+ 492               	.LBE81:
+ 211:quantum/matrix.c ****     }
+ 212:quantum/matrix.c **** #elif (DIODE_DIRECTION == ROW2COL)
+ 213:quantum/matrix.c ****     // Set col, read rows
+ 214:quantum/matrix.c ****     for (uint8_t current_col = 0; current_col < MATRIX_COLS; current_col++) {
+ 215:quantum/matrix.c ****         changed |= read_rows_on_col(raw_matrix, current_col);
+ 216:quantum/matrix.c ****     }
+ 217:quantum/matrix.c **** #endif
+ 218:quantum/matrix.c **** 
+ 219:quantum/matrix.c ****     debounce(raw_matrix, matrix, MATRIX_ROWS, changed);
+ 493               		.loc 1 219 5 is_stmt 1 view .LVU97
+ 494 00c8 2D2D      		mov r18,r13
+ 495 00ca 48E0      		ldi r20,lo8(8)
+ 496 00cc 60E0      		ldi r22,lo8(matrix)
+ 497 00ce 70E0      		ldi r23,hi8(matrix)
+ 498 00d0 80E0      		ldi r24,lo8(raw_matrix)
+ 499 00d2 90E0      		ldi r25,hi8(raw_matrix)
+ 500 00d4 0E94 0000 		call debounce
+ 501               	.LVL36:
+ 220:quantum/matrix.c **** 
+ 221:quantum/matrix.c ****     matrix_scan_quantum();
+ 502               		.loc 1 221 5 view .LVU98
+ 503 00d8 0E94 0000 		call matrix_scan_quantum
+ 504               	.LVL37:
+ 222:quantum/matrix.c ****     return (uint8_t)changed;
+ 505               		.loc 1 222 5 view .LVU99
+ 223:quantum/matrix.c **** }
+ 506               		.loc 1 223 1 is_stmt 0 view .LVU100
+ 507 00dc 8D2D      		mov r24,r13
+ 508               	/* epilogue start */
+ 509 00de DF91      		pop r29
+ 510 00e0 CF91      		pop r28
+ 511               	.LVL38:
+ 512               		.loc 1 223 1 view .LVU101
+ 513 00e2 1F91      		pop r17
+ 514 00e4 0F91      		pop r16
+ 515 00e6 FF90      		pop r15
+ 516 00e8 EF90      		pop r14
+ 517 00ea DF90      		pop r13
+ 518               	.LVL39:
+ 519               		.loc 1 223 1 view .LVU102
+ 520 00ec BF90      		pop r11
+ 521 00ee AF90      		pop r10
+ 522 00f0 0895      		ret
+ 523               	.LVL40:
+ 524               	.L14:
+ 525               	.LBB82:
+ 526               	.LBB79:
+ 527               	.LBB76:
+ 528               	.LBB73:
+ 529               	.LBB69:
+ 114:quantum/matrix.c ****     }
+ 530               		.loc 1 114 44 view .LVU103
+ 531 00f2 90E0      		ldi r25,0
+ 532 00f4 80E0      		ldi r24,0
+ 533 00f6 00C0      		rjmp .L10
+ 534               	.LVL41:
+ 535               	.L15:
+ 114:quantum/matrix.c ****     }
+ 536               		.loc 1 114 44 view .LVU104
+ 537               	.LBE69:
+ 538               	.LBE73:
+ 125:quantum/matrix.c **** }
+ 539               		.loc 1 125 12 view .LVU105
+ 540 00f8 80E0      		ldi r24,0
+ 541 00fa 00C0      		rjmp .L12
+ 542               	.LBE76:
+ 543               	.LBE79:
+ 544               	.LBE82:
+ 545               		.cfi_endproc
+ 546               	.LFE125:
+ 548               		.section	.rodata.col_pins,"a"
+ 551               	col_pins:
+ 552 0000 37        		.byte	55
+ 553 0001 90        		.byte	-112
+ 554 0002 91        		.byte	-111
+ 555 0003 92        		.byte	-110
+ 556 0004 93        		.byte	-109
+ 557 0005 94        		.byte	-108
+ 558 0006 95        		.byte	-107
+ 559 0007 97        		.byte	-105
+ 560 0008 C0        		.byte	-64
+ 561 0009 60        		.byte	96
+ 562 000a 61        		.byte	97
+ 563 000b 62        		.byte	98
+ 564 000c 63        		.byte	99
+ 565 000d 64        		.byte	100
+ 566 000e 65        		.byte	101
+ 567               		.section	.rodata.row_pins,"a"
+ 570               	row_pins:
+ 571 0000 F0        		.byte	-16
+ 572 0001 F1        		.byte	-15
+ 573 0002 F2        		.byte	-14
+ 574 0003 F3        		.byte	-13
+ 575 0004 F4        		.byte	-12
+ 576 0005 F5        		.byte	-11
+ 577 0006 F6        		.byte	-10
+ 578 0007 F7        		.byte	-9
+ 579               		.text
+ 580               	.Letext0:
+ 581               		.file 3 "/usr/avr/include/stdint.h"
+ 582               		.file 4 "tmk_core/common/matrix.h"
+ 583               		.file 5 "/usr/lib/gcc/avr/8.3.0/include/stddef.h"
+ 584               		.file 6 "lib/lufa/LUFA/Drivers/USB/Core/AVR8/../StdRequestType.h"
+ 585               		.file 7 "tmk_core/common/action.h"
+ 586               		.file 8 "lib/lufa/LUFA/Drivers/USB/Core/AVR8/../DeviceStandardReq.h"
+ 587               		.file 9 "lib/lufa/LUFA/Drivers/USB/Core/USBTask.h"
+ 588               		.file 10 "lib/lufa/LUFA/Drivers/USB/Core/HostStandardReq.h"
+ 589               		.file 11 "/usr/avr/include/stdio.h"
+ 590               		.file 12 "tmk_core/common/report.h"
+ 591               		.file 13 "tmk_core/common/host.h"
+ 592               		.file 14 "tmk_core/common/debug.h"
+ 593               		.file 15 "quantum/keycode_config.h"
+ 594               		.file 16 "quantum/keymap.h"
+ 595               		.file 17 "tmk_core/common/action_layer.h"
+ 596               		.file 18 "tmk_core/common/timer.h"
+ 597               		.file 19 "tmk_core/common/action_util.h"
+ 598               		.file 20 "/usr/avr/include/stdlib.h"
+ 599               		.file 21 "quantum/quantum.h"
+ 600               		.file 22 "quantum/debounce.h"
+DEFINED SYMBOLS
+                            *ABS*:0000000000000000 matrix.c
+     /tmp/ccCsHtXV.s:2      *ABS*:000000000000003e __SP_H__
+     /tmp/ccCsHtXV.s:3      *ABS*:000000000000003d __SP_L__
+     /tmp/ccCsHtXV.s:4      *ABS*:000000000000003f __SREG__
+     /tmp/ccCsHtXV.s:5      *ABS*:000000000000003b __RAMPZ__
+     /tmp/ccCsHtXV.s:6      *ABS*:0000000000000000 __tmp_reg__
+     /tmp/ccCsHtXV.s:7      *ABS*:0000000000000001 __zero_reg__
+     /tmp/ccCsHtXV.s:13     .text.setPinInputHigh_atomic:0000000000000000 setPinInputHigh_atomic
+     /tmp/ccCsHtXV.s:94     .text.matrix_init:0000000000000000 matrix_init
+     /tmp/ccCsHtXV.s:570    .rodata.row_pins:0000000000000000 row_pins
+     /tmp/ccCsHtXV.s:551    .rodata.col_pins:0000000000000000 col_pins
+     /tmp/ccCsHtXV.s:199    .text.matrix_scan:0000000000000000 matrix_scan
+
+UNDEFINED SYMBOLS
+raw_matrix
+matrix
+debounce_init
+matrix_init_quantum
+matrix_io_delay
+debounce
+matrix_scan_quantum
+__do_copy_data

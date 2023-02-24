@@ -1,0 +1,1327 @@
+   1               		.file	"matrix.c"
+   2               	__SP_H__ = 0x3e
+   3               	__SP_L__ = 0x3d
+   4               	__SREG__ = 0x3f
+   5               	__tmp_reg__ = 0
+   6               	__zero_reg__ = 1
+   7               		.text
+   8               	.Ltext0:
+   9               		.cfi_sections	.debug_frame
+  10               		.section	.text.matrix_break,"ax",@progbits
+  12               	matrix_break:
+  13               	.LVL0:
+  14               	.LFB13:
+  15               		.file 1 "keyboards/converter/xt_usb/matrix.c"
+   1:keyboards/converter/xt_usb/matrix.c **** /*
+   2:keyboards/converter/xt_usb/matrix.c **** Copyright 2011 Jun Wako <wakojun@gmail.com>
+   3:keyboards/converter/xt_usb/matrix.c **** Copyright 2016 Ethan Apodaca <papodaca@gmail.com>
+   4:keyboards/converter/xt_usb/matrix.c **** 
+   5:keyboards/converter/xt_usb/matrix.c **** This program is free software: you can redistribute it and/or modify
+   6:keyboards/converter/xt_usb/matrix.c **** it under the terms of the GNU General Public License as published by
+   7:keyboards/converter/xt_usb/matrix.c **** the Free Software Foundation, either version 2 of the License, or
+   8:keyboards/converter/xt_usb/matrix.c **** (at your option) any later version.
+   9:keyboards/converter/xt_usb/matrix.c **** 
+  10:keyboards/converter/xt_usb/matrix.c **** This program is distributed in the hope that it will be useful,
+  11:keyboards/converter/xt_usb/matrix.c **** but WITHOUT ANY WARRANTY; without even the implied warranty of
+  12:keyboards/converter/xt_usb/matrix.c **** MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+  13:keyboards/converter/xt_usb/matrix.c **** GNU General Public License for more details.
+  14:keyboards/converter/xt_usb/matrix.c **** 
+  15:keyboards/converter/xt_usb/matrix.c **** You should have received a copy of the GNU General Public License
+  16:keyboards/converter/xt_usb/matrix.c **** along with this program.  If not, see <http://www.gnu.org/licenses/>.
+  17:keyboards/converter/xt_usb/matrix.c **** */
+  18:keyboards/converter/xt_usb/matrix.c **** 
+  19:keyboards/converter/xt_usb/matrix.c **** #include <stdint.h>
+  20:keyboards/converter/xt_usb/matrix.c **** #include <stdbool.h>
+  21:keyboards/converter/xt_usb/matrix.c **** #include "action.h"
+  22:keyboards/converter/xt_usb/matrix.c **** #include "print.h"
+  23:keyboards/converter/xt_usb/matrix.c **** #include "util.h"
+  24:keyboards/converter/xt_usb/matrix.c **** #include "debug.h"
+  25:keyboards/converter/xt_usb/matrix.c **** #include "xt.h"
+  26:keyboards/converter/xt_usb/matrix.c **** #include "matrix.h"
+  27:keyboards/converter/xt_usb/matrix.c **** 
+  28:keyboards/converter/xt_usb/matrix.c **** 
+  29:keyboards/converter/xt_usb/matrix.c **** static void matrix_make(uint8_t code);
+  30:keyboards/converter/xt_usb/matrix.c **** static void matrix_break(uint8_t code);
+  31:keyboards/converter/xt_usb/matrix.c **** 
+  32:keyboards/converter/xt_usb/matrix.c **** static uint8_t matrix[MATRIX_ROWS];
+  33:keyboards/converter/xt_usb/matrix.c **** #define ROW(code)      (code>>3)
+  34:keyboards/converter/xt_usb/matrix.c **** #define COL(code)      (code&0x07)
+  35:keyboards/converter/xt_usb/matrix.c **** 
+  36:keyboards/converter/xt_usb/matrix.c **** __attribute__ ((weak))
+  37:keyboards/converter/xt_usb/matrix.c **** void matrix_init_kb(void) {
+  38:keyboards/converter/xt_usb/matrix.c ****     matrix_init_user();
+  39:keyboards/converter/xt_usb/matrix.c **** }
+  40:keyboards/converter/xt_usb/matrix.c **** 
+  41:keyboards/converter/xt_usb/matrix.c **** __attribute__ ((weak))
+  42:keyboards/converter/xt_usb/matrix.c **** void matrix_scan_kb(void) {
+  43:keyboards/converter/xt_usb/matrix.c ****     matrix_scan_user();
+  44:keyboards/converter/xt_usb/matrix.c **** }
+  45:keyboards/converter/xt_usb/matrix.c **** 
+  46:keyboards/converter/xt_usb/matrix.c **** __attribute__ ((weak))
+  47:keyboards/converter/xt_usb/matrix.c **** void matrix_init_user(void) {
+  48:keyboards/converter/xt_usb/matrix.c **** }
+  49:keyboards/converter/xt_usb/matrix.c **** 
+  50:keyboards/converter/xt_usb/matrix.c **** __attribute__ ((weak))
+  51:keyboards/converter/xt_usb/matrix.c **** void matrix_scan_user(void) {
+  52:keyboards/converter/xt_usb/matrix.c **** }
+  53:keyboards/converter/xt_usb/matrix.c **** 
+  54:keyboards/converter/xt_usb/matrix.c **** void matrix_init(void)
+  55:keyboards/converter/xt_usb/matrix.c **** {
+  56:keyboards/converter/xt_usb/matrix.c ****     debug_enable = true;
+  57:keyboards/converter/xt_usb/matrix.c ****     xt_host_init();
+  58:keyboards/converter/xt_usb/matrix.c **** 
+  59:keyboards/converter/xt_usb/matrix.c ****     // initialize matrix state: all keys off
+  60:keyboards/converter/xt_usb/matrix.c ****     for (uint8_t i=0; i < MATRIX_ROWS; i++) matrix[i] = 0x00;
+  61:keyboards/converter/xt_usb/matrix.c **** 
+  62:keyboards/converter/xt_usb/matrix.c ****     matrix_init_quantum();
+  63:keyboards/converter/xt_usb/matrix.c **** }
+  64:keyboards/converter/xt_usb/matrix.c **** 
+  65:keyboards/converter/xt_usb/matrix.c **** // convert E0-escaped codes into unused area
+  66:keyboards/converter/xt_usb/matrix.c **** static uint8_t move_e0code(uint8_t code) {
+  67:keyboards/converter/xt_usb/matrix.c ****     switch(code) {
+  68:keyboards/converter/xt_usb/matrix.c ****         // Original IBM XT keyboard has these keys
+  69:keyboards/converter/xt_usb/matrix.c ****         case 0x37: return 0x54; // Print Screen
+  70:keyboards/converter/xt_usb/matrix.c ****         case 0x46: return 0x55; // Ctrl + Pause
+  71:keyboards/converter/xt_usb/matrix.c ****         case 0x1C: return 0x6F; // Keypad Enter
+  72:keyboards/converter/xt_usb/matrix.c ****         case 0x35: return 0x7F; // Keypad /
+  73:keyboards/converter/xt_usb/matrix.c **** 
+  74:keyboards/converter/xt_usb/matrix.c ****         // Any XT keyobard with these keys?
+  75:keyboards/converter/xt_usb/matrix.c ****         // http://download.microsoft.com/download/1/6/1/161ba512-40e2-4cc9-843a-923143f3456c/transl
+  76:keyboards/converter/xt_usb/matrix.c ****         // https://download.microsoft.com/download/1/6/1/161ba512-40e2-4cc9-843a-923143f3456c/scanc
+  77:keyboards/converter/xt_usb/matrix.c ****         case 0x5B: return 0x5A; // Left  GUI
+  78:keyboards/converter/xt_usb/matrix.c ****         case 0x5C: return 0x5B; // Right GUI
+  79:keyboards/converter/xt_usb/matrix.c ****         case 0x5D: return 0x5C; // Application
+  80:keyboards/converter/xt_usb/matrix.c ****         case 0x5E: return 0x5D; // Power(not used)
+  81:keyboards/converter/xt_usb/matrix.c ****         case 0x5F: return 0x5E; // Sleep(not used)
+  82:keyboards/converter/xt_usb/matrix.c ****         case 0x63: return 0x5F; // Wake (not used)
+  83:keyboards/converter/xt_usb/matrix.c ****         case 0x48: return 0x60; // Up
+  84:keyboards/converter/xt_usb/matrix.c ****         case 0x4B: return 0x61; // Left
+  85:keyboards/converter/xt_usb/matrix.c ****         case 0x50: return 0x62; // Down
+  86:keyboards/converter/xt_usb/matrix.c ****         case 0x4D: return 0x63; // Right
+  87:keyboards/converter/xt_usb/matrix.c ****         case 0x52: return 0x71; // Insert
+  88:keyboards/converter/xt_usb/matrix.c ****         case 0x53: return 0x72; // Delete
+  89:keyboards/converter/xt_usb/matrix.c ****         case 0x47: return 0x74; // Home
+  90:keyboards/converter/xt_usb/matrix.c ****         case 0x4F: return 0x75; // End
+  91:keyboards/converter/xt_usb/matrix.c ****         case 0x49: return 0x77; // Home
+  92:keyboards/converter/xt_usb/matrix.c ****         case 0x51: return 0x78; // End
+  93:keyboards/converter/xt_usb/matrix.c ****         case 0x1D: return 0x7A; // Right Ctrl
+  94:keyboards/converter/xt_usb/matrix.c ****         case 0x38: return 0x7C; // Right Alt
+  95:keyboards/converter/xt_usb/matrix.c ****     }
+  96:keyboards/converter/xt_usb/matrix.c ****     return 0x00;
+  97:keyboards/converter/xt_usb/matrix.c **** }
+  98:keyboards/converter/xt_usb/matrix.c **** 
+  99:keyboards/converter/xt_usb/matrix.c **** uint8_t matrix_scan(void)
+ 100:keyboards/converter/xt_usb/matrix.c **** {
+ 101:keyboards/converter/xt_usb/matrix.c ****     static enum {
+ 102:keyboards/converter/xt_usb/matrix.c ****         XT_STATE_INIT,
+ 103:keyboards/converter/xt_usb/matrix.c ****         XT_STATE_E0,
+ 104:keyboards/converter/xt_usb/matrix.c ****         // Pause: E1 1D 45, E1 9D C5
+ 105:keyboards/converter/xt_usb/matrix.c ****         XT_STATE_E1,
+ 106:keyboards/converter/xt_usb/matrix.c ****         XT_STATE_E1_1D,
+ 107:keyboards/converter/xt_usb/matrix.c ****         XT_STATE_E1_9D,
+ 108:keyboards/converter/xt_usb/matrix.c ****     } state = XT_STATE_INIT;
+ 109:keyboards/converter/xt_usb/matrix.c **** 
+ 110:keyboards/converter/xt_usb/matrix.c ****     uint8_t code = xt_host_recv();
+ 111:keyboards/converter/xt_usb/matrix.c ****     if (!code) return 0;
+ 112:keyboards/converter/xt_usb/matrix.c ****     xprintf("%02X ", code);
+ 113:keyboards/converter/xt_usb/matrix.c ****     switch (state) {
+ 114:keyboards/converter/xt_usb/matrix.c ****         case XT_STATE_INIT:
+ 115:keyboards/converter/xt_usb/matrix.c ****             switch (code) {
+ 116:keyboards/converter/xt_usb/matrix.c ****                 case 0xE0:
+ 117:keyboards/converter/xt_usb/matrix.c ****                     state = XT_STATE_E0;
+ 118:keyboards/converter/xt_usb/matrix.c ****                     break;
+ 119:keyboards/converter/xt_usb/matrix.c ****                 case 0xE1:
+ 120:keyboards/converter/xt_usb/matrix.c ****                     state = XT_STATE_E1;
+ 121:keyboards/converter/xt_usb/matrix.c ****                     break;
+ 122:keyboards/converter/xt_usb/matrix.c ****                 default:
+ 123:keyboards/converter/xt_usb/matrix.c ****                     if (code < 0x80)
+ 124:keyboards/converter/xt_usb/matrix.c ****                         matrix_make(code);
+ 125:keyboards/converter/xt_usb/matrix.c ****                     else
+ 126:keyboards/converter/xt_usb/matrix.c ****                         matrix_break(code & 0x7F);
+ 127:keyboards/converter/xt_usb/matrix.c ****                     break;
+ 128:keyboards/converter/xt_usb/matrix.c ****             }
+ 129:keyboards/converter/xt_usb/matrix.c ****             break;
+ 130:keyboards/converter/xt_usb/matrix.c ****         case XT_STATE_E0:
+ 131:keyboards/converter/xt_usb/matrix.c ****             switch (code) {
+ 132:keyboards/converter/xt_usb/matrix.c ****                 case 0x2A:
+ 133:keyboards/converter/xt_usb/matrix.c ****                 case 0xAA:
+ 134:keyboards/converter/xt_usb/matrix.c ****                 case 0x36:
+ 135:keyboards/converter/xt_usb/matrix.c ****                 case 0xB6:
+ 136:keyboards/converter/xt_usb/matrix.c ****                     //ignore fake shift
+ 137:keyboards/converter/xt_usb/matrix.c ****                     state = XT_STATE_INIT;
+ 138:keyboards/converter/xt_usb/matrix.c ****                     break;
+ 139:keyboards/converter/xt_usb/matrix.c ****                 default:
+ 140:keyboards/converter/xt_usb/matrix.c ****                     if (code < 0x80)
+ 141:keyboards/converter/xt_usb/matrix.c ****                         matrix_make(move_e0code(code));
+ 142:keyboards/converter/xt_usb/matrix.c ****                     else
+ 143:keyboards/converter/xt_usb/matrix.c ****                         matrix_break(move_e0code(code & 0x7F));
+ 144:keyboards/converter/xt_usb/matrix.c ****                     state = XT_STATE_INIT;
+ 145:keyboards/converter/xt_usb/matrix.c ****                     break;
+ 146:keyboards/converter/xt_usb/matrix.c ****             }
+ 147:keyboards/converter/xt_usb/matrix.c ****             break;
+ 148:keyboards/converter/xt_usb/matrix.c ****         case XT_STATE_E1:
+ 149:keyboards/converter/xt_usb/matrix.c ****             switch (code) {
+ 150:keyboards/converter/xt_usb/matrix.c ****                 case 0x1D:
+ 151:keyboards/converter/xt_usb/matrix.c ****                     state = XT_STATE_E1_1D;
+ 152:keyboards/converter/xt_usb/matrix.c ****                     break;
+ 153:keyboards/converter/xt_usb/matrix.c ****                 case 0x9D:
+ 154:keyboards/converter/xt_usb/matrix.c ****                     state = XT_STATE_E1_9D;
+ 155:keyboards/converter/xt_usb/matrix.c ****                     break;
+ 156:keyboards/converter/xt_usb/matrix.c ****                 default:
+ 157:keyboards/converter/xt_usb/matrix.c ****                     state = XT_STATE_INIT;
+ 158:keyboards/converter/xt_usb/matrix.c ****                     break;
+ 159:keyboards/converter/xt_usb/matrix.c ****             }
+ 160:keyboards/converter/xt_usb/matrix.c ****             break;
+ 161:keyboards/converter/xt_usb/matrix.c ****         case XT_STATE_E1_1D:
+ 162:keyboards/converter/xt_usb/matrix.c ****             switch (code) {
+ 163:keyboards/converter/xt_usb/matrix.c ****                 case 0x45:
+ 164:keyboards/converter/xt_usb/matrix.c ****                     matrix_make(0x55);
+ 165:keyboards/converter/xt_usb/matrix.c ****                     break;
+ 166:keyboards/converter/xt_usb/matrix.c ****                 default:
+ 167:keyboards/converter/xt_usb/matrix.c ****                     state = XT_STATE_INIT;
+ 168:keyboards/converter/xt_usb/matrix.c ****                     break;
+ 169:keyboards/converter/xt_usb/matrix.c ****             }
+ 170:keyboards/converter/xt_usb/matrix.c ****             break;
+ 171:keyboards/converter/xt_usb/matrix.c ****         case XT_STATE_E1_9D:
+ 172:keyboards/converter/xt_usb/matrix.c ****             switch (code) {
+ 173:keyboards/converter/xt_usb/matrix.c ****                 case 0x45:
+ 174:keyboards/converter/xt_usb/matrix.c ****                     matrix_break(0x55);
+ 175:keyboards/converter/xt_usb/matrix.c ****                     break;
+ 176:keyboards/converter/xt_usb/matrix.c ****                 default:
+ 177:keyboards/converter/xt_usb/matrix.c ****                     state = XT_STATE_INIT;
+ 178:keyboards/converter/xt_usb/matrix.c ****                     break;
+ 179:keyboards/converter/xt_usb/matrix.c ****             }
+ 180:keyboards/converter/xt_usb/matrix.c ****             break;
+ 181:keyboards/converter/xt_usb/matrix.c ****         default:
+ 182:keyboards/converter/xt_usb/matrix.c ****             state = XT_STATE_INIT;
+ 183:keyboards/converter/xt_usb/matrix.c ****     }
+ 184:keyboards/converter/xt_usb/matrix.c ****     matrix_scan_quantum();
+ 185:keyboards/converter/xt_usb/matrix.c ****     return 1;
+ 186:keyboards/converter/xt_usb/matrix.c **** }
+ 187:keyboards/converter/xt_usb/matrix.c **** 
+ 188:keyboards/converter/xt_usb/matrix.c **** inline
+ 189:keyboards/converter/xt_usb/matrix.c **** uint8_t matrix_get_row(uint8_t row)
+ 190:keyboards/converter/xt_usb/matrix.c **** {
+ 191:keyboards/converter/xt_usb/matrix.c ****     return matrix[row];
+ 192:keyboards/converter/xt_usb/matrix.c **** }
+ 193:keyboards/converter/xt_usb/matrix.c **** 
+ 194:keyboards/converter/xt_usb/matrix.c **** inline
+ 195:keyboards/converter/xt_usb/matrix.c **** static void matrix_make(uint8_t code)
+ 196:keyboards/converter/xt_usb/matrix.c **** {
+ 197:keyboards/converter/xt_usb/matrix.c ****     if (!matrix_is_on(ROW(code), COL(code))) {
+ 198:keyboards/converter/xt_usb/matrix.c ****         matrix[ROW(code)] |= 1<<COL(code);
+ 199:keyboards/converter/xt_usb/matrix.c ****     }
+ 200:keyboards/converter/xt_usb/matrix.c **** }
+ 201:keyboards/converter/xt_usb/matrix.c **** 
+ 202:keyboards/converter/xt_usb/matrix.c **** inline
+ 203:keyboards/converter/xt_usb/matrix.c **** static void matrix_break(uint8_t code)
+ 204:keyboards/converter/xt_usb/matrix.c **** {
+  16               		.loc 1 204 1 view -0
+  17               		.cfi_startproc
+  18               	/* prologue: function */
+  19               	/* frame size = 0 */
+  20               	/* stack size = 0 */
+  21               	.L__stack_usage = 0
+ 205:keyboards/converter/xt_usb/matrix.c ****     if (matrix_is_on(ROW(code), COL(code))) {
+  22               		.loc 1 205 5 view .LVU1
+  23               	.LBB16:
+  24               	.LBI16:
+ 206:keyboards/converter/xt_usb/matrix.c ****         matrix[ROW(code)] &= ~(1<<COL(code));
+ 207:keyboards/converter/xt_usb/matrix.c ****     }
+ 208:keyboards/converter/xt_usb/matrix.c **** }
+ 209:keyboards/converter/xt_usb/matrix.c **** 
+ 210:keyboards/converter/xt_usb/matrix.c **** void matrix_clear(void)
+ 211:keyboards/converter/xt_usb/matrix.c **** {
+ 212:keyboards/converter/xt_usb/matrix.c ****     for (uint8_t i=0; i < MATRIX_ROWS; i++) matrix[i] = 0x00;
+ 213:keyboards/converter/xt_usb/matrix.c **** }
+ 214:keyboards/converter/xt_usb/matrix.c **** 
+ 215:keyboards/converter/xt_usb/matrix.c **** bool matrix_is_on(uint8_t row, uint8_t col)
+  25               		.loc 1 215 6 view .LVU2
+  26               	.LBB17:
+ 216:keyboards/converter/xt_usb/matrix.c **** {
+ 217:keyboards/converter/xt_usb/matrix.c ****     return (matrix_get_row(row) & (1<<col));
+  27               		.loc 1 217 5 view .LVU3
+  28               	.LBB18:
+  29               	.LBI18:
+ 189:keyboards/converter/xt_usb/matrix.c **** {
+  30               		.loc 1 189 9 view .LVU4
+  31               	.LBB19:
+ 191:keyboards/converter/xt_usb/matrix.c **** }
+  32               		.loc 1 191 5 view .LVU5
+  33               	.LBE19:
+  34               	.LBE18:
+  35               	.LBE17:
+  36               	.LBE16:
+ 205:keyboards/converter/xt_usb/matrix.c ****         matrix[ROW(code)] &= ~(1<<COL(code));
+  37               		.loc 1 205 9 is_stmt 0 view .LVU6
+  38 0000 E82F      		mov r30,r24
+  39 0002 E695      		lsr r30
+  40 0004 E695      		lsr r30
+  41 0006 E695      		lsr r30
+  42               	.LVL1:
+  43               	.LBB24:
+  44               	.LBB22:
+  45               	.LBB21:
+  46               	.LBB20:
+ 191:keyboards/converter/xt_usb/matrix.c **** }
+  47               		.loc 1 191 18 view .LVU7
+  48 0008 F0E0      		ldi r31,0
+  49 000a E050      		subi r30,lo8(-(matrix))
+  50 000c F040      		sbci r31,hi8(-(matrix))
+  51               	.LVL2:
+ 191:keyboards/converter/xt_usb/matrix.c **** }
+  52               		.loc 1 191 18 view .LVU8
+  53 000e 4081      		ld r20,Z
+  54               	.LVL3:
+ 191:keyboards/converter/xt_usb/matrix.c **** }
+  55               		.loc 1 191 18 view .LVU9
+  56               	.LBE20:
+  57               	.LBE21:
+  58               	.LBE22:
+  59               	.LBE24:
+ 205:keyboards/converter/xt_usb/matrix.c ****         matrix[ROW(code)] &= ~(1<<COL(code));
+  60               		.loc 1 205 9 view .LVU10
+  61 0010 282F      		mov r18,r24
+  62 0012 2770      		andi r18,lo8(7)
+  63               	.LVL4:
+  64               	.LBB25:
+  65               	.LBB23:
+  66               		.loc 1 217 37 view .LVU11
+  67 0014 81E0      		ldi r24,lo8(1)
+  68 0016 90E0      		ldi r25,0
+  69               	.LVL5:
+  70               		.loc 1 217 37 view .LVU12
+  71 0018 00C0      		rjmp 2f
+  72               		1:
+  73 001a 880F      		lsl r24
+  74 001c 991F      		rol r25
+  75               		2:
+  76 001e 2A95      		dec r18
+  77 0020 02F4      		brpl 1b
+  78               	.LVL6:
+  79               		.loc 1 217 13 view .LVU13
+  80 0022 242F      		mov r18,r20
+  81 0024 30E0      		ldi r19,0
+  82               		.loc 1 217 33 view .LVU14
+  83 0026 2823      		and r18,r24
+  84 0028 3923      		and r19,r25
+  85               	.LBE23:
+  86               	.LBE25:
+ 205:keyboards/converter/xt_usb/matrix.c ****         matrix[ROW(code)] &= ~(1<<COL(code));
+  87               		.loc 1 205 8 view .LVU15
+  88 002a 232B      		or r18,r19
+  89 002c 01F0      		breq .L1
+ 206:keyboards/converter/xt_usb/matrix.c ****     }
+  90               		.loc 1 206 9 is_stmt 1 view .LVU16
+ 206:keyboards/converter/xt_usb/matrix.c ****     }
+  91               		.loc 1 206 27 is_stmt 0 view .LVU17
+  92 002e 8095      		com r24
+  93 0030 8423      		and r24,r20
+  94 0032 8083      		st Z,r24
+  95               	.L1:
+  96               	/* epilogue start */
+ 208:keyboards/converter/xt_usb/matrix.c **** 
+  97               		.loc 1 208 1 view .LVU18
+  98 0034 0895      		ret
+  99               		.cfi_endproc
+ 100               	.LFE13:
+ 102               		.section	.text.matrix_make,"ax",@progbits
+ 104               	matrix_make:
+ 105               	.LVL7:
+ 106               	.LFB12:
+ 196:keyboards/converter/xt_usb/matrix.c ****     if (!matrix_is_on(ROW(code), COL(code))) {
+ 107               		.loc 1 196 1 is_stmt 1 view -0
+ 108               		.cfi_startproc
+ 109               	/* prologue: function */
+ 110               	/* frame size = 0 */
+ 111               	/* stack size = 0 */
+ 112               	.L__stack_usage = 0
+ 197:keyboards/converter/xt_usb/matrix.c ****         matrix[ROW(code)] |= 1<<COL(code);
+ 113               		.loc 1 197 5 view .LVU20
+ 114               	.LBB30:
+ 115               	.LBI30:
+ 215:keyboards/converter/xt_usb/matrix.c **** {
+ 116               		.loc 1 215 6 view .LVU21
+ 117               	.LBB31:
+ 118               		.loc 1 217 5 view .LVU22
+ 119               	.LBB32:
+ 120               	.LBI32:
+ 189:keyboards/converter/xt_usb/matrix.c **** {
+ 121               		.loc 1 189 9 view .LVU23
+ 122               	.LBB33:
+ 191:keyboards/converter/xt_usb/matrix.c **** }
+ 123               		.loc 1 191 5 view .LVU24
+ 124               	.LBE33:
+ 125               	.LBE32:
+ 126               	.LBE31:
+ 127               	.LBE30:
+ 197:keyboards/converter/xt_usb/matrix.c ****         matrix[ROW(code)] |= 1<<COL(code);
+ 128               		.loc 1 197 10 is_stmt 0 view .LVU25
+ 129 0000 E82F      		mov r30,r24
+ 130 0002 E695      		lsr r30
+ 131 0004 E695      		lsr r30
+ 132 0006 E695      		lsr r30
+ 133               	.LVL8:
+ 134               	.LBB38:
+ 135               	.LBB36:
+ 136               	.LBB35:
+ 137               	.LBB34:
+ 191:keyboards/converter/xt_usb/matrix.c **** }
+ 138               		.loc 1 191 18 view .LVU26
+ 139 0008 F0E0      		ldi r31,0
+ 140 000a E050      		subi r30,lo8(-(matrix))
+ 141 000c F040      		sbci r31,hi8(-(matrix))
+ 142               	.LVL9:
+ 191:keyboards/converter/xt_usb/matrix.c **** }
+ 143               		.loc 1 191 18 view .LVU27
+ 144 000e 9081      		ld r25,Z
+ 145               	.LVL10:
+ 191:keyboards/converter/xt_usb/matrix.c **** }
+ 146               		.loc 1 191 18 view .LVU28
+ 147               	.LBE34:
+ 148               	.LBE35:
+ 149               	.LBE36:
+ 150               	.LBE38:
+ 197:keyboards/converter/xt_usb/matrix.c ****         matrix[ROW(code)] |= 1<<COL(code);
+ 151               		.loc 1 197 10 view .LVU29
+ 152 0010 8770      		andi r24,lo8(7)
+ 153               	.LVL11:
+ 154               	.LBB39:
+ 155               	.LBB37:
+ 156               		.loc 1 217 37 view .LVU30
+ 157 0012 21E0      		ldi r18,lo8(1)
+ 158 0014 30E0      		ldi r19,0
+ 159 0016 00C0      		rjmp 2f
+ 160               		1:
+ 161 0018 220F      		lsl r18
+ 162 001a 331F      		rol r19
+ 163               		2:
+ 164 001c 8A95      		dec r24
+ 165 001e 02F4      		brpl 1b
+ 166               	.LVL12:
+ 167               		.loc 1 217 13 view .LVU31
+ 168 0020 492F      		mov r20,r25
+ 169 0022 50E0      		ldi r21,0
+ 170               		.loc 1 217 33 view .LVU32
+ 171 0024 4223      		and r20,r18
+ 172 0026 5323      		and r21,r19
+ 173               	.LBE37:
+ 174               	.LBE39:
+ 197:keyboards/converter/xt_usb/matrix.c ****         matrix[ROW(code)] |= 1<<COL(code);
+ 175               		.loc 1 197 8 view .LVU33
+ 176 0028 452B      		or r20,r21
+ 177 002a 01F4      		brne .L6
+ 198:keyboards/converter/xt_usb/matrix.c ****     }
+ 178               		.loc 1 198 9 is_stmt 1 view .LVU34
+ 198:keyboards/converter/xt_usb/matrix.c ****     }
+ 179               		.loc 1 198 27 is_stmt 0 view .LVU35
+ 180 002c 922B      		or r25,r18
+ 181 002e 9083      		st Z,r25
+ 182               	.L6:
+ 183               	/* epilogue start */
+ 200:keyboards/converter/xt_usb/matrix.c **** 
+ 184               		.loc 1 200 1 view .LVU36
+ 185 0030 0895      		ret
+ 186               		.cfi_endproc
+ 187               	.LFE12:
+ 189               		.section	.text.matrix_init_user,"ax",@progbits
+ 190               		.weak	matrix_init_user
+ 192               	matrix_init_user:
+ 193               	.LFB6:
+  47:keyboards/converter/xt_usb/matrix.c **** }
+ 194               		.loc 1 47 29 is_stmt 1 view -0
+ 195               		.cfi_startproc
+ 196               	/* prologue: function */
+ 197               	/* frame size = 0 */
+ 198               	/* stack size = 0 */
+ 199               	.L__stack_usage = 0
+  48:keyboards/converter/xt_usb/matrix.c **** 
+ 200               		.loc 1 48 1 view .LVU38
+ 201               	/* epilogue start */
+ 202 0000 0895      		ret
+ 203               		.cfi_endproc
+ 204               	.LFE6:
+ 206               		.set	matrix_init_user.localalias.0,matrix_init_user
+ 207               		.section	.text.matrix_init_kb,"ax",@progbits
+ 208               		.weak	matrix_init_kb
+ 210               	matrix_init_kb:
+ 211               	.LFB4:
+  37:keyboards/converter/xt_usb/matrix.c ****     matrix_init_user();
+ 212               		.loc 1 37 27 view -0
+ 213               		.cfi_startproc
+ 214               	/* prologue: function */
+ 215               	/* frame size = 0 */
+ 216               	/* stack size = 0 */
+ 217               	.L__stack_usage = 0
+  38:keyboards/converter/xt_usb/matrix.c **** }
+ 218               		.loc 1 38 5 view .LVU40
+ 219 0000 0C94 0000 		jmp matrix_init_user
+ 220               	.LVL13:
+ 221               		.cfi_endproc
+ 222               	.LFE4:
+ 224               		.section	.text.matrix_scan_user,"ax",@progbits
+ 225               		.weak	matrix_scan_user
+ 227               	matrix_scan_user:
+ 228               	.LFB18:
+ 229               		.cfi_startproc
+ 230               	/* prologue: function */
+ 231               	/* frame size = 0 */
+ 232               	/* stack size = 0 */
+ 233               	.L__stack_usage = 0
+ 234               	/* epilogue start */
+ 235 0000 0895      		ret
+ 236               		.cfi_endproc
+ 237               	.LFE18:
+ 239               		.section	.text.matrix_scan_kb,"ax",@progbits
+ 240               		.weak	matrix_scan_kb
+ 242               	matrix_scan_kb:
+ 243               	.LFB5:
+  42:keyboards/converter/xt_usb/matrix.c ****     matrix_scan_user();
+ 244               		.loc 1 42 27 view -0
+ 245               		.cfi_startproc
+ 246               	/* prologue: function */
+ 247               	/* frame size = 0 */
+ 248               	/* stack size = 0 */
+ 249               	.L__stack_usage = 0
+  43:keyboards/converter/xt_usb/matrix.c **** }
+ 250               		.loc 1 43 5 view .LVU42
+ 251 0000 0C94 0000 		jmp matrix_scan_user
+ 252               	.LVL14:
+ 253               		.cfi_endproc
+ 254               	.LFE5:
+ 256               		.section	.text.matrix_init,"ax",@progbits
+ 257               	.global	matrix_init
+ 259               	matrix_init:
+ 260               	.LFB8:
+  55:keyboards/converter/xt_usb/matrix.c ****     debug_enable = true;
+ 261               		.loc 1 55 1 view -0
+ 262               		.cfi_startproc
+ 263               	/* prologue: function */
+ 264               	/* frame size = 0 */
+ 265               	/* stack size = 0 */
+ 266               	.L__stack_usage = 0
+  56:keyboards/converter/xt_usb/matrix.c ****     xt_host_init();
+ 267               		.loc 1 56 5 view .LVU44
+  56:keyboards/converter/xt_usb/matrix.c ****     xt_host_init();
+ 268               		.loc 1 56 18 is_stmt 0 view .LVU45
+ 269 0000 8091 0000 		lds r24,debug_config
+ 270 0004 8160      		ori r24,lo8(1<<0)
+ 271 0006 8093 0000 		sts debug_config,r24
+  57:keyboards/converter/xt_usb/matrix.c **** 
+ 272               		.loc 1 57 5 is_stmt 1 view .LVU46
+ 273 000a 0E94 0000 		call xt_host_init
+ 274               	.LVL15:
+  60:keyboards/converter/xt_usb/matrix.c **** 
+ 275               		.loc 1 60 5 view .LVU47
+ 276               	.LBB40:
+  60:keyboards/converter/xt_usb/matrix.c **** 
+ 277               		.loc 1 60 10 view .LVU48
+  60:keyboards/converter/xt_usb/matrix.c **** 
+ 278               		.loc 1 60 10 is_stmt 0 view .LVU49
+ 279 000e E0E0      		ldi r30,lo8(matrix)
+ 280 0010 F0E0      		ldi r31,hi8(matrix)
+ 281               	.LVL16:
+ 282               	.L13:
+  60:keyboards/converter/xt_usb/matrix.c **** 
+ 283               		.loc 1 60 45 is_stmt 1 discriminator 3 view .LVU50
+  60:keyboards/converter/xt_usb/matrix.c **** 
+ 284               		.loc 1 60 55 is_stmt 0 discriminator 3 view .LVU51
+ 285 0012 1192      		st Z+,__zero_reg__
+ 286               	.LVL17:
+  60:keyboards/converter/xt_usb/matrix.c **** 
+ 287               		.loc 1 60 5 discriminator 3 view .LVU52
+ 288 0014 80E0      		ldi r24,hi8(matrix+16)
+ 289 0016 E030      		cpi r30,lo8(matrix+16)
+ 290 0018 F807      		cpc r31,r24
+ 291 001a 01F4      		brne .L13
+ 292               	.LBE40:
+  62:keyboards/converter/xt_usb/matrix.c **** }
+ 293               		.loc 1 62 5 is_stmt 1 view .LVU53
+ 294 001c 0C94 0000 		jmp matrix_init_quantum
+ 295               	.LVL18:
+  62:keyboards/converter/xt_usb/matrix.c **** }
+ 296               		.loc 1 62 5 is_stmt 0 view .LVU54
+ 297               		.cfi_endproc
+ 298               	.LFE8:
+ 300               		.section	.text.matrix_scan,"ax",@progbits
+ 301               	.global	matrix_scan
+ 303               	matrix_scan:
+ 304               	.LFB10:
+ 100:keyboards/converter/xt_usb/matrix.c ****     static enum {
+ 305               		.loc 1 100 1 is_stmt 1 view -0
+ 306               		.cfi_startproc
+ 307 0000 CF93      		push r28
+ 308               	.LCFI0:
+ 309               		.cfi_def_cfa_offset 3
+ 310               		.cfi_offset 28, -2
+ 311               	/* prologue: function */
+ 312               	/* frame size = 0 */
+ 313               	/* stack size = 1 */
+ 314               	.L__stack_usage = 1
+ 101:keyboards/converter/xt_usb/matrix.c ****         XT_STATE_INIT,
+ 315               		.loc 1 101 5 view .LVU56
+ 110:keyboards/converter/xt_usb/matrix.c ****     if (!code) return 0;
+ 316               		.loc 1 110 5 view .LVU57
+ 110:keyboards/converter/xt_usb/matrix.c ****     if (!code) return 0;
+ 317               		.loc 1 110 20 is_stmt 0 view .LVU58
+ 318 0002 0E94 0000 		call xt_host_recv
+ 319               	.LVL19:
+ 320 0006 C82F      		mov r28,r24
+ 321               	.LVL20:
+ 111:keyboards/converter/xt_usb/matrix.c ****     xprintf("%02X ", code);
+ 322               		.loc 1 111 5 is_stmt 1 view .LVU59
+ 111:keyboards/converter/xt_usb/matrix.c ****     xprintf("%02X ", code);
+ 323               		.loc 1 111 8 is_stmt 0 view .LVU60
+ 324 0008 8823      		tst r24
+ 325 000a 01F0      		breq .L15
+ 112:keyboards/converter/xt_usb/matrix.c ****     switch (state) {
+ 326               		.loc 1 112 5 is_stmt 1 view .LVU61
+ 327               	.LBB46:
+ 112:keyboards/converter/xt_usb/matrix.c ****     switch (state) {
+ 328               		.loc 1 112 5 view .LVU62
+ 112:keyboards/converter/xt_usb/matrix.c ****     switch (state) {
+ 329               		.loc 1 112 5 view .LVU63
+ 330               	.LBE46:
+ 331 000c 1F92      		push __zero_reg__
+ 332               	.LCFI1:
+ 333               		.cfi_def_cfa_offset 4
+ 334 000e 8F93      		push r24
+ 335               	.LCFI2:
+ 336               		.cfi_def_cfa_offset 5
+ 337 0010 80E0      		ldi r24,lo8(__c.2335)
+ 338 0012 90E0      		ldi r25,hi8(__c.2335)
+ 339               	.LVL21:
+ 112:keyboards/converter/xt_usb/matrix.c ****     switch (state) {
+ 340               		.loc 1 112 5 is_stmt 0 view .LVU64
+ 341 0014 9F93      		push r25
+ 342               	.LCFI3:
+ 343               		.cfi_def_cfa_offset 6
+ 344 0016 8F93      		push r24
+ 345               	.LCFI4:
+ 346               		.cfi_def_cfa_offset 7
+ 347 0018 0E94 0000 		call __xprintf
+ 348               	.LVL22:
+ 113:keyboards/converter/xt_usb/matrix.c ****         case XT_STATE_INIT:
+ 349               		.loc 1 113 5 is_stmt 1 view .LVU65
+ 350 001c 8091 0000 		lds r24,state.2333
+ 351 0020 0F90      		pop __tmp_reg__
+ 352 0022 0F90      		pop __tmp_reg__
+ 353 0024 0F90      		pop __tmp_reg__
+ 354 0026 0F90      		pop __tmp_reg__
+ 355               	.LCFI5:
+ 356               		.cfi_def_cfa_offset 3
+ 357 0028 8230      		cpi r24,lo8(2)
+ 358 002a 01F4      		brne .+2
+ 359 002c 00C0      		rjmp .L17
+ 360 002e 00F4      		brsh .L18
+ 361 0030 8823      		tst r24
+ 362 0032 01F0      		breq .L19
+ 363 0034 8130      		cpi r24,lo8(1)
+ 364 0036 01F0      		breq .L20
+ 365               	.LVL23:
+ 366               	.L33:
+ 144:keyboards/converter/xt_usb/matrix.c ****                     break;
+ 367               		.loc 1 144 21 view .LVU66
+ 144:keyboards/converter/xt_usb/matrix.c ****                     break;
+ 368               		.loc 1 144 27 is_stmt 0 view .LVU67
+ 369 0038 1092 0000 		sts state.2333,__zero_reg__
+ 145:keyboards/converter/xt_usb/matrix.c ****             }
+ 370               		.loc 1 145 21 is_stmt 1 view .LVU68
+ 371               	.L27:
+ 184:keyboards/converter/xt_usb/matrix.c ****     return 1;
+ 372               		.loc 1 184 5 view .LVU69
+ 373 003c 0E94 0000 		call matrix_scan_quantum
+ 374               	.LVL24:
+ 185:keyboards/converter/xt_usb/matrix.c **** }
+ 375               		.loc 1 185 5 view .LVU70
+ 185:keyboards/converter/xt_usb/matrix.c **** }
+ 376               		.loc 1 185 12 is_stmt 0 view .LVU71
+ 377 0040 C1E0      		ldi r28,lo8(1)
+ 378               	.L15:
+ 186:keyboards/converter/xt_usb/matrix.c **** 
+ 379               		.loc 1 186 1 view .LVU72
+ 380 0042 8C2F      		mov r24,r28
+ 381               	/* epilogue start */
+ 382 0044 CF91      		pop r28
+ 383 0046 0895      		ret
+ 384               	.LVL25:
+ 385               	.L18:
+ 113:keyboards/converter/xt_usb/matrix.c ****         case XT_STATE_INIT:
+ 386               		.loc 1 113 5 view .LVU73
+ 387 0048 8330      		cpi r24,lo8(3)
+ 388 004a 01F4      		brne .+2
+ 389 004c 00C0      		rjmp .L22
+ 390 004e 8430      		cpi r24,lo8(4)
+ 391 0050 01F4      		brne .L33
+ 172:keyboards/converter/xt_usb/matrix.c ****                 case 0x45:
+ 392               		.loc 1 172 13 is_stmt 1 view .LVU74
+ 393 0052 C534      		cpi r28,lo8(69)
+ 394 0054 01F4      		brne .L33
+ 174:keyboards/converter/xt_usb/matrix.c ****                     break;
+ 395               		.loc 1 174 21 view .LVU75
+ 396 0056 85E5      		ldi r24,lo8(85)
+ 397 0058 00C0      		rjmp .L54
+ 398               	.L19:
+ 115:keyboards/converter/xt_usb/matrix.c ****                 case 0xE0:
+ 399               		.loc 1 115 13 view .LVU76
+ 400 005a C03E      		cpi r28,lo8(-32)
+ 401 005c 01F0      		breq .L24
+ 402 005e C13E      		cpi r28,lo8(-31)
+ 403 0060 01F0      		breq .L25
+ 123:keyboards/converter/xt_usb/matrix.c ****                         matrix_make(code);
+ 404               		.loc 1 123 21 view .LVU77
+ 124:keyboards/converter/xt_usb/matrix.c ****                     else
+ 405               		.loc 1 124 25 is_stmt 0 view .LVU78
+ 406 0062 8C2F      		mov r24,r28
+ 123:keyboards/converter/xt_usb/matrix.c ****                         matrix_make(code);
+ 407               		.loc 1 123 24 view .LVU79
+ 408 0064 C7FD      		sbrc r28,7
+ 409 0066 00C0      		rjmp .L28
+ 410               	.L53:
+ 164:keyboards/converter/xt_usb/matrix.c ****                     break;
+ 411               		.loc 1 164 21 view .LVU80
+ 412 0068 0E94 0000 		call matrix_make
+ 413               	.LVL26:
+ 165:keyboards/converter/xt_usb/matrix.c ****                 default:
+ 414               		.loc 1 165 21 is_stmt 1 view .LVU81
+ 415 006c 00C0      		rjmp .L27
+ 416               	.L24:
+ 117:keyboards/converter/xt_usb/matrix.c ****                     break;
+ 417               		.loc 1 117 21 view .LVU82
+ 117:keyboards/converter/xt_usb/matrix.c ****                     break;
+ 418               		.loc 1 117 27 is_stmt 0 view .LVU83
+ 419 006e 81E0      		ldi r24,lo8(1)
+ 420               	.L52:
+ 151:keyboards/converter/xt_usb/matrix.c ****                     break;
+ 421               		.loc 1 151 27 view .LVU84
+ 422 0070 8093 0000 		sts state.2333,r24
+ 152:keyboards/converter/xt_usb/matrix.c ****                 case 0x9D:
+ 423               		.loc 1 152 21 is_stmt 1 view .LVU85
+ 424 0074 00C0      		rjmp .L27
+ 425               	.L25:
+ 120:keyboards/converter/xt_usb/matrix.c ****                     break;
+ 426               		.loc 1 120 21 view .LVU86
+ 120:keyboards/converter/xt_usb/matrix.c ****                     break;
+ 427               		.loc 1 120 27 is_stmt 0 view .LVU87
+ 428 0076 82E0      		ldi r24,lo8(2)
+ 429 0078 00C0      		rjmp .L52
+ 430               	.LVL27:
+ 431               	.L28:
+ 126:keyboards/converter/xt_usb/matrix.c ****                     break;
+ 432               		.loc 1 126 25 is_stmt 1 view .LVU88
+ 433 007a 8F77      		andi r24,lo8(127)
+ 434               	.LVL28:
+ 435               	.L54:
+ 174:keyboards/converter/xt_usb/matrix.c ****                     break;
+ 436               		.loc 1 174 21 is_stmt 0 view .LVU89
+ 437 007c 0E94 0000 		call matrix_break
+ 438               	.LVL29:
+ 175:keyboards/converter/xt_usb/matrix.c ****                 default:
+ 439               		.loc 1 175 21 is_stmt 1 view .LVU90
+ 440 0080 00C0      		rjmp .L27
+ 441               	.L20:
+ 131:keyboards/converter/xt_usb/matrix.c ****                 case 0x2A:
+ 442               		.loc 1 131 13 view .LVU91
+ 443 0082 C633      		cpi r28,lo8(54)
+ 444 0084 01F0      		breq .L33
+ 445 0086 00F4      		brsh .L29
+ 446 0088 CA32      		cpi r28,lo8(42)
+ 447 008a 01F0      		breq .L33
+ 448               	.L30:
+ 140:keyboards/converter/xt_usb/matrix.c ****                         matrix_make(move_e0code(code));
+ 449               		.loc 1 140 21 view .LVU92
+ 140:keyboards/converter/xt_usb/matrix.c ****                         matrix_make(move_e0code(code));
+ 450               		.loc 1 140 24 is_stmt 0 view .LVU93
+ 451 008c C7FD      		sbrc r28,7
+ 452 008e 00C0      		rjmp .L31
+ 141:keyboards/converter/xt_usb/matrix.c ****                     else
+ 453               		.loc 1 141 25 is_stmt 1 view .LVU94
+ 454               	.LVL30:
+ 455               	.LBB47:
+ 456               	.LBI47:
+  66:keyboards/converter/xt_usb/matrix.c ****     switch(code) {
+ 457               		.loc 1 66 16 view .LVU95
+ 458               	.LBE47:
+  67:keyboards/converter/xt_usb/matrix.c ****         // Original IBM XT keyboard has these keys
+ 459               		.loc 1 67 5 view .LVU96
+ 460 0090 CC51      		subi r28,lo8(-(-28))
+ 461               	.LVL31:
+ 140:keyboards/converter/xt_usb/matrix.c ****                         matrix_make(move_e0code(code));
+ 462               		.loc 1 140 24 is_stmt 0 view .LVU97
+ 463 0092 80E0      		ldi r24,0
+ 464 0094 C834      		cpi r28,lo8(72)
+ 465 0096 00F4      		brsh .L32
+ 466 0098 EC2F      		mov r30,r28
+ 467 009a F0E0      		ldi r31,0
+ 468 009c E050      		subi r30,lo8(-(CSWTCH.6))
+ 469 009e F040      		sbci r31,hi8(-(CSWTCH.6))
+ 470 00a0 8081      		ld r24,Z
+ 471               	.L32:
+ 472               	.LVL32:
+ 141:keyboards/converter/xt_usb/matrix.c ****                     else
+ 473               		.loc 1 141 25 view .LVU98
+ 474 00a2 0E94 0000 		call matrix_make
+ 475               	.LVL33:
+ 476 00a6 00C0      		rjmp .L33
+ 477               	.LVL34:
+ 478               	.L29:
+ 141:keyboards/converter/xt_usb/matrix.c ****                     else
+ 479               		.loc 1 141 25 view .LVU99
+ 480 00a8 CA3A      		cpi r28,lo8(-86)
+ 481 00aa 01F0      		breq .L33
+ 482 00ac C63B      		cpi r28,lo8(-74)
+ 483 00ae 01F4      		brne .L30
+ 484 00b0 00C0      		rjmp .L33
+ 485               	.L31:
+ 143:keyboards/converter/xt_usb/matrix.c ****                     state = XT_STATE_INIT;
+ 486               		.loc 1 143 25 is_stmt 1 view .LVU100
+ 487               	.LVL35:
+ 488               	.LBB48:
+ 489               	.LBI48:
+  66:keyboards/converter/xt_usb/matrix.c ****     switch(code) {
+ 490               		.loc 1 66 16 view .LVU101
+ 491               	.LBE48:
+  67:keyboards/converter/xt_usb/matrix.c ****         // Original IBM XT keyboard has these keys
+ 492               		.loc 1 67 5 view .LVU102
+ 143:keyboards/converter/xt_usb/matrix.c ****                     state = XT_STATE_INIT;
+ 493               		.loc 1 143 25 is_stmt 0 view .LVU103
+ 494 00b2 EC2F      		mov r30,r28
+ 495 00b4 EF77      		andi r30,lo8(127)
+ 496               	.LVL36:
+ 143:keyboards/converter/xt_usb/matrix.c ****                     state = XT_STATE_INIT;
+ 497               		.loc 1 143 25 view .LVU104
+ 498 00b6 EC51      		subi r30,lo8(-(-28))
+ 499               	.LVL37:
+ 143:keyboards/converter/xt_usb/matrix.c ****                     state = XT_STATE_INIT;
+ 500               		.loc 1 143 25 view .LVU105
+ 501 00b8 80E0      		ldi r24,0
+ 502 00ba E834      		cpi r30,lo8(72)
+ 503 00bc 00F4      		brsh .L34
+ 504 00be F0E0      		ldi r31,0
+ 505 00c0 E050      		subi r30,lo8(-(CSWTCH.6))
+ 506 00c2 F040      		sbci r31,hi8(-(CSWTCH.6))
+ 507               	.LVL38:
+ 143:keyboards/converter/xt_usb/matrix.c ****                     state = XT_STATE_INIT;
+ 508               		.loc 1 143 25 view .LVU106
+ 509 00c4 8081      		ld r24,Z
+ 510               	.L34:
+ 511               	.LVL39:
+ 143:keyboards/converter/xt_usb/matrix.c ****                     state = XT_STATE_INIT;
+ 512               		.loc 1 143 25 view .LVU107
+ 513 00c6 0E94 0000 		call matrix_break
+ 514               	.LVL40:
+ 515 00ca 00C0      		rjmp .L33
+ 516               	.L17:
+ 149:keyboards/converter/xt_usb/matrix.c ****                 case 0x1D:
+ 517               		.loc 1 149 13 is_stmt 1 view .LVU108
+ 518 00cc CD31      		cpi r28,lo8(29)
+ 519 00ce 01F0      		breq .L35
+ 520 00d0 CD39      		cpi r28,lo8(-99)
+ 521 00d2 01F0      		breq .+2
+ 522 00d4 00C0      		rjmp .L33
+ 154:keyboards/converter/xt_usb/matrix.c ****                     break;
+ 523               		.loc 1 154 21 view .LVU109
+ 154:keyboards/converter/xt_usb/matrix.c ****                     break;
+ 524               		.loc 1 154 27 is_stmt 0 view .LVU110
+ 525 00d6 84E0      		ldi r24,lo8(4)
+ 526 00d8 00C0      		rjmp .L52
+ 527               	.L35:
+ 151:keyboards/converter/xt_usb/matrix.c ****                     break;
+ 528               		.loc 1 151 21 is_stmt 1 view .LVU111
+ 151:keyboards/converter/xt_usb/matrix.c ****                     break;
+ 529               		.loc 1 151 27 is_stmt 0 view .LVU112
+ 530 00da 83E0      		ldi r24,lo8(3)
+ 531 00dc 00C0      		rjmp .L52
+ 532               	.L22:
+ 162:keyboards/converter/xt_usb/matrix.c ****                 case 0x45:
+ 533               		.loc 1 162 13 is_stmt 1 view .LVU113
+ 534 00de C534      		cpi r28,lo8(69)
+ 535 00e0 01F0      		breq .+2
+ 536 00e2 00C0      		rjmp .L33
+ 164:keyboards/converter/xt_usb/matrix.c ****                     break;
+ 537               		.loc 1 164 21 view .LVU114
+ 538 00e4 85E5      		ldi r24,lo8(85)
+ 539 00e6 00C0      		rjmp .L53
+ 540               		.cfi_endproc
+ 541               	.LFE10:
+ 543               		.section	.text.matrix_get_row,"ax",@progbits
+ 544               	.global	matrix_get_row
+ 546               	matrix_get_row:
+ 547               	.LVL41:
+ 548               	.LFB11:
+ 190:keyboards/converter/xt_usb/matrix.c ****     return matrix[row];
+ 549               		.loc 1 190 1 view -0
+ 550               		.cfi_startproc
+ 551               	/* prologue: function */
+ 552               	/* frame size = 0 */
+ 553               	/* stack size = 0 */
+ 554               	.L__stack_usage = 0
+ 191:keyboards/converter/xt_usb/matrix.c **** }
+ 555               		.loc 1 191 5 view .LVU116
+ 191:keyboards/converter/xt_usb/matrix.c **** }
+ 556               		.loc 1 191 18 is_stmt 0 view .LVU117
+ 557 0000 E82F      		mov r30,r24
+ 558 0002 F0E0      		ldi r31,0
+ 559 0004 E050      		subi r30,lo8(-(matrix))
+ 560 0006 F040      		sbci r31,hi8(-(matrix))
+ 192:keyboards/converter/xt_usb/matrix.c **** 
+ 561               		.loc 1 192 1 view .LVU118
+ 562 0008 8081      		ld r24,Z
+ 563               	.LVL42:
+ 564               	/* epilogue start */
+ 192:keyboards/converter/xt_usb/matrix.c **** 
+ 565               		.loc 1 192 1 view .LVU119
+ 566 000a 0895      		ret
+ 567               		.cfi_endproc
+ 568               	.LFE11:
+ 570               		.section	.text.matrix_clear,"ax",@progbits
+ 571               	.global	matrix_clear
+ 573               	matrix_clear:
+ 574               	.LFB14:
+ 211:keyboards/converter/xt_usb/matrix.c ****     for (uint8_t i=0; i < MATRIX_ROWS; i++) matrix[i] = 0x00;
+ 575               		.loc 1 211 1 is_stmt 1 view -0
+ 576               		.cfi_startproc
+ 577               	/* prologue: function */
+ 578               	/* frame size = 0 */
+ 579               	/* stack size = 0 */
+ 580               	.L__stack_usage = 0
+ 212:keyboards/converter/xt_usb/matrix.c **** }
+ 581               		.loc 1 212 5 view .LVU121
+ 582               	.LBB49:
+ 212:keyboards/converter/xt_usb/matrix.c **** }
+ 583               		.loc 1 212 10 view .LVU122
+ 584               	.LVL43:
+ 212:keyboards/converter/xt_usb/matrix.c **** }
+ 585               		.loc 1 212 10 is_stmt 0 view .LVU123
+ 586 0000 E0E0      		ldi r30,lo8(matrix)
+ 587 0002 F0E0      		ldi r31,hi8(matrix)
+ 588               	.LVL44:
+ 589               	.L57:
+ 212:keyboards/converter/xt_usb/matrix.c **** }
+ 590               		.loc 1 212 45 is_stmt 1 discriminator 3 view .LVU124
+ 212:keyboards/converter/xt_usb/matrix.c **** }
+ 591               		.loc 1 212 55 is_stmt 0 discriminator 3 view .LVU125
+ 592 0004 1192      		st Z+,__zero_reg__
+ 593               	.LVL45:
+ 212:keyboards/converter/xt_usb/matrix.c **** }
+ 594               		.loc 1 212 5 discriminator 3 view .LVU126
+ 595 0006 80E0      		ldi r24,hi8(matrix+16)
+ 596 0008 E030      		cpi r30,lo8(matrix+16)
+ 597 000a F807      		cpc r31,r24
+ 598 000c 01F4      		brne .L57
+ 599               	/* epilogue start */
+ 600               	.LBE49:
+ 213:keyboards/converter/xt_usb/matrix.c **** 
+ 601               		.loc 1 213 1 view .LVU127
+ 602 000e 0895      		ret
+ 603               		.cfi_endproc
+ 604               	.LFE14:
+ 606               		.section	.text.matrix_is_on,"ax",@progbits
+ 607               	.global	matrix_is_on
+ 609               	matrix_is_on:
+ 610               	.LVL46:
+ 611               	.LFB15:
+ 216:keyboards/converter/xt_usb/matrix.c ****     return (matrix_get_row(row) & (1<<col));
+ 612               		.loc 1 216 1 is_stmt 1 view -0
+ 613               		.cfi_startproc
+ 614               	/* prologue: function */
+ 615               	/* frame size = 0 */
+ 616               	/* stack size = 0 */
+ 617               	.L__stack_usage = 0
+ 618               		.loc 1 217 5 view .LVU129
+ 619               	.LBB50:
+ 620               	.LBI50:
+ 189:keyboards/converter/xt_usb/matrix.c **** {
+ 621               		.loc 1 189 9 view .LVU130
+ 622               	.LBB51:
+ 191:keyboards/converter/xt_usb/matrix.c **** }
+ 623               		.loc 1 191 5 view .LVU131
+ 191:keyboards/converter/xt_usb/matrix.c **** }
+ 624               		.loc 1 191 18 is_stmt 0 view .LVU132
+ 625 0000 E82F      		mov r30,r24
+ 626 0002 F0E0      		ldi r31,0
+ 627 0004 E050      		subi r30,lo8(-(matrix))
+ 628 0006 F040      		sbci r31,hi8(-(matrix))
+ 629               	.LBE51:
+ 630               	.LBE50:
+ 631               		.loc 1 217 13 view .LVU133
+ 632 0008 2081      		ld r18,Z
+ 633 000a 30E0      		ldi r19,0
+ 634               		.loc 1 217 37 view .LVU134
+ 635 000c 81E0      		ldi r24,lo8(1)
+ 636 000e 90E0      		ldi r25,0
+ 637               	.LVL47:
+ 638               		.loc 1 217 37 view .LVU135
+ 639 0010 00C0      		rjmp 2f
+ 640               		1:
+ 641 0012 880F      		lsl r24
+ 642 0014 991F      		rol r25
+ 643               		2:
+ 644 0016 6A95      		dec r22
+ 645 0018 02F4      		brpl 1b
+ 646               		.loc 1 217 33 view .LVU136
+ 647 001a 2823      		and r18,r24
+ 648 001c 3923      		and r19,r25
+ 649 001e 81E0      		ldi r24,lo8(1)
+ 650 0020 232B      		or r18,r19
+ 651 0022 01F4      		brne .L60
+ 652 0024 80E0      		ldi r24,0
+ 653               	.L60:
+ 654               	/* epilogue start */
+ 218:keyboards/converter/xt_usb/matrix.c **** }
+ 655               		.loc 1 218 1 view .LVU137
+ 656 0026 0895      		ret
+ 657               		.cfi_endproc
+ 658               	.LFE15:
+ 660               		.section	.text.matrix_print,"ax",@progbits
+ 661               	.global	matrix_print
+ 663               	matrix_print:
+ 664               	.LFB16:
+ 219:keyboards/converter/xt_usb/matrix.c **** 
+ 220:keyboards/converter/xt_usb/matrix.c **** #if (MATRIX_COLS <= 8)
+ 221:keyboards/converter/xt_usb/matrix.c **** #    define print_matrix_header()  print("\nr/c 01234567\n")
+ 222:keyboards/converter/xt_usb/matrix.c **** #    define print_matrix_row(row)  print_bin_reverse8(matrix_get_row(row))
+ 223:keyboards/converter/xt_usb/matrix.c **** #elif (MATRIX_COLS <= 16)
+ 224:keyboards/converter/xt_usb/matrix.c **** #    define print_matrix_header()  print("\nr/c 0123456789ABCDEF\n")
+ 225:keyboards/converter/xt_usb/matrix.c **** #    define print_matrix_row(row)  print_bin_reverse16(matrix_get_row(row))
+ 226:keyboards/converter/xt_usb/matrix.c **** #elif (MATRIX_COLS <= 32)
+ 227:keyboards/converter/xt_usb/matrix.c **** #    define print_matrix_header()  print("\nr/c 0123456789ABCDEF0123456789ABCDEF\n")
+ 228:keyboards/converter/xt_usb/matrix.c **** #    define print_matrix_row(row)  print_bin_reverse32(matrix_get_row(row))
+ 229:keyboards/converter/xt_usb/matrix.c **** #endif
+ 230:keyboards/converter/xt_usb/matrix.c **** 
+ 231:keyboards/converter/xt_usb/matrix.c **** void matrix_print(void)
+ 232:keyboards/converter/xt_usb/matrix.c **** {
+ 665               		.loc 1 232 1 is_stmt 1 view -0
+ 666               		.cfi_startproc
+ 667 0000 CF92      		push r12
+ 668               	.LCFI6:
+ 669               		.cfi_def_cfa_offset 3
+ 670               		.cfi_offset 12, -2
+ 671 0002 DF92      		push r13
+ 672               	.LCFI7:
+ 673               		.cfi_def_cfa_offset 4
+ 674               		.cfi_offset 13, -3
+ 675 0004 EF92      		push r14
+ 676               	.LCFI8:
+ 677               		.cfi_def_cfa_offset 5
+ 678               		.cfi_offset 14, -4
+ 679 0006 FF92      		push r15
+ 680               	.LCFI9:
+ 681               		.cfi_def_cfa_offset 6
+ 682               		.cfi_offset 15, -5
+ 683 0008 0F93      		push r16
+ 684               	.LCFI10:
+ 685               		.cfi_def_cfa_offset 7
+ 686               		.cfi_offset 16, -6
+ 687 000a 1F93      		push r17
+ 688               	.LCFI11:
+ 689               		.cfi_def_cfa_offset 8
+ 690               		.cfi_offset 17, -7
+ 691 000c CF93      		push r28
+ 692               	.LCFI12:
+ 693               		.cfi_def_cfa_offset 9
+ 694               		.cfi_offset 28, -8
+ 695 000e DF93      		push r29
+ 696               	.LCFI13:
+ 697               		.cfi_def_cfa_offset 10
+ 698               		.cfi_offset 29, -9
+ 699               	/* prologue: function */
+ 700               	/* frame size = 0 */
+ 701               	/* stack size = 8 */
+ 702               	.L__stack_usage = 8
+ 233:keyboards/converter/xt_usb/matrix.c ****     print_matrix_header();
+ 703               		.loc 1 233 5 view .LVU139
+ 704               	.LBB52:
+ 705               		.loc 1 233 5 view .LVU140
+ 706               		.loc 1 233 5 view .LVU141
+ 707               	.LBE52:
+ 708 0010 80E0      		ldi r24,lo8(__c.2387)
+ 709 0012 90E0      		ldi r25,hi8(__c.2387)
+ 710 0014 0E94 0000 		call xputs
+ 234:keyboards/converter/xt_usb/matrix.c **** 
+ 235:keyboards/converter/xt_usb/matrix.c ****     for (uint8_t row = 0; row < MATRIX_ROWS; row++) {
+ 711               		.loc 1 235 5 view .LVU142
+ 712               	.LBB53:
+ 713               		.loc 1 235 10 view .LVU143
+ 714 0018 80E0      		ldi r24,lo8(matrix)
+ 715 001a E82E      		mov r14,r24
+ 716 001c 80E0      		ldi r24,hi8(matrix)
+ 717 001e F82E      		mov r15,r24
+ 718               	.LBE53:
+ 233:keyboards/converter/xt_usb/matrix.c ****     print_matrix_header();
+ 719               		.loc 1 233 5 is_stmt 0 view .LVU144
+ 720 0020 D0E0      		ldi r29,0
+ 721 0022 C0E0      		ldi r28,0
+ 722               	.LBB60:
+ 236:keyboards/converter/xt_usb/matrix.c ****         phex(row); print(": ");
+ 723               		.loc 1 236 9 view .LVU145
+ 724 0024 90E0      		ldi r25,lo8(__c.2390)
+ 725 0026 C92E      		mov r12,r25
+ 726 0028 90E0      		ldi r25,hi8(__c.2390)
+ 727 002a D92E      		mov r13,r25
+ 237:keyboards/converter/xt_usb/matrix.c ****         print_matrix_row(row);
+ 728               		.loc 1 237 9 view .LVU146
+ 729 002c 00E0      		ldi r16,lo8(__c.2394)
+ 730 002e 10E0      		ldi r17,hi8(__c.2394)
+ 731               	.L62:
+ 236:keyboards/converter/xt_usb/matrix.c ****         phex(row); print(": ");
+ 732               		.loc 1 236 9 is_stmt 1 discriminator 3 view .LVU147
+ 733               	.LBB54:
+ 236:keyboards/converter/xt_usb/matrix.c ****         phex(row); print(": ");
+ 734               		.loc 1 236 9 discriminator 3 view .LVU148
+ 236:keyboards/converter/xt_usb/matrix.c ****         phex(row); print(": ");
+ 735               		.loc 1 236 9 discriminator 3 view .LVU149
+ 736               	.LBE54:
+ 737 0030 DF93      		push r29
+ 738               	.LCFI14:
+ 739               		.cfi_def_cfa_offset 11
+ 740 0032 CF93      		push r28
+ 741               	.LCFI15:
+ 742               		.cfi_def_cfa_offset 12
+ 743 0034 DF92      		push r13
+ 744               	.LCFI16:
+ 745               		.cfi_def_cfa_offset 13
+ 746 0036 CF92      		push r12
+ 747               	.LCFI17:
+ 748               		.cfi_def_cfa_offset 14
+ 749 0038 0E94 0000 		call __xprintf
+ 236:keyboards/converter/xt_usb/matrix.c ****         phex(row); print(": ");
+ 750               		.loc 1 236 20 discriminator 3 view .LVU150
+ 751               	.LBB55:
+ 236:keyboards/converter/xt_usb/matrix.c ****         phex(row); print(": ");
+ 752               		.loc 1 236 20 discriminator 3 view .LVU151
+ 236:keyboards/converter/xt_usb/matrix.c ****         phex(row); print(": ");
+ 753               		.loc 1 236 20 discriminator 3 view .LVU152
+ 754               	.LBE55:
+ 755 003c 80E0      		ldi r24,lo8(__c.2392)
+ 756 003e 90E0      		ldi r25,hi8(__c.2392)
+ 757 0040 0E94 0000 		call xputs
+ 758               		.loc 1 237 9 discriminator 3 view .LVU153
+ 759               	.LBB56:
+ 760               	.LBI56:
+ 189:keyboards/converter/xt_usb/matrix.c **** {
+ 761               		.loc 1 189 9 discriminator 3 view .LVU154
+ 762               	.LBB57:
+ 191:keyboards/converter/xt_usb/matrix.c **** }
+ 763               		.loc 1 191 5 discriminator 3 view .LVU155
+ 764               	.LBE57:
+ 765               	.LBE56:
+ 766               		.loc 1 237 9 is_stmt 0 discriminator 3 view .LVU156
+ 767 0044 F701      		movw r30,r14
+ 768 0046 8191      		ld r24,Z+
+ 769 0048 7F01      		movw r14,r30
+ 770 004a 0E94 0000 		call bitrev
+ 771               	.LBB58:
+ 772               		.loc 1 237 9 is_stmt 1 discriminator 3 view .LVU157
+ 773               		.loc 1 237 9 discriminator 3 view .LVU158
+ 774               	.LBE58:
+ 775 004e 1F92      		push __zero_reg__
+ 776               	.LCFI18:
+ 777               		.cfi_def_cfa_offset 15
+ 778 0050 8F93      		push r24
+ 779               	.LCFI19:
+ 780               		.cfi_def_cfa_offset 16
+ 781 0052 1F93      		push r17
+ 782               	.LCFI20:
+ 783               		.cfi_def_cfa_offset 17
+ 784 0054 0F93      		push r16
+ 785               	.LCFI21:
+ 786               		.cfi_def_cfa_offset 18
+ 787 0056 0E94 0000 		call __xprintf
+ 238:keyboards/converter/xt_usb/matrix.c ****         print("\n");
+ 788               		.loc 1 238 9 discriminator 3 view .LVU159
+ 789               	.LBB59:
+ 790               		.loc 1 238 9 discriminator 3 view .LVU160
+ 791               		.loc 1 238 9 discriminator 3 view .LVU161
+ 792               	.LBE59:
+ 793 005a 80E0      		ldi r24,lo8(__c.2396)
+ 794 005c 90E0      		ldi r25,hi8(__c.2396)
+ 795 005e 0E94 0000 		call xputs
+ 796 0062 2196      		adiw r28,1
+ 235:keyboards/converter/xt_usb/matrix.c ****         phex(row); print(": ");
+ 797               		.loc 1 235 5 is_stmt 0 discriminator 3 view .LVU162
+ 798 0064 8DB7      		in r24,__SP_L__
+ 799 0066 9EB7      		in r25,__SP_H__
+ 800 0068 0896      		adiw r24,8
+ 801 006a 0FB6      		in __tmp_reg__,__SREG__
+ 802 006c F894      		cli
+ 803 006e 9EBF      		out __SP_H__,r25
+ 804 0070 0FBE      		out __SREG__,__tmp_reg__
+ 805 0072 8DBF      		out __SP_L__,r24
+ 806               	.LCFI22:
+ 807               		.cfi_def_cfa_offset 10
+ 808 0074 C031      		cpi r28,16
+ 809 0076 D105      		cpc r29,__zero_reg__
+ 810 0078 01F4      		brne .L62
+ 811               	/* epilogue start */
+ 812               	.LBE60:
+ 239:keyboards/converter/xt_usb/matrix.c ****     }
+ 240:keyboards/converter/xt_usb/matrix.c **** }
+ 813               		.loc 1 240 1 view .LVU163
+ 814 007a DF91      		pop r29
+ 815 007c CF91      		pop r28
+ 816 007e 1F91      		pop r17
+ 817 0080 0F91      		pop r16
+ 818 0082 FF90      		pop r15
+ 819 0084 EF90      		pop r14
+ 820 0086 DF90      		pop r13
+ 821 0088 CF90      		pop r12
+ 822 008a 0895      		ret
+ 823               		.cfi_endproc
+ 824               	.LFE16:
+ 826               		.section	.rodata.CSWTCH.6,"a"
+ 829               	CSWTCH.6:
+ 830 0000 6F        		.byte	111
+ 831 0001 7A        		.byte	122
+ 832 0002 00        		.byte	0
+ 833 0003 00        		.byte	0
+ 834 0004 00        		.byte	0
+ 835 0005 00        		.byte	0
+ 836 0006 00        		.byte	0
+ 837 0007 00        		.byte	0
+ 838 0008 00        		.byte	0
+ 839 0009 00        		.byte	0
+ 840 000a 00        		.byte	0
+ 841 000b 00        		.byte	0
+ 842 000c 00        		.byte	0
+ 843 000d 00        		.byte	0
+ 844 000e 00        		.byte	0
+ 845 000f 00        		.byte	0
+ 846 0010 00        		.byte	0
+ 847 0011 00        		.byte	0
+ 848 0012 00        		.byte	0
+ 849 0013 00        		.byte	0
+ 850 0014 00        		.byte	0
+ 851 0015 00        		.byte	0
+ 852 0016 00        		.byte	0
+ 853 0017 00        		.byte	0
+ 854 0018 00        		.byte	0
+ 855 0019 7F        		.byte	127
+ 856 001a 00        		.byte	0
+ 857 001b 54        		.byte	84
+ 858 001c 7C        		.byte	124
+ 859 001d 00        		.byte	0
+ 860 001e 00        		.byte	0
+ 861 001f 00        		.byte	0
+ 862 0020 00        		.byte	0
+ 863 0021 00        		.byte	0
+ 864 0022 00        		.byte	0
+ 865 0023 00        		.byte	0
+ 866 0024 00        		.byte	0
+ 867 0025 00        		.byte	0
+ 868 0026 00        		.byte	0
+ 869 0027 00        		.byte	0
+ 870 0028 00        		.byte	0
+ 871 0029 00        		.byte	0
+ 872 002a 55        		.byte	85
+ 873 002b 74        		.byte	116
+ 874 002c 60        		.byte	96
+ 875 002d 77        		.byte	119
+ 876 002e 00        		.byte	0
+ 877 002f 61        		.byte	97
+ 878 0030 00        		.byte	0
+ 879 0031 63        		.byte	99
+ 880 0032 00        		.byte	0
+ 881 0033 75        		.byte	117
+ 882 0034 62        		.byte	98
+ 883 0035 78        		.byte	120
+ 884 0036 71        		.byte	113
+ 885 0037 72        		.byte	114
+ 886 0038 00        		.byte	0
+ 887 0039 00        		.byte	0
+ 888 003a 00        		.byte	0
+ 889 003b 00        		.byte	0
+ 890 003c 00        		.byte	0
+ 891 003d 00        		.byte	0
+ 892 003e 00        		.byte	0
+ 893 003f 5A        		.byte	90
+ 894 0040 5B        		.byte	91
+ 895 0041 5C        		.byte	92
+ 896 0042 5D        		.byte	93
+ 897 0043 5E        		.byte	94
+ 898 0044 00        		.byte	0
+ 899 0045 00        		.byte	0
+ 900 0046 00        		.byte	0
+ 901 0047 5F        		.byte	95
+ 902               		.section	.progmem.data.__c.2396,"a"
+ 905               	__c.2396:
+ 906 0000 0A00      		.string	"\n"
+ 907               		.section	.progmem.data.__c.2394,"a"
+ 910               	__c.2394:
+ 911 0000 2530 3862 		.string	"%08b"
+ 911      00
+ 912               		.section	.progmem.data.__c.2392,"a"
+ 915               	__c.2392:
+ 916 0000 3A20 00   		.string	": "
+ 917               		.section	.progmem.data.__c.2390,"a"
+ 920               	__c.2390:
+ 921 0000 2530 3258 		.string	"%02X"
+ 921      00
+ 922               		.section	.progmem.data.__c.2387,"a"
+ 925               	__c.2387:
+ 926 0000 0A72 2F63 		.string	"\nr/c 01234567\n"
+ 926      2030 3132 
+ 926      3334 3536 
+ 926      370A 00
+ 927               		.section	.bss.state.2333,"aw",@nobits
+ 930               	state.2333:
+ 931 0000 00        		.zero	1
+ 932               		.section	.progmem.data.__c.2335,"a"
+ 935               	__c.2335:
+ 936 0000 2530 3258 		.string	"%02X "
+ 936      2000 
+ 937               		.section	.bss.matrix,"aw",@nobits
+ 940               	matrix:
+ 941 0000 0000 0000 		.zero	16
+ 941      0000 0000 
+ 941      0000 0000 
+ 941      0000 0000 
+ 942               		.text
+ 943               	.Letext0:
+ 944               		.file 2 "tmk_core/common/action.h"
+ 945               		.file 3 "tmk_core/common/avr/xprintf.h"
+ 946               		.file 4 "tmk_core/common/debug.h"
+ 947               		.file 5 "/usr/avr/include/stdint.h"
+ 948               		.file 6 "tmk_core/protocol/xt.h"
+ 949               		.file 7 "tmk_core/common/matrix.h"
+DEFINED SYMBOLS
+                            *ABS*:0000000000000000 matrix.c
+     /tmp/ccMZB3Vk.s:2      *ABS*:000000000000003e __SP_H__
+     /tmp/ccMZB3Vk.s:3      *ABS*:000000000000003d __SP_L__
+     /tmp/ccMZB3Vk.s:4      *ABS*:000000000000003f __SREG__
+     /tmp/ccMZB3Vk.s:5      *ABS*:0000000000000000 __tmp_reg__
+     /tmp/ccMZB3Vk.s:6      *ABS*:0000000000000001 __zero_reg__
+     /tmp/ccMZB3Vk.s:12     .text.matrix_break:0000000000000000 matrix_break
+     /tmp/ccMZB3Vk.s:940    .bss.matrix:0000000000000000 matrix
+     /tmp/ccMZB3Vk.s:104    .text.matrix_make:0000000000000000 matrix_make
+     /tmp/ccMZB3Vk.s:192    .text.matrix_init_user:0000000000000000 matrix_init_user
+     /tmp/ccMZB3Vk.s:192    .text.matrix_init_user:0000000000000000 matrix_init_user.localalias.0
+     /tmp/ccMZB3Vk.s:210    .text.matrix_init_kb:0000000000000000 matrix_init_kb
+     /tmp/ccMZB3Vk.s:227    .text.matrix_scan_user:0000000000000000 matrix_scan_user
+     /tmp/ccMZB3Vk.s:242    .text.matrix_scan_kb:0000000000000000 matrix_scan_kb
+     /tmp/ccMZB3Vk.s:259    .text.matrix_init:0000000000000000 matrix_init
+     /tmp/ccMZB3Vk.s:303    .text.matrix_scan:0000000000000000 matrix_scan
+     /tmp/ccMZB3Vk.s:935    .progmem.data.__c.2335:0000000000000000 __c.2335
+     /tmp/ccMZB3Vk.s:930    .bss.state.2333:0000000000000000 state.2333
+     /tmp/ccMZB3Vk.s:829    .rodata.CSWTCH.6:0000000000000000 CSWTCH.6
+     /tmp/ccMZB3Vk.s:546    .text.matrix_get_row:0000000000000000 matrix_get_row
+     /tmp/ccMZB3Vk.s:573    .text.matrix_clear:0000000000000000 matrix_clear
+     /tmp/ccMZB3Vk.s:609    .text.matrix_is_on:0000000000000000 matrix_is_on
+     /tmp/ccMZB3Vk.s:663    .text.matrix_print:0000000000000000 matrix_print
+     /tmp/ccMZB3Vk.s:925    .progmem.data.__c.2387:0000000000000000 __c.2387
+     /tmp/ccMZB3Vk.s:920    .progmem.data.__c.2390:0000000000000000 __c.2390
+     /tmp/ccMZB3Vk.s:910    .progmem.data.__c.2394:0000000000000000 __c.2394
+     /tmp/ccMZB3Vk.s:915    .progmem.data.__c.2392:0000000000000000 __c.2392
+     /tmp/ccMZB3Vk.s:905    .progmem.data.__c.2396:0000000000000000 __c.2396
+
+UNDEFINED SYMBOLS
+debug_config
+xt_host_init
+matrix_init_quantum
+xt_host_recv
+__xprintf
+matrix_scan_quantum
+xputs
+bitrev
+__do_copy_data
+__do_clear_bss

@@ -1,0 +1,671 @@
+   1               		.file	"timer.c"
+   2               	__SP_H__ = 0x3e
+   3               	__SP_L__ = 0x3d
+   4               	__SREG__ = 0x3f
+   5               	__tmp_reg__ = 0
+   6               	__zero_reg__ = 1
+   7               		.text
+   8               	.Ltext0:
+   9               		.cfi_sections	.debug_frame
+  10               		.section	.text.timer_init,"ax",@progbits
+  11               	.global	timer_init
+  13               	timer_init:
+  14               	.LFB5:
+  15               		.file 1 "tmk_core/common/avr/timer.c"
+   1:tmk_core/common/avr/timer.c **** /*
+   2:tmk_core/common/avr/timer.c **** Copyright 2011 Jun Wako <wakojun@gmail.com>
+   3:tmk_core/common/avr/timer.c **** 
+   4:tmk_core/common/avr/timer.c **** This program is free software: you can redistribute it and/or modify
+   5:tmk_core/common/avr/timer.c **** it under the terms of the GNU General Public License as published by
+   6:tmk_core/common/avr/timer.c **** the Free Software Foundation, either version 2 of the License, or
+   7:tmk_core/common/avr/timer.c **** (at your option) any later version.
+   8:tmk_core/common/avr/timer.c **** 
+   9:tmk_core/common/avr/timer.c **** This program is distributed in the hope that it will be useful,
+  10:tmk_core/common/avr/timer.c **** but WITHOUT ANY WARRANTY; without even the implied warranty of
+  11:tmk_core/common/avr/timer.c **** MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+  12:tmk_core/common/avr/timer.c **** GNU General Public License for more details.
+  13:tmk_core/common/avr/timer.c **** 
+  14:tmk_core/common/avr/timer.c **** You should have received a copy of the GNU General Public License
+  15:tmk_core/common/avr/timer.c **** along with this program.  If not, see <http://www.gnu.org/licenses/>.
+  16:tmk_core/common/avr/timer.c **** */
+  17:tmk_core/common/avr/timer.c **** 
+  18:tmk_core/common/avr/timer.c **** #include <avr/io.h>
+  19:tmk_core/common/avr/timer.c **** #include <avr/interrupt.h>
+  20:tmk_core/common/avr/timer.c **** #include <util/atomic.h>
+  21:tmk_core/common/avr/timer.c **** #include <stdint.h>
+  22:tmk_core/common/avr/timer.c **** #include "timer_avr.h"
+  23:tmk_core/common/avr/timer.c **** #include "timer.h"
+  24:tmk_core/common/avr/timer.c **** 
+  25:tmk_core/common/avr/timer.c **** // counter resolution 1ms
+  26:tmk_core/common/avr/timer.c **** // NOTE: union { uint32_t timer32; struct { uint16_t dummy; uint16_t timer16; }}
+  27:tmk_core/common/avr/timer.c **** volatile uint32_t timer_count;
+  28:tmk_core/common/avr/timer.c **** 
+  29:tmk_core/common/avr/timer.c **** /** \brief timer initialization
+  30:tmk_core/common/avr/timer.c ****  *
+  31:tmk_core/common/avr/timer.c ****  * FIXME: needs doc
+  32:tmk_core/common/avr/timer.c ****  */
+  33:tmk_core/common/avr/timer.c **** void timer_init(void) {
+  16               		.loc 1 33 23 view -0
+  17               		.cfi_startproc
+  18               	/* prologue: function */
+  19               	/* frame size = 0 */
+  20               	/* stack size = 0 */
+  21               	.L__stack_usage = 0
+  34:tmk_core/common/avr/timer.c **** #if TIMER_PRESCALER == 1
+  35:tmk_core/common/avr/timer.c ****     uint8_t prescaler = _BV(CS00);
+  36:tmk_core/common/avr/timer.c **** #elif TIMER_PRESCALER == 8
+  37:tmk_core/common/avr/timer.c ****     uint8_t prescaler = _BV(CS01);
+  38:tmk_core/common/avr/timer.c **** #elif TIMER_PRESCALER == 64
+  39:tmk_core/common/avr/timer.c ****     uint8_t prescaler = _BV(CS00) | _BV(CS01);
+  22               		.loc 1 39 5 view .LVU1
+  23               	.LVL0:
+  40:tmk_core/common/avr/timer.c **** #elif TIMER_PRESCALER == 256
+  41:tmk_core/common/avr/timer.c ****     uint8_t prescaler = _BV(CS02);
+  42:tmk_core/common/avr/timer.c **** #elif TIMER_PRESCALER == 1024
+  43:tmk_core/common/avr/timer.c ****     uint8_t prescaler = _BV(CS00) | _BV(CS02);
+  44:tmk_core/common/avr/timer.c **** #else
+  45:tmk_core/common/avr/timer.c **** #    error "Timer prescaler value is not valid"
+  46:tmk_core/common/avr/timer.c **** #endif
+  47:tmk_core/common/avr/timer.c **** 
+  48:tmk_core/common/avr/timer.c **** #if defined(__AVR_ATmega32A__)
+  49:tmk_core/common/avr/timer.c ****     // Timer0 CTC mode
+  50:tmk_core/common/avr/timer.c ****     TCCR0 = _BV(WGM01) | prescaler;
+  51:tmk_core/common/avr/timer.c **** 
+  52:tmk_core/common/avr/timer.c ****     OCR0  = TIMER_RAW_TOP;
+  53:tmk_core/common/avr/timer.c ****     TIMSK = _BV(OCIE0);
+  54:tmk_core/common/avr/timer.c **** #elif defined(__AVR_ATtiny85__)
+  55:tmk_core/common/avr/timer.c ****     // Timer0 CTC mode
+  56:tmk_core/common/avr/timer.c ****     TCCR0A = _BV(WGM01);
+  57:tmk_core/common/avr/timer.c ****     TCCR0B = prescaler;
+  58:tmk_core/common/avr/timer.c **** 
+  59:tmk_core/common/avr/timer.c ****     OCR0A = TIMER_RAW_TOP;
+  60:tmk_core/common/avr/timer.c ****     TIMSK = _BV(OCIE0A);
+  61:tmk_core/common/avr/timer.c **** #else
+  62:tmk_core/common/avr/timer.c ****     // Timer0 CTC mode
+  63:tmk_core/common/avr/timer.c ****     TCCR0A = _BV(WGM01);
+  24               		.loc 1 63 5 view .LVU2
+  25               		.loc 1 63 12 is_stmt 0 view .LVU3
+  26 0000 82E0      		ldi r24,lo8(2)
+  27 0002 84BD      		out 0x24,r24
+  64:tmk_core/common/avr/timer.c ****     TCCR0B = prescaler;
+  28               		.loc 1 64 5 is_stmt 1 view .LVU4
+  29               		.loc 1 64 12 is_stmt 0 view .LVU5
+  30 0004 93E0      		ldi r25,lo8(3)
+  31 0006 95BD      		out 0x25,r25
+  65:tmk_core/common/avr/timer.c **** 
+  66:tmk_core/common/avr/timer.c ****     OCR0A  = TIMER_RAW_TOP;
+  32               		.loc 1 66 5 is_stmt 1 view .LVU6
+  33               		.loc 1 66 12 is_stmt 0 view .LVU7
+  34 0008 9AEF      		ldi r25,lo8(-6)
+  35 000a 97BD      		out 0x27,r25
+  67:tmk_core/common/avr/timer.c ****     TIMSK0 = _BV(OCIE0A);
+  36               		.loc 1 67 5 is_stmt 1 view .LVU8
+  37               		.loc 1 67 12 is_stmt 0 view .LVU9
+  38 000c 8093 6E00 		sts 110,r24
+  39               	/* epilogue start */
+  68:tmk_core/common/avr/timer.c **** #endif
+  69:tmk_core/common/avr/timer.c **** }
+  40               		.loc 1 69 1 view .LVU10
+  41 0010 0895      		ret
+  42               		.cfi_endproc
+  43               	.LFE5:
+  45               		.section	.text.timer_clear,"ax",@progbits
+  46               	.global	timer_clear
+  48               	timer_clear:
+  49               	.LFB6:
+  70:tmk_core/common/avr/timer.c **** 
+  71:tmk_core/common/avr/timer.c **** /** \brief timer clear
+  72:tmk_core/common/avr/timer.c ****  *
+  73:tmk_core/common/avr/timer.c ****  * FIXME: needs doc
+  74:tmk_core/common/avr/timer.c ****  */
+  75:tmk_core/common/avr/timer.c **** inline void timer_clear(void) {
+  50               		.loc 1 75 31 is_stmt 1 view -0
+  51               		.cfi_startproc
+  52               	/* prologue: function */
+  53               	/* frame size = 0 */
+  54               	/* stack size = 0 */
+  55               	.L__stack_usage = 0
+  76:tmk_core/common/avr/timer.c ****     ATOMIC_BLOCK(ATOMIC_RESTORESTATE) { timer_count = 0; }
+  56               		.loc 1 76 5 view .LVU12
+  57               	.LBB27:
+  58               		.loc 1 76 5 view .LVU13
+  59 0000 8FB7      		in r24,__SREG__
+  60               	.LVL1:
+  61               	.LBB28:
+  62               	.LBI28:
+  63               		.file 2 "/usr/avr/include/util/atomic.h"
+   1:/usr/avr/include/util/atomic.h **** /* Copyright (c) 2007 Dean Camera
+   2:/usr/avr/include/util/atomic.h ****    All rights reserved.
+   3:/usr/avr/include/util/atomic.h **** 
+   4:/usr/avr/include/util/atomic.h ****    Redistribution and use in source and binary forms, with or without
+   5:/usr/avr/include/util/atomic.h ****    modification, are permitted provided that the following conditions are met:
+   6:/usr/avr/include/util/atomic.h **** 
+   7:/usr/avr/include/util/atomic.h ****    * Redistributions of source code must retain the above copyright
+   8:/usr/avr/include/util/atomic.h ****      notice, this list of conditions and the following disclaimer.
+   9:/usr/avr/include/util/atomic.h **** 
+  10:/usr/avr/include/util/atomic.h ****    * Redistributions in binary form must reproduce the above copyright
+  11:/usr/avr/include/util/atomic.h ****      notice, this list of conditions and the following disclaimer in
+  12:/usr/avr/include/util/atomic.h ****      the documentation and/or other materials provided with the
+  13:/usr/avr/include/util/atomic.h ****      distribution.
+  14:/usr/avr/include/util/atomic.h **** 
+  15:/usr/avr/include/util/atomic.h ****    * Neither the name of the copyright holders nor the names of
+  16:/usr/avr/include/util/atomic.h ****      contributors may be used to endorse or promote products derived
+  17:/usr/avr/include/util/atomic.h ****      from this software without specific prior written permission.
+  18:/usr/avr/include/util/atomic.h **** 
+  19:/usr/avr/include/util/atomic.h ****   THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
+  20:/usr/avr/include/util/atomic.h ****   AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+  21:/usr/avr/include/util/atomic.h ****   IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+  22:/usr/avr/include/util/atomic.h ****   ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE
+  23:/usr/avr/include/util/atomic.h ****   LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
+  24:/usr/avr/include/util/atomic.h ****   CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
+  25:/usr/avr/include/util/atomic.h ****   SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
+  26:/usr/avr/include/util/atomic.h ****   INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
+  27:/usr/avr/include/util/atomic.h ****   CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+  28:/usr/avr/include/util/atomic.h ****   ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+  29:/usr/avr/include/util/atomic.h ****   POSSIBILITY OF SUCH DAMAGE.
+  30:/usr/avr/include/util/atomic.h **** */
+  31:/usr/avr/include/util/atomic.h **** 
+  32:/usr/avr/include/util/atomic.h **** /* $Id: atomic.h 2158 2010-06-10 15:48:28Z joerg_wunsch $ */
+  33:/usr/avr/include/util/atomic.h **** 
+  34:/usr/avr/include/util/atomic.h **** #ifndef _UTIL_ATOMIC_H_
+  35:/usr/avr/include/util/atomic.h **** #define _UTIL_ATOMIC_H_ 1
+  36:/usr/avr/include/util/atomic.h **** 
+  37:/usr/avr/include/util/atomic.h **** #include <avr/io.h>
+  38:/usr/avr/include/util/atomic.h **** #include <avr/interrupt.h>
+  39:/usr/avr/include/util/atomic.h **** 
+  40:/usr/avr/include/util/atomic.h **** #if !defined(__DOXYGEN__)
+  41:/usr/avr/include/util/atomic.h **** /* Internal helper functions. */
+  42:/usr/avr/include/util/atomic.h **** static __inline__ uint8_t __iSeiRetVal(void)
+  43:/usr/avr/include/util/atomic.h **** {
+  44:/usr/avr/include/util/atomic.h ****     sei();
+  45:/usr/avr/include/util/atomic.h ****     return 1;
+  46:/usr/avr/include/util/atomic.h **** }
+  47:/usr/avr/include/util/atomic.h **** 
+  48:/usr/avr/include/util/atomic.h **** static __inline__ uint8_t __iCliRetVal(void)
+  64               		.loc 2 48 27 view .LVU14
+  65               	.LBB29:
+  49:/usr/avr/include/util/atomic.h **** {
+  50:/usr/avr/include/util/atomic.h ****     cli();
+  66               		.loc 2 50 5 view .LVU15
+  67               	/* #APP */
+  68               	 ;  50 "/usr/avr/include/util/atomic.h" 1
+  69 0002 F894      		cli
+  70               	 ;  0 "" 2
+  51:/usr/avr/include/util/atomic.h ****     return 1;
+  71               		.loc 2 51 5 view .LVU16
+  72               	.LVL2:
+  73               		.loc 2 51 5 is_stmt 0 view .LVU17
+  74               	/* #NOAPP */
+  75               	.LBE29:
+  76               	.LBE28:
+  77               		.loc 1 76 41 is_stmt 1 view .LVU18
+  78               		.loc 1 76 53 is_stmt 0 view .LVU19
+  79 0004 1092 0000 		sts timer_count,__zero_reg__
+  80 0008 1092 0000 		sts timer_count+1,__zero_reg__
+  81 000c 1092 0000 		sts timer_count+2,__zero_reg__
+  82 0010 1092 0000 		sts timer_count+3,__zero_reg__
+  83               	.LVL3:
+  84               	.LBB30:
+  85               	.LBI30:
+  52:/usr/avr/include/util/atomic.h **** }
+  53:/usr/avr/include/util/atomic.h **** 
+  54:/usr/avr/include/util/atomic.h **** static __inline__ void __iSeiParam(const uint8_t *__s)
+  55:/usr/avr/include/util/atomic.h **** {
+  56:/usr/avr/include/util/atomic.h ****     sei();
+  57:/usr/avr/include/util/atomic.h ****     __asm__ volatile ("" ::: "memory");
+  58:/usr/avr/include/util/atomic.h ****     (void)__s;
+  59:/usr/avr/include/util/atomic.h **** }
+  60:/usr/avr/include/util/atomic.h **** 
+  61:/usr/avr/include/util/atomic.h **** static __inline__ void __iCliParam(const uint8_t *__s)
+  62:/usr/avr/include/util/atomic.h **** {
+  63:/usr/avr/include/util/atomic.h ****     cli();
+  64:/usr/avr/include/util/atomic.h ****     __asm__ volatile ("" ::: "memory");
+  65:/usr/avr/include/util/atomic.h ****     (void)__s;
+  66:/usr/avr/include/util/atomic.h **** }
+  67:/usr/avr/include/util/atomic.h **** 
+  68:/usr/avr/include/util/atomic.h **** static __inline__ void __iRestore(const  uint8_t *__s)
+  86               		.loc 2 68 24 is_stmt 1 view .LVU20
+  87               	.LBB31:
+  69:/usr/avr/include/util/atomic.h **** {
+  70:/usr/avr/include/util/atomic.h ****     SREG = *__s;
+  88               		.loc 2 70 5 view .LVU21
+  89               		.loc 2 70 10 is_stmt 0 view .LVU22
+  90 0014 8FBF      		out __SREG__,r24
+  71:/usr/avr/include/util/atomic.h ****     __asm__ volatile ("" ::: "memory");
+  91               		.loc 2 71 5 is_stmt 1 view .LVU23
+  92               	.LVL4:
+  93               	/* epilogue start */
+  94               		.loc 2 71 5 is_stmt 0 view .LVU24
+  95               	.LBE31:
+  96               	.LBE30:
+  97               	.LBE27:
+  77:tmk_core/common/avr/timer.c **** }
+  98               		.loc 1 77 1 view .LVU25
+  99 0016 0895      		ret
+ 100               		.cfi_endproc
+ 101               	.LFE6:
+ 103               		.section	.text.timer_read,"ax",@progbits
+ 104               	.global	timer_read
+ 106               	timer_read:
+ 107               	.LFB7:
+  78:tmk_core/common/avr/timer.c **** 
+  79:tmk_core/common/avr/timer.c **** /** \brief timer read
+  80:tmk_core/common/avr/timer.c ****  *
+  81:tmk_core/common/avr/timer.c ****  * FIXME: needs doc
+  82:tmk_core/common/avr/timer.c ****  */
+  83:tmk_core/common/avr/timer.c **** inline uint16_t timer_read(void) {
+ 108               		.loc 1 83 34 is_stmt 1 view -0
+ 109               		.cfi_startproc
+ 110               	/* prologue: function */
+ 111               	/* frame size = 0 */
+ 112               	/* stack size = 0 */
+ 113               	.L__stack_usage = 0
+  84:tmk_core/common/avr/timer.c ****     uint32_t t;
+ 114               		.loc 1 84 5 view .LVU27
+  85:tmk_core/common/avr/timer.c **** 
+  86:tmk_core/common/avr/timer.c ****     ATOMIC_BLOCK(ATOMIC_RESTORESTATE) { t = timer_count; }
+ 115               		.loc 1 86 5 view .LVU28
+ 116               	.LBB32:
+ 117               		.loc 1 86 5 view .LVU29
+ 118 0000 2FB7      		in r18,__SREG__
+ 119               	.LVL5:
+ 120               	.LBB33:
+ 121               	.LBI33:
+  48:/usr/avr/include/util/atomic.h **** {
+ 122               		.loc 2 48 27 view .LVU30
+ 123               	.LBB34:
+  50:/usr/avr/include/util/atomic.h ****     return 1;
+ 124               		.loc 2 50 5 view .LVU31
+ 125               	/* #APP */
+ 126               	 ;  50 "/usr/avr/include/util/atomic.h" 1
+ 127 0002 F894      		cli
+ 128               	 ;  0 "" 2
+  51:/usr/avr/include/util/atomic.h **** }
+ 129               		.loc 2 51 5 view .LVU32
+ 130               	.LVL6:
+  51:/usr/avr/include/util/atomic.h **** }
+ 131               		.loc 2 51 5 is_stmt 0 view .LVU33
+ 132               	/* #NOAPP */
+ 133               	.LBE34:
+ 134               	.LBE33:
+ 135               		.loc 1 86 41 is_stmt 1 view .LVU34
+ 136               		.loc 1 86 43 is_stmt 0 view .LVU35
+ 137 0004 8091 0000 		lds r24,timer_count
+ 138 0008 9091 0000 		lds r25,timer_count+1
+ 139 000c A091 0000 		lds r26,timer_count+2
+ 140 0010 B091 0000 		lds r27,timer_count+3
+ 141               	.LVL7:
+ 142               	.LBB35:
+ 143               	.LBI35:
+  68:/usr/avr/include/util/atomic.h **** {
+ 144               		.loc 2 68 24 is_stmt 1 view .LVU36
+ 145               	.LBB36:
+  70:/usr/avr/include/util/atomic.h ****     __asm__ volatile ("" ::: "memory");
+ 146               		.loc 2 70 5 view .LVU37
+  70:/usr/avr/include/util/atomic.h ****     __asm__ volatile ("" ::: "memory");
+ 147               		.loc 2 70 10 is_stmt 0 view .LVU38
+ 148 0014 2FBF      		out __SREG__,r18
+ 149               		.loc 2 71 5 is_stmt 1 view .LVU39
+ 150               	.LVL8:
+ 151               		.loc 2 71 5 is_stmt 0 view .LVU40
+ 152               	.LBE36:
+ 153               	.LBE35:
+ 154               	.LBE32:
+  87:tmk_core/common/avr/timer.c **** 
+  88:tmk_core/common/avr/timer.c ****     return (t & 0xFFFF);
+ 155               		.loc 1 88 5 is_stmt 1 view .LVU41
+ 156               	/* epilogue start */
+  89:tmk_core/common/avr/timer.c **** }
+ 157               		.loc 1 89 1 is_stmt 0 view .LVU42
+ 158 0016 0895      		ret
+ 159               		.cfi_endproc
+ 160               	.LFE7:
+ 162               		.section	.text.timer_read32,"ax",@progbits
+ 163               	.global	timer_read32
+ 165               	timer_read32:
+ 166               	.LFB8:
+  90:tmk_core/common/avr/timer.c **** 
+  91:tmk_core/common/avr/timer.c **** /** \brief timer read32
+  92:tmk_core/common/avr/timer.c ****  *
+  93:tmk_core/common/avr/timer.c ****  * FIXME: needs doc
+  94:tmk_core/common/avr/timer.c ****  */
+  95:tmk_core/common/avr/timer.c **** inline uint32_t timer_read32(void) {
+ 167               		.loc 1 95 36 is_stmt 1 view -0
+ 168               		.cfi_startproc
+ 169               	/* prologue: function */
+ 170               	/* frame size = 0 */
+ 171               	/* stack size = 0 */
+ 172               	.L__stack_usage = 0
+  96:tmk_core/common/avr/timer.c ****     uint32_t t;
+ 173               		.loc 1 96 5 view .LVU44
+  97:tmk_core/common/avr/timer.c **** 
+  98:tmk_core/common/avr/timer.c ****     ATOMIC_BLOCK(ATOMIC_RESTORESTATE) { t = timer_count; }
+ 174               		.loc 1 98 5 view .LVU45
+ 175               	.LBB37:
+ 176               		.loc 1 98 5 view .LVU46
+ 177 0000 2FB7      		in r18,__SREG__
+ 178               	.LVL9:
+ 179               	.LBB38:
+ 180               	.LBI38:
+  48:/usr/avr/include/util/atomic.h **** {
+ 181               		.loc 2 48 27 view .LVU47
+ 182               	.LBB39:
+  50:/usr/avr/include/util/atomic.h ****     return 1;
+ 183               		.loc 2 50 5 view .LVU48
+ 184               	/* #APP */
+ 185               	 ;  50 "/usr/avr/include/util/atomic.h" 1
+ 186 0002 F894      		cli
+ 187               	 ;  0 "" 2
+  51:/usr/avr/include/util/atomic.h **** }
+ 188               		.loc 2 51 5 view .LVU49
+ 189               	.LVL10:
+  51:/usr/avr/include/util/atomic.h **** }
+ 190               		.loc 2 51 5 is_stmt 0 view .LVU50
+ 191               	/* #NOAPP */
+ 192               	.LBE39:
+ 193               	.LBE38:
+ 194               		.loc 1 98 41 is_stmt 1 view .LVU51
+ 195               		.loc 1 98 43 is_stmt 0 view .LVU52
+ 196 0004 6091 0000 		lds r22,timer_count
+ 197 0008 7091 0000 		lds r23,timer_count+1
+ 198 000c 8091 0000 		lds r24,timer_count+2
+ 199 0010 9091 0000 		lds r25,timer_count+3
+ 200               	.LVL11:
+ 201               	.LBB40:
+ 202               	.LBI40:
+  68:/usr/avr/include/util/atomic.h **** {
+ 203               		.loc 2 68 24 is_stmt 1 view .LVU53
+ 204               	.LBB41:
+  70:/usr/avr/include/util/atomic.h ****     __asm__ volatile ("" ::: "memory");
+ 205               		.loc 2 70 5 view .LVU54
+  70:/usr/avr/include/util/atomic.h ****     __asm__ volatile ("" ::: "memory");
+ 206               		.loc 2 70 10 is_stmt 0 view .LVU55
+ 207 0014 2FBF      		out __SREG__,r18
+ 208               		.loc 2 71 5 is_stmt 1 view .LVU56
+ 209               	.LVL12:
+ 210               		.loc 2 71 5 is_stmt 0 view .LVU57
+ 211               	.LBE41:
+ 212               	.LBE40:
+ 213               	.LBE37:
+  99:tmk_core/common/avr/timer.c **** 
+ 100:tmk_core/common/avr/timer.c ****     return t;
+ 214               		.loc 1 100 5 is_stmt 1 view .LVU58
+ 215               	/* epilogue start */
+ 101:tmk_core/common/avr/timer.c **** }
+ 216               		.loc 1 101 1 is_stmt 0 view .LVU59
+ 217 0016 0895      		ret
+ 218               		.cfi_endproc
+ 219               	.LFE8:
+ 221               		.section	.text.timer_elapsed,"ax",@progbits
+ 222               	.global	timer_elapsed
+ 224               	timer_elapsed:
+ 225               	.LVL13:
+ 226               	.LFB9:
+ 102:tmk_core/common/avr/timer.c **** 
+ 103:tmk_core/common/avr/timer.c **** /** \brief timer elapsed
+ 104:tmk_core/common/avr/timer.c ****  *
+ 105:tmk_core/common/avr/timer.c ****  * FIXME: needs doc
+ 106:tmk_core/common/avr/timer.c ****  */
+ 107:tmk_core/common/avr/timer.c **** inline uint16_t timer_elapsed(uint16_t last) {
+ 227               		.loc 1 107 46 is_stmt 1 view -0
+ 228               		.cfi_startproc
+ 229               	/* prologue: function */
+ 230               	/* frame size = 0 */
+ 231               	/* stack size = 0 */
+ 232               	.L__stack_usage = 0
+ 233               		.loc 1 107 46 is_stmt 0 view .LVU61
+ 234 0000 9C01      		movw r18,r24
+ 108:tmk_core/common/avr/timer.c ****     uint32_t t;
+ 235               		.loc 1 108 5 is_stmt 1 view .LVU62
+ 109:tmk_core/common/avr/timer.c **** 
+ 110:tmk_core/common/avr/timer.c ****     ATOMIC_BLOCK(ATOMIC_RESTORESTATE) { t = timer_count; }
+ 236               		.loc 1 110 5 view .LVU63
+ 237               	.LBB42:
+ 238               		.loc 1 110 5 view .LVU64
+ 239 0002 4FB7      		in r20,__SREG__
+ 240               	.LVL14:
+ 241               	.LBB43:
+ 242               	.LBI43:
+  48:/usr/avr/include/util/atomic.h **** {
+ 243               		.loc 2 48 27 view .LVU65
+ 244               	.LBB44:
+  50:/usr/avr/include/util/atomic.h ****     return 1;
+ 245               		.loc 2 50 5 view .LVU66
+ 246               	/* #APP */
+ 247               	 ;  50 "/usr/avr/include/util/atomic.h" 1
+ 248 0004 F894      		cli
+ 249               	 ;  0 "" 2
+  51:/usr/avr/include/util/atomic.h **** }
+ 250               		.loc 2 51 5 view .LVU67
+ 251               	.LVL15:
+  51:/usr/avr/include/util/atomic.h **** }
+ 252               		.loc 2 51 5 is_stmt 0 view .LVU68
+ 253               	/* #NOAPP */
+ 254               	.LBE44:
+ 255               	.LBE43:
+ 256               		.loc 1 110 41 is_stmt 1 view .LVU69
+ 257               		.loc 1 110 43 is_stmt 0 view .LVU70
+ 258 0006 8091 0000 		lds r24,timer_count
+ 259 000a 9091 0000 		lds r25,timer_count+1
+ 260 000e A091 0000 		lds r26,timer_count+2
+ 261 0012 B091 0000 		lds r27,timer_count+3
+ 262               	.LVL16:
+ 263               	.LBB45:
+ 264               	.LBI45:
+  68:/usr/avr/include/util/atomic.h **** {
+ 265               		.loc 2 68 24 is_stmt 1 view .LVU71
+ 266               	.LBB46:
+  70:/usr/avr/include/util/atomic.h ****     __asm__ volatile ("" ::: "memory");
+ 267               		.loc 2 70 5 view .LVU72
+  70:/usr/avr/include/util/atomic.h ****     __asm__ volatile ("" ::: "memory");
+ 268               		.loc 2 70 10 is_stmt 0 view .LVU73
+ 269 0016 4FBF      		out __SREG__,r20
+ 270               		.loc 2 71 5 is_stmt 1 view .LVU74
+ 271               	.LVL17:
+ 272               		.loc 2 71 5 is_stmt 0 view .LVU75
+ 273               	.LBE46:
+ 274               	.LBE45:
+ 275               	.LBE42:
+ 111:tmk_core/common/avr/timer.c **** 
+ 112:tmk_core/common/avr/timer.c ****     return TIMER_DIFF_16((t & 0xFFFF), last);
+ 276               		.loc 1 112 5 is_stmt 1 view .LVU76
+ 113:tmk_core/common/avr/timer.c **** }
+ 277               		.loc 1 113 1 is_stmt 0 view .LVU77
+ 278 0018 821B      		sub r24,r18
+ 279 001a 930B      		sbc r25,r19
+ 280               	/* epilogue start */
+ 281 001c 0895      		ret
+ 282               		.cfi_endproc
+ 283               	.LFE9:
+ 285               		.section	.text.timer_elapsed32,"ax",@progbits
+ 286               	.global	timer_elapsed32
+ 288               	timer_elapsed32:
+ 289               	.LVL18:
+ 290               	.LFB10:
+ 114:tmk_core/common/avr/timer.c **** 
+ 115:tmk_core/common/avr/timer.c **** /** \brief timer elapsed32
+ 116:tmk_core/common/avr/timer.c ****  *
+ 117:tmk_core/common/avr/timer.c ****  * FIXME: needs doc
+ 118:tmk_core/common/avr/timer.c ****  */
+ 119:tmk_core/common/avr/timer.c **** inline uint32_t timer_elapsed32(uint32_t last) {
+ 291               		.loc 1 119 48 is_stmt 1 view -0
+ 292               		.cfi_startproc
+ 293               		.loc 1 119 48 is_stmt 0 view .LVU79
+ 294 0000 CF92      		push r12
+ 295               	.LCFI0:
+ 296               		.cfi_def_cfa_offset 3
+ 297               		.cfi_offset 12, -2
+ 298 0002 DF92      		push r13
+ 299               	.LCFI1:
+ 300               		.cfi_def_cfa_offset 4
+ 301               		.cfi_offset 13, -3
+ 302 0004 EF92      		push r14
+ 303               	.LCFI2:
+ 304               		.cfi_def_cfa_offset 5
+ 305               		.cfi_offset 14, -4
+ 306 0006 FF92      		push r15
+ 307               	.LCFI3:
+ 308               		.cfi_def_cfa_offset 6
+ 309               		.cfi_offset 15, -5
+ 310               	/* prologue: function */
+ 311               	/* frame size = 0 */
+ 312               	/* stack size = 4 */
+ 313               	.L__stack_usage = 4
+ 120:tmk_core/common/avr/timer.c ****     uint32_t t;
+ 314               		.loc 1 120 5 is_stmt 1 view .LVU80
+ 121:tmk_core/common/avr/timer.c **** 
+ 122:tmk_core/common/avr/timer.c ****     ATOMIC_BLOCK(ATOMIC_RESTORESTATE) { t = timer_count; }
+ 315               		.loc 1 122 5 view .LVU81
+ 316               	.LBB47:
+ 317               		.loc 1 122 5 view .LVU82
+ 318 0008 2FB7      		in r18,__SREG__
+ 319               	.LVL19:
+ 320               	.LBB48:
+ 321               	.LBI48:
+  48:/usr/avr/include/util/atomic.h **** {
+ 322               		.loc 2 48 27 view .LVU83
+ 323               	.LBB49:
+  50:/usr/avr/include/util/atomic.h ****     return 1;
+ 324               		.loc 2 50 5 view .LVU84
+ 325               	/* #APP */
+ 326               	 ;  50 "/usr/avr/include/util/atomic.h" 1
+ 327 000a F894      		cli
+ 328               	 ;  0 "" 2
+  51:/usr/avr/include/util/atomic.h **** }
+ 329               		.loc 2 51 5 view .LVU85
+ 330               	.LVL20:
+  51:/usr/avr/include/util/atomic.h **** }
+ 331               		.loc 2 51 5 is_stmt 0 view .LVU86
+ 332               	/* #NOAPP */
+ 333               	.LBE49:
+ 334               	.LBE48:
+ 335               		.loc 1 122 41 is_stmt 1 view .LVU87
+ 336               		.loc 1 122 43 is_stmt 0 view .LVU88
+ 337 000c C090 0000 		lds r12,timer_count
+ 338 0010 D090 0000 		lds r13,timer_count+1
+ 339 0014 E090 0000 		lds r14,timer_count+2
+ 340 0018 F090 0000 		lds r15,timer_count+3
+ 341               	.LVL21:
+ 342               	.LBB50:
+ 343               	.LBI50:
+  68:/usr/avr/include/util/atomic.h **** {
+ 344               		.loc 2 68 24 is_stmt 1 view .LVU89
+ 345               	.LBB51:
+  70:/usr/avr/include/util/atomic.h ****     __asm__ volatile ("" ::: "memory");
+ 346               		.loc 2 70 5 view .LVU90
+  70:/usr/avr/include/util/atomic.h ****     __asm__ volatile ("" ::: "memory");
+ 347               		.loc 2 70 10 is_stmt 0 view .LVU91
+ 348 001c 2FBF      		out __SREG__,r18
+ 349               		.loc 2 71 5 is_stmt 1 view .LVU92
+ 350               	.LVL22:
+ 351               		.loc 2 71 5 is_stmt 0 view .LVU93
+ 352               	.LBE51:
+ 353               	.LBE50:
+ 354               	.LBE47:
+ 123:tmk_core/common/avr/timer.c **** 
+ 124:tmk_core/common/avr/timer.c ****     return TIMER_DIFF_32(t, last);
+ 355               		.loc 1 124 5 is_stmt 1 view .LVU94
+ 356               		.loc 1 124 12 is_stmt 0 view .LVU95
+ 357 001e A701      		movw r20,r14
+ 358 0020 9601      		movw r18,r12
+ 359 0022 261B      		sub r18,r22
+ 360 0024 370B      		sbc r19,r23
+ 361 0026 480B      		sbc r20,r24
+ 362 0028 590B      		sbc r21,r25
+ 363 002a CA01      		movw r24,r20
+ 364 002c B901      		movw r22,r18
+ 365               	.LVL23:
+ 366               	/* epilogue start */
+ 125:tmk_core/common/avr/timer.c **** }
+ 367               		.loc 1 125 1 view .LVU96
+ 368 002e FF90      		pop r15
+ 369 0030 EF90      		pop r14
+ 370 0032 DF90      		pop r13
+ 371 0034 CF90      		pop r12
+ 372               	.LVL24:
+ 373               		.loc 1 125 1 view .LVU97
+ 374 0036 0895      		ret
+ 375               		.cfi_endproc
+ 376               	.LFE10:
+ 378               		.section	.text.__vector_21,"ax",@progbits
+ 379               	.global	__vector_21
+ 381               	__vector_21:
+ 382               	.LFB11:
+ 126:tmk_core/common/avr/timer.c **** 
+ 127:tmk_core/common/avr/timer.c **** // excecuted once per 1ms.(excess for just timer count?)
+ 128:tmk_core/common/avr/timer.c **** #ifndef __AVR_ATmega32A__
+ 129:tmk_core/common/avr/timer.c **** #    define TIMER_INTERRUPT_VECTOR TIMER0_COMPA_vect
+ 130:tmk_core/common/avr/timer.c **** #else
+ 131:tmk_core/common/avr/timer.c **** #    define TIMER_INTERRUPT_VECTOR TIMER0_COMP_vect
+ 132:tmk_core/common/avr/timer.c **** #endif
+ 133:tmk_core/common/avr/timer.c **** ISR(TIMER_INTERRUPT_VECTOR, ISR_NOBLOCK) { timer_count++; }
+ 383               		.loc 1 133 42 is_stmt 1 view -0
+ 384               		.cfi_startproc
+ 385 0000 7894      		sei
+ 386 0002 1F92 1FB6 		__gcc_isr 1
+ 386      1F92 1124 
+ 386      8F93 
+ 387 000c 9F93      		push r25
+ 388               	.LCFI4:
+ 389               		.cfi_def_cfa_offset 3
+ 390               		.cfi_offset 25, -2
+ 391 000e AF93      		push r26
+ 392               	.LCFI5:
+ 393               		.cfi_def_cfa_offset 4
+ 394               		.cfi_offset 26, -3
+ 395 0010 BF93      		push r27
+ 396               	.LCFI6:
+ 397               		.cfi_def_cfa_offset 5
+ 398               		.cfi_offset 27, -4
+ 399               	/* prologue: Interrupt */
+ 400               	/* frame size = 0 */
+ 401               	/* stack size = 3...7 */
+ 402               	.L__stack_usage = 3 + __gcc_isr.n_pushed
+ 403               		.loc 1 133 44 view .LVU99
+ 404               		.loc 1 133 55 is_stmt 0 view .LVU100
+ 405 0012 8091 0000 		lds r24,timer_count
+ 406 0016 9091 0000 		lds r25,timer_count+1
+ 407 001a A091 0000 		lds r26,timer_count+2
+ 408 001e B091 0000 		lds r27,timer_count+3
+ 409 0022 0196      		adiw r24,1
+ 410 0024 A11D      		adc r26,__zero_reg__
+ 411 0026 B11D      		adc r27,__zero_reg__
+ 412 0028 8093 0000 		sts timer_count,r24
+ 413 002c 9093 0000 		sts timer_count+1,r25
+ 414 0030 A093 0000 		sts timer_count+2,r26
+ 415 0034 B093 0000 		sts timer_count+3,r27
+ 416               	/* epilogue start */
+ 417               		.loc 1 133 1 view .LVU101
+ 418 0038 BF91      		pop r27
+ 419 003a AF91      		pop r26
+ 420 003c 9F91      		pop r25
+ 421 003e 8F91 1F90 		__gcc_isr 2
+ 421      1FBE 1F90 
+ 422 0046 1895      		reti
+ 423               		__gcc_isr 0,r24
+ 424               		.cfi_endproc
+ 425               	.LFE11:
+ 427               		.comm	timer_count,4,1
+ 428               		.text
+ 429               	.Letext0:
+ 430               		.file 3 "/usr/avr/include/stdint.h"
+ 431               		.file 4 "tmk_core/common/timer.h"
+DEFINED SYMBOLS
+                            *ABS*:0000000000000000 timer.c
+     /tmp/ccgNjdc2.s:2      *ABS*:000000000000003e __SP_H__
+     /tmp/ccgNjdc2.s:3      *ABS*:000000000000003d __SP_L__
+     /tmp/ccgNjdc2.s:4      *ABS*:000000000000003f __SREG__
+     /tmp/ccgNjdc2.s:5      *ABS*:0000000000000000 __tmp_reg__
+     /tmp/ccgNjdc2.s:6      *ABS*:0000000000000001 __zero_reg__
+     /tmp/ccgNjdc2.s:13     .text.timer_init:0000000000000000 timer_init
+     /tmp/ccgNjdc2.s:48     .text.timer_clear:0000000000000000 timer_clear
+                            *COM*:0000000000000004 timer_count
+     /tmp/ccgNjdc2.s:106    .text.timer_read:0000000000000000 timer_read
+     /tmp/ccgNjdc2.s:165    .text.timer_read32:0000000000000000 timer_read32
+     /tmp/ccgNjdc2.s:224    .text.timer_elapsed:0000000000000000 timer_elapsed
+     /tmp/ccgNjdc2.s:288    .text.timer_elapsed32:0000000000000000 timer_elapsed32
+     /tmp/ccgNjdc2.s:381    .text.__vector_21:0000000000000000 __vector_21
+                            *ABS*:0000000000000003 __gcc_isr.n_pushed.001
+
+UNDEFINED SYMBOLS
+__do_clear_bss
