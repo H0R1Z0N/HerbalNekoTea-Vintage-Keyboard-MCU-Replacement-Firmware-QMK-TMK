@@ -1,0 +1,546 @@
+   1               		.file	"keymap.c"
+   2               	__SP_H__ = 0x3e
+   3               	__SP_L__ = 0x3d
+   4               	__SREG__ = 0x3f
+   5               	__tmp_reg__ = 0
+   6               	__zero_reg__ = 1
+   7               		.text
+   8               	.Ltext0:
+   9               		.cfi_sections	.debug_frame
+  10               		.file 1 "keyboards/hp_vectra/keymaps/default/keymap.c"
+  11               		.section	.text.process_record_user,"ax",@progbits
+  12               	.global	process_record_user
+  14               	process_record_user:
+  15               	.LVL0:
+  16               	.LFB111:
+   1:keyboards/hp_vectra/keymaps/default/keymap.c **** #include "hp_vectra.h"
+   2:keyboards/hp_vectra/keymaps/default/keymap.c **** 
+   3:keyboards/hp_vectra/keymaps/default/keymap.c **** 
+   4:keyboards/hp_vectra/keymaps/default/keymap.c **** enum layer_names {
+   5:keyboards/hp_vectra/keymaps/default/keymap.c ****     _BASE,
+   6:keyboards/hp_vectra/keymaps/default/keymap.c ****     _FN
+   7:keyboards/hp_vectra/keymaps/default/keymap.c **** };
+   8:keyboards/hp_vectra/keymaps/default/keymap.c **** 
+   9:keyboards/hp_vectra/keymaps/default/keymap.c **** enum custom_keycodes {
+  10:keyboards/hp_vectra/keymaps/default/keymap.c ****     TEST = 400,
+  11:keyboards/hp_vectra/keymaps/default/keymap.c **** };
+  12:keyboards/hp_vectra/keymaps/default/keymap.c **** 
+  13:keyboards/hp_vectra/keymaps/default/keymap.c **** 
+  14:keyboards/hp_vectra/keymaps/default/keymap.c **** bool process_record_user(uint16_t keycode, keyrecord_t *record) {
+  17               		.loc 1 14 65 view -0
+  18               		.cfi_startproc
+  19               	/* prologue: function */
+  20               	/* frame size = 0 */
+  21               	/* stack size = 0 */
+  22               	.L__stack_usage = 0
+  23               		.loc 1 14 65 is_stmt 0 view .LVU1
+  24 0000 9C01      		movw r18,r24
+  15:keyboards/hp_vectra/keymaps/default/keymap.c ****     if (record->event.pressed) {                              //Code for macros
+  25               		.loc 1 15 5 is_stmt 1 view .LVU2
+  26               		.loc 1 15 8 is_stmt 0 view .LVU3
+  27 0002 FB01      		movw r30,r22
+  28 0004 8281      		ldd r24,Z+2
+  29               	.LVL1:
+  30               		.loc 1 15 8 view .LVU4
+  31 0006 8823      		tst r24
+  32 0008 01F0      		breq .L2
+  16:keyboards/hp_vectra/keymaps/default/keymap.c ****         switch(keycode) {
+  33               		.loc 1 16 9 is_stmt 1 view .LVU5
+  34 000a 2039      		cpi r18,-112
+  35 000c 3140      		sbci r19,1
+  36 000e 01F4      		brne .L2
+  17:keyboards/hp_vectra/keymaps/default/keymap.c ****     case TEST:
+  18:keyboards/hp_vectra/keymaps/default/keymap.c ****     if (record->event.pressed) {
+  37               		.loc 1 18 5 view .LVU6
+  19:keyboards/hp_vectra/keymaps/default/keymap.c ****         SEND_STRING("TEST");
+  38               		.loc 1 19 9 view .LVU7
+  39               	.LBB2:
+  40               		.loc 1 19 9 view .LVU8
+  41               		.loc 1 19 9 view .LVU9
+  42               	.LBE2:
+  43 0010 80E0      		ldi r24,lo8(__c.0)
+  44 0012 90E0      		ldi r25,hi8(__c.0)
+  45 0014 0E94 0000 		call send_string
+  46               	.LVL2:
+  47               	.L2:
+  20:keyboards/hp_vectra/keymaps/default/keymap.c ****         } else {}break;
+  21:keyboards/hp_vectra/keymaps/default/keymap.c ****     }
+  22:keyboards/hp_vectra/keymaps/default/keymap.c **** }
+  23:keyboards/hp_vectra/keymaps/default/keymap.c **** #ifdef CONSOLE_ENABLE //Console Debug
+  24:keyboards/hp_vectra/keymaps/default/keymap.c ****     uprintf("KL: kc: 0x%04X, col: %u, row: %u, pressed: %b, time: %u, interrupt: %b, count: %u\n", 
+  25:keyboards/hp_vectra/keymaps/default/keymap.c **** #endif
+  26:keyboards/hp_vectra/keymaps/default/keymap.c ****     return true;
+  48               		.loc 1 26 5 view .LVU10
+  27:keyboards/hp_vectra/keymaps/default/keymap.c ****     
+  28:keyboards/hp_vectra/keymaps/default/keymap.c **** };
+  49               		.loc 1 28 1 is_stmt 0 view .LVU11
+  50 0018 81E0      		ldi r24,lo8(1)
+  51               	/* epilogue start */
+  52 001a 0895      		ret
+  53               		.cfi_endproc
+  54               	.LFE111:
+  56               		.section	.text.led_set,"ax",@progbits
+  57               	.global	led_set
+  59               	led_set:
+  60               	.LVL3:
+  61               	.LFB112:
+  29:keyboards/hp_vectra/keymaps/default/keymap.c **** 
+  30:keyboards/hp_vectra/keymaps/default/keymap.c **** const uint16_t PROGMEM keymaps[][MATRIX_ROWS][MATRIX_COLS] = {
+  31:keyboards/hp_vectra/keymaps/default/keymap.c **** 
+  32:keyboards/hp_vectra/keymaps/default/keymap.c ****     [_BASE] = KEYMAP(
+  33:keyboards/hp_vectra/keymaps/default/keymap.c ****         TEST,    KC_F1,   KC_F2,   KC_F3,   KC_F4,   KC_F5,   KC_F6,   KC_F7,   KC_F8,   KC_F9,  KC
+  34:keyboards/hp_vectra/keymaps/default/keymap.c ****         KC_GRV,     KC_1,    KC_2,    KC_3,    KC_4,    KC_5,    KC_6,    KC_7,    KC_8,    KC_9,  
+  35:keyboards/hp_vectra/keymaps/default/keymap.c ****         KC_TAB,     KC_Q,    KC_W,    KC_E,    KC_R,    KC_T,    KC_Y,    KC_U,    KC_I,    KC_O,  
+  36:keyboards/hp_vectra/keymaps/default/keymap.c ****         KC_CAPS,    KC_A,    KC_S,    KC_D,    KC_F,    KC_G,    KC_H,    KC_J,    KC_K,    KC_L, K
+  37:keyboards/hp_vectra/keymaps/default/keymap.c ****         KC_LSFT,   KC_NO,    KC_Z,    KC_X,    KC_C,    KC_V,    KC_B,    KC_N,    KC_M, KC_COMM,  
+  38:keyboards/hp_vectra/keymaps/default/keymap.c ****         KC_LCTL,          KC_LALT,                             KC_SPC,                             
+  39:keyboards/hp_vectra/keymaps/default/keymap.c ****     ),
+  40:keyboards/hp_vectra/keymaps/default/keymap.c ****     [_FN] = KEYMAP(
+  41:keyboards/hp_vectra/keymaps/default/keymap.c ****         KC_TRNS, KC_TRNS, KC_TRNS, KC_TRNS, KC_TRNS, KC_TRNS, KC_TRNS, KC_TRNS, KC_TRNS, KC_TRNS, K
+  42:keyboards/hp_vectra/keymaps/default/keymap.c ****         KC_TRNS, KC_TRNS, KC_TRNS, KC_TRNS, KC_TRNS, KC_TRNS, KC_TRNS, KC_TRNS, KC_TRNS, KC_TRNS, K
+  43:keyboards/hp_vectra/keymaps/default/keymap.c ****         KC_TRNS, KC_TRNS, KC_TRNS, KC_TRNS, KC_TRNS, KC_TRNS, KC_TRNS, KC_TRNS, KC_TRNS, KC_TRNS, K
+  44:keyboards/hp_vectra/keymaps/default/keymap.c ****         KC_TRNS, KC_TRNS, KC_TRNS, KC_TRNS, KC_TRNS, KC_TRNS, KC_TRNS, KC_TRNS, KC_TRNS, KC_TRNS, K
+  45:keyboards/hp_vectra/keymaps/default/keymap.c ****         KC_TRNS, KC_TRNS, KC_TRNS, KC_TRNS, KC_TRNS, KC_TRNS, KC_TRNS, KC_TRNS, KC_TRNS, KC_TRNS, K
+  46:keyboards/hp_vectra/keymaps/default/keymap.c ****         KC_TRNS,          KC_TRNS,                            KC_TRNS,                            K
+  47:keyboards/hp_vectra/keymaps/default/keymap.c ****     ),
+  48:keyboards/hp_vectra/keymaps/default/keymap.c **** };
+  49:keyboards/hp_vectra/keymaps/default/keymap.c **** 
+  50:keyboards/hp_vectra/keymaps/default/keymap.c **** 
+  51:keyboards/hp_vectra/keymaps/default/keymap.c **** 
+  52:keyboards/hp_vectra/keymaps/default/keymap.c **** 
+  53:keyboards/hp_vectra/keymaps/default/keymap.c **** 
+  54:keyboards/hp_vectra/keymaps/default/keymap.c **** void led_set(uint8_t usb_led) {
+  62               		.loc 1 54 31 is_stmt 1 view -0
+  63               		.cfi_startproc
+  64               	/* prologue: function */
+  65               	/* frame size = 0 */
+  66               	/* stack size = 0 */
+  67               	.L__stack_usage = 0
+  55:keyboards/hp_vectra/keymaps/default/keymap.c **** 
+  56:keyboards/hp_vectra/keymaps/default/keymap.c **** 	if (usb_led & (1 << USB_LED_NUM_LOCK)) {
+  68               		.loc 1 56 2 view .LVU13
+  69               		.loc 1 56 5 is_stmt 0 view .LVU14
+  70 0000 80FF      		sbrs r24,0
+  71 0002 00C0      		rjmp .L7
+  57:keyboards/hp_vectra/keymaps/default/keymap.c **** 		DDRF |= (1 << 4); PORTF &= ~(1 << 4);
+  72               		.loc 1 57 3 is_stmt 1 view .LVU15
+  73               		.loc 1 57 8 is_stmt 0 view .LVU16
+  74 0004 849A      		sbi 0x10,4
+  75               		.loc 1 57 21 is_stmt 1 view .LVU17
+  76               	.L15:
+  58:keyboards/hp_vectra/keymaps/default/keymap.c **** 	} else {
+  59:keyboards/hp_vectra/keymaps/default/keymap.c **** 		DDRF &= ~(1 << 4); PORTF &= ~(1 << 4);
+  77               		.loc 1 59 22 view .LVU18
+  78               		.loc 1 59 28 is_stmt 0 view .LVU19
+  79 0006 8C98      		cbi 0x11,4
+  60:keyboards/hp_vectra/keymaps/default/keymap.c **** 	}
+  61:keyboards/hp_vectra/keymaps/default/keymap.c **** 
+  62:keyboards/hp_vectra/keymaps/default/keymap.c **** 	if (usb_led & (1 << USB_LED_CAPS_LOCK)) {
+  80               		.loc 1 62 2 is_stmt 1 view .LVU20
+  81               		.loc 1 62 5 is_stmt 0 view .LVU21
+  82 0008 81FF      		sbrs r24,1
+  83 000a 00C0      		rjmp .L9
+  63:keyboards/hp_vectra/keymaps/default/keymap.c **** 		DDRF |= (1 << 1); PORTF &= ~(1 << 1);
+  84               		.loc 1 63 3 is_stmt 1 view .LVU22
+  85               		.loc 1 63 8 is_stmt 0 view .LVU23
+  86 000c 819A      		sbi 0x10,1
+  87               		.loc 1 63 21 is_stmt 1 view .LVU24
+  88               	.L16:
+  64:keyboards/hp_vectra/keymaps/default/keymap.c **** 	} else {
+  65:keyboards/hp_vectra/keymaps/default/keymap.c **** 		DDRF &= ~(1 << 1); PORTF &= ~(1 << 1);
+  89               		.loc 1 65 22 view .LVU25
+  90               		.loc 1 65 28 is_stmt 0 view .LVU26
+  91 000e 8998      		cbi 0x11,1
+  66:keyboards/hp_vectra/keymaps/default/keymap.c **** 	}
+  67:keyboards/hp_vectra/keymaps/default/keymap.c **** 
+  68:keyboards/hp_vectra/keymaps/default/keymap.c **** 	if (usb_led & (1 << USB_LED_SCROLL_LOCK)) {
+  92               		.loc 1 68 2 is_stmt 1 view .LVU27
+  93               		.loc 1 68 5 is_stmt 0 view .LVU28
+  94 0010 82FF      		sbrs r24,2
+  95 0012 00C0      		rjmp .L11
+  69:keyboards/hp_vectra/keymaps/default/keymap.c **** 		DDRF |= (1 << 0); PORTF &= ~(1 << 0);
+  96               		.loc 1 69 3 is_stmt 1 view .LVU29
+  97               		.loc 1 69 8 is_stmt 0 view .LVU30
+  98 0014 809A      		sbi 0x10,0
+  99               		.loc 1 69 21 is_stmt 1 view .LVU31
+ 100               	.L17:
+  70:keyboards/hp_vectra/keymaps/default/keymap.c **** 	} else {
+  71:keyboards/hp_vectra/keymaps/default/keymap.c **** 		DDRF &= ~(1 << 0); PORTF &= ~(1 << 0);
+ 101               		.loc 1 71 22 view .LVU32
+ 102               		.loc 1 71 28 is_stmt 0 view .LVU33
+ 103 0016 8898      		cbi 0x11,0
+  72:keyboards/hp_vectra/keymaps/default/keymap.c **** 	}
+  73:keyboards/hp_vectra/keymaps/default/keymap.c **** 
+  74:keyboards/hp_vectra/keymaps/default/keymap.c **** 	if (usb_led & (1 << USB_LED_KANA)) {
+ 104               		.loc 1 74 2 is_stmt 1 view .LVU34
+ 105               		.loc 1 74 5 is_stmt 0 view .LVU35
+ 106 0018 84FF      		sbrs r24,4
+ 107 001a 00C0      		rjmp .L13
+  75:keyboards/hp_vectra/keymaps/default/keymap.c **** 		DDRE |= (1 << 6); PORTE &= ~(1 << 6);
+ 108               		.loc 1 75 3 is_stmt 1 view .LVU36
+ 109               		.loc 1 75 8 is_stmt 0 view .LVU37
+ 110 001c 6E9A      		sbi 0xd,6
+ 111               		.loc 1 75 21 is_stmt 1 view .LVU38
+ 112               	.L18:
+  76:keyboards/hp_vectra/keymaps/default/keymap.c **** 	} else {
+  77:keyboards/hp_vectra/keymaps/default/keymap.c **** 		DDRE &= ~(1 << 6); PORTE &= ~(1 << 6);
+ 113               		.loc 1 77 22 view .LVU39
+ 114               		.loc 1 77 28 is_stmt 0 view .LVU40
+ 115 001e 7698      		cbi 0xe,6
+ 116               	/* epilogue start */
+  78:keyboards/hp_vectra/keymaps/default/keymap.c **** 	}
+  79:keyboards/hp_vectra/keymaps/default/keymap.c **** 
+  80:keyboards/hp_vectra/keymaps/default/keymap.c **** }
+ 117               		.loc 1 80 1 view .LVU41
+ 118 0020 0895      		ret
+ 119               	.L7:
+  59:keyboards/hp_vectra/keymaps/default/keymap.c **** 	}
+ 120               		.loc 1 59 3 is_stmt 1 view .LVU42
+  59:keyboards/hp_vectra/keymaps/default/keymap.c **** 	}
+ 121               		.loc 1 59 8 is_stmt 0 view .LVU43
+ 122 0022 8498      		cbi 0x10,4
+ 123 0024 00C0      		rjmp .L15
+ 124               	.L9:
+  65:keyboards/hp_vectra/keymaps/default/keymap.c **** 	}
+ 125               		.loc 1 65 3 is_stmt 1 view .LVU44
+  65:keyboards/hp_vectra/keymaps/default/keymap.c **** 	}
+ 126               		.loc 1 65 8 is_stmt 0 view .LVU45
+ 127 0026 8198      		cbi 0x10,1
+ 128 0028 00C0      		rjmp .L16
+ 129               	.L11:
+  71:keyboards/hp_vectra/keymaps/default/keymap.c **** 	}
+ 130               		.loc 1 71 3 is_stmt 1 view .LVU46
+  71:keyboards/hp_vectra/keymaps/default/keymap.c **** 	}
+ 131               		.loc 1 71 8 is_stmt 0 view .LVU47
+ 132 002a 8098      		cbi 0x10,0
+ 133 002c 00C0      		rjmp .L17
+ 134               	.L13:
+  77:keyboards/hp_vectra/keymaps/default/keymap.c **** 	}
+ 135               		.loc 1 77 3 is_stmt 1 view .LVU48
+  77:keyboards/hp_vectra/keymaps/default/keymap.c **** 	}
+ 136               		.loc 1 77 8 is_stmt 0 view .LVU49
+ 137 002e 6E98      		cbi 0xd,6
+ 138 0030 00C0      		rjmp .L18
+ 139               		.cfi_endproc
+ 140               	.LFE112:
+ 142               		.section	.progmem.data.__c.0,"a"
+ 145               	__c.0:
+ 146 0000 5445 5354 		.string	"TEST"
+ 146      00
+ 147               	.global	keymaps
+ 148               		.section	.progmem.data.keymaps,"a"
+ 151               	keymaps:
+ 152 0000 4000      		.word	64
+ 153 0002 3F00      		.word	63
+ 154 0004 3E00      		.word	62
+ 155 0006 3D00      		.word	61
+ 156 0008 4500      		.word	69
+ 157 000a 4600      		.word	70
+ 158 000c 4700      		.word	71
+ 159 000e 4800      		.word	72
+ 160 0010 9001      		.word	400
+ 161 0012 3A00      		.word	58
+ 162 0014 3B00      		.word	59
+ 163 0016 3C00      		.word	60
+ 164 0018 4400      		.word	68
+ 165 001a 4300      		.word	67
+ 166 001c 4200      		.word	66
+ 167 001e 4100      		.word	65
+ 168 0020 3500      		.word	53
+ 169 0022 1E00      		.word	30
+ 170 0024 1F00      		.word	31
+ 171 0026 2000      		.word	32
+ 172 0028 0000      		.word	0
+ 173 002a 2E00      		.word	46
+ 174 002c 2D00      		.word	45
+ 175 002e 2700      		.word	39
+ 176 0030 2500      		.word	37
+ 177 0032 2400      		.word	36
+ 178 0034 2300      		.word	35
+ 179 0036 2200      		.word	34
+ 180 0038 2A00      		.word	42
+ 181 003a 5300      		.word	83
+ 182 003c 5400      		.word	84
+ 183 003e 0070      		.word	28672
+ 184 0040 2600      		.word	38
+ 185 0042 0000      		.word	0
+ 186 0044 0000      		.word	0
+ 187 0046 2100      		.word	33
+ 188 0048 3000      		.word	48
+ 189 004a 6000      		.word	96
+ 190 004c 5500      		.word	85
+ 191 004e 5600      		.word	86
+ 192 0050 2B00      		.word	43
+ 193 0052 1400      		.word	20
+ 194 0054 1A00      		.word	26
+ 195 0056 0800      		.word	8
+ 196 0058 2F00      		.word	47
+ 197 005a 1300      		.word	19
+ 198 005c 1200      		.word	18
+ 199 005e 0C00      		.word	12
+ 200 0060 1800      		.word	24
+ 201 0062 1C00      		.word	28
+ 202 0064 1700      		.word	23
+ 203 0066 1500      		.word	21
+ 204 0068 3100      		.word	49
+ 205 006a 5F00      		.word	95
+ 206 006c 6100      		.word	97
+ 207 006e 5700      		.word	87
+ 208 0070 3900      		.word	57
+ 209 0072 0400      		.word	4
+ 210 0074 1600      		.word	22
+ 211 0076 0700      		.word	7
+ 212 0078 3400      		.word	52
+ 213 007a 3300      		.word	51
+ 214 007c 0F00      		.word	15
+ 215 007e 0E00      		.word	14
+ 216 0080 0D00      		.word	13
+ 217 0082 0B00      		.word	11
+ 218 0084 0A00      		.word	10
+ 219 0086 0900      		.word	9
+ 220 0088 0000      		.word	0
+ 221 008a 2800      		.word	40
+ 222 008c 5E00      		.word	94
+ 223 008e 0000      		.word	0
+ 224 0090 E100      		.word	225
+ 225 0092 0000      		.word	0
+ 226 0094 1D00      		.word	29
+ 227 0096 1B00      		.word	27
+ 228 0098 0000      		.word	0
+ 229 009a 3800      		.word	56
+ 230 009c 3700      		.word	55
+ 231 009e 3600      		.word	54
+ 232 00a0 1000      		.word	16
+ 233 00a2 1100      		.word	17
+ 234 00a4 1900      		.word	25
+ 235 00a6 0600      		.word	6
+ 236 00a8 E100      		.word	225
+ 237 00aa 5C00      		.word	92
+ 238 00ac 5D00      		.word	93
+ 239 00ae 5800      		.word	88
+ 240 00b0 0000      		.word	0
+ 241 00b2 0000      		.word	0
+ 242 00b4 0500      		.word	5
+ 243 00b6 0000      		.word	0
+ 244 00b8 5900      		.word	89
+ 245 00ba 5A00      		.word	90
+ 246 00bc 5B00      		.word	91
+ 247 00be 0000      		.word	0
+ 248 00c0 E200      		.word	226
+ 249 00c2 E000      		.word	224
+ 250 00c4 2C00      		.word	44
+ 251 00c6 E200      		.word	226
+ 252 00c8 E000      		.word	224
+ 253 00ca 0000      		.word	0
+ 254 00cc 6200      		.word	98
+ 255 00ce 6300      		.word	99
+ 256 00d0 0100      		.word	1
+ 257 00d2 0100      		.word	1
+ 258 00d4 0100      		.word	1
+ 259 00d6 0100      		.word	1
+ 260 00d8 0100      		.word	1
+ 261 00da 0100      		.word	1
+ 262 00dc 0100      		.word	1
+ 263 00de 0100      		.word	1
+ 264 00e0 0100      		.word	1
+ 265 00e2 0100      		.word	1
+ 266 00e4 0100      		.word	1
+ 267 00e6 0100      		.word	1
+ 268 00e8 0100      		.word	1
+ 269 00ea 0100      		.word	1
+ 270 00ec 0100      		.word	1
+ 271 00ee 0100      		.word	1
+ 272 00f0 0100      		.word	1
+ 273 00f2 0100      		.word	1
+ 274 00f4 0100      		.word	1
+ 275 00f6 0100      		.word	1
+ 276 00f8 0100      		.word	1
+ 277 00fa 0100      		.word	1
+ 278 00fc 0100      		.word	1
+ 279 00fe 0100      		.word	1
+ 280 0100 0100      		.word	1
+ 281 0102 0100      		.word	1
+ 282 0104 0100      		.word	1
+ 283 0106 0100      		.word	1
+ 284 0108 0100      		.word	1
+ 285 010a 0100      		.word	1
+ 286 010c 0100      		.word	1
+ 287 010e 0100      		.word	1
+ 288 0110 0100      		.word	1
+ 289 0112 0000      		.word	0
+ 290 0114 0000      		.word	0
+ 291 0116 0100      		.word	1
+ 292 0118 0100      		.word	1
+ 293 011a 0100      		.word	1
+ 294 011c 0100      		.word	1
+ 295 011e 0100      		.word	1
+ 296 0120 0100      		.word	1
+ 297 0122 0100      		.word	1
+ 298 0124 0100      		.word	1
+ 299 0126 0100      		.word	1
+ 300 0128 0100      		.word	1
+ 301 012a 0100      		.word	1
+ 302 012c 0100      		.word	1
+ 303 012e 0100      		.word	1
+ 304 0130 0100      		.word	1
+ 305 0132 0100      		.word	1
+ 306 0134 0100      		.word	1
+ 307 0136 0100      		.word	1
+ 308 0138 0100      		.word	1
+ 309 013a 0100      		.word	1
+ 310 013c 0100      		.word	1
+ 311 013e 0100      		.word	1
+ 312 0140 0100      		.word	1
+ 313 0142 0100      		.word	1
+ 314 0144 0100      		.word	1
+ 315 0146 0100      		.word	1
+ 316 0148 0100      		.word	1
+ 317 014a 0100      		.word	1
+ 318 014c 0100      		.word	1
+ 319 014e 0100      		.word	1
+ 320 0150 0100      		.word	1
+ 321 0152 0100      		.word	1
+ 322 0154 0100      		.word	1
+ 323 0156 0100      		.word	1
+ 324 0158 0100      		.word	1
+ 325 015a 0100      		.word	1
+ 326 015c 0100      		.word	1
+ 327 015e 0100      		.word	1
+ 328 0160 0100      		.word	1
+ 329 0162 0100      		.word	1
+ 330 0164 0100      		.word	1
+ 331 0166 0100      		.word	1
+ 332 0168 0100      		.word	1
+ 333 016a 0100      		.word	1
+ 334 016c 0100      		.word	1
+ 335 016e 0100      		.word	1
+ 336 0170 0100      		.word	1
+ 337 0172 0100      		.word	1
+ 338 0174 0100      		.word	1
+ 339 0176 0100      		.word	1
+ 340 0178 0100      		.word	1
+ 341 017a 0100      		.word	1
+ 342 017c 0100      		.word	1
+ 343 017e 0100      		.word	1
+ 344 0180 0000      		.word	0
+ 345 0182 0000      		.word	0
+ 346 0184 0100      		.word	1
+ 347 0186 0000      		.word	0
+ 348 0188 0100      		.word	1
+ 349 018a 0100      		.word	1
+ 350 018c 0100      		.word	1
+ 351 018e 0100      		.word	1
+ 352 0190 0100      		.word	1
+ 353 0192 0100      		.word	1
+ 354 0194 0100      		.word	1
+ 355 0196 0100      		.word	1
+ 356 0198 0100      		.word	1
+ 357 019a 0100      		.word	1
+ 358 019c 0100      		.word	1
+ 359 019e 0100      		.word	1
+ 360               		.text
+ 361               	.Letext0:
+ 362               		.file 2 "/usr/avr/include/stdint.h"
+ 363               		.file 3 "./tmk_core/common/keyboard.h"
+ 364               		.file 4 "./tmk_core/common/action.h"
+ 365               		.file 5 "./tmk_core/common/keycode.h"
+ 366               		.file 6 "./quantum/quantum_keycodes.h"
+ 367               		.file 7 "./quantum/keymap.h"
+ 368               		.file 8 "./quantum/quantum.h"
+DEFINED SYMBOLS
+                            *ABS*:0000000000000000 keymap.c
+     /tmp/cczuEGlR.s:2      *ABS*:000000000000003e __SP_H__
+     /tmp/cczuEGlR.s:3      *ABS*:000000000000003d __SP_L__
+     /tmp/cczuEGlR.s:4      *ABS*:000000000000003f __SREG__
+     /tmp/cczuEGlR.s:5      *ABS*:0000000000000000 __tmp_reg__
+     /tmp/cczuEGlR.s:6      *ABS*:0000000000000001 __zero_reg__
+     /tmp/cczuEGlR.s:14     .text.process_record_user:0000000000000000 process_record_user
+     /tmp/cczuEGlR.s:17     .text.process_record_user:0000000000000000 .Loc.0
+     /tmp/cczuEGlR.s:18     .text.process_record_user:0000000000000000 L0
+     /tmp/cczuEGlR.s:23     .text.process_record_user:0000000000000000 .Loc.1
+     /tmp/cczuEGlR.s:25     .text.process_record_user:0000000000000002 .Loc.2
+     /tmp/cczuEGlR.s:26     .text.process_record_user:0000000000000002 .Loc.3
+     /tmp/cczuEGlR.s:30     .text.process_record_user:0000000000000006 .Loc.4
+     /tmp/cczuEGlR.s:33     .text.process_record_user:000000000000000a .Loc.5
+     /tmp/cczuEGlR.s:37     .text.process_record_user:0000000000000010 .Loc.6
+     /tmp/cczuEGlR.s:38     .text.process_record_user:0000000000000010 .Loc.7
+     /tmp/cczuEGlR.s:40     .text.process_record_user:0000000000000010 .Loc.8
+     /tmp/cczuEGlR.s:41     .text.process_record_user:0000000000000010 .Loc.9
+     /tmp/cczuEGlR.s:145    .progmem.data.__c.0:0000000000000000 __c.0
+     /tmp/cczuEGlR.s:48     .text.process_record_user:0000000000000018 .Loc.10
+     /tmp/cczuEGlR.s:49     .text.process_record_user:0000000000000018 .Loc.11
+     /tmp/cczuEGlR.s:53     .text.process_record_user:000000000000001c L0
+     /tmp/cczuEGlR.s:59     .text.led_set:0000000000000000 led_set
+     /tmp/cczuEGlR.s:62     .text.led_set:0000000000000000 .Loc.12
+     /tmp/cczuEGlR.s:63     .text.led_set:0000000000000000 L0
+     /tmp/cczuEGlR.s:68     .text.led_set:0000000000000000 .Loc.13
+     /tmp/cczuEGlR.s:69     .text.led_set:0000000000000000 .Loc.14
+     /tmp/cczuEGlR.s:72     .text.led_set:0000000000000004 .Loc.15
+     /tmp/cczuEGlR.s:73     .text.led_set:0000000000000004 .Loc.16
+     /tmp/cczuEGlR.s:75     .text.led_set:0000000000000006 .Loc.17
+     /tmp/cczuEGlR.s:77     .text.led_set:0000000000000006 .Loc.18
+     /tmp/cczuEGlR.s:78     .text.led_set:0000000000000006 .Loc.19
+     /tmp/cczuEGlR.s:80     .text.led_set:0000000000000008 .Loc.20
+     /tmp/cczuEGlR.s:81     .text.led_set:0000000000000008 .Loc.21
+     /tmp/cczuEGlR.s:84     .text.led_set:000000000000000c .Loc.22
+     /tmp/cczuEGlR.s:85     .text.led_set:000000000000000c .Loc.23
+     /tmp/cczuEGlR.s:87     .text.led_set:000000000000000e .Loc.24
+     /tmp/cczuEGlR.s:89     .text.led_set:000000000000000e .Loc.25
+     /tmp/cczuEGlR.s:90     .text.led_set:000000000000000e .Loc.26
+     /tmp/cczuEGlR.s:92     .text.led_set:0000000000000010 .Loc.27
+     /tmp/cczuEGlR.s:93     .text.led_set:0000000000000010 .Loc.28
+     /tmp/cczuEGlR.s:96     .text.led_set:0000000000000014 .Loc.29
+     /tmp/cczuEGlR.s:97     .text.led_set:0000000000000014 .Loc.30
+     /tmp/cczuEGlR.s:99     .text.led_set:0000000000000016 .Loc.31
+     /tmp/cczuEGlR.s:101    .text.led_set:0000000000000016 .Loc.32
+     /tmp/cczuEGlR.s:102    .text.led_set:0000000000000016 .Loc.33
+     /tmp/cczuEGlR.s:104    .text.led_set:0000000000000018 .Loc.34
+     /tmp/cczuEGlR.s:105    .text.led_set:0000000000000018 .Loc.35
+     /tmp/cczuEGlR.s:108    .text.led_set:000000000000001c .Loc.36
+     /tmp/cczuEGlR.s:109    .text.led_set:000000000000001c .Loc.37
+     /tmp/cczuEGlR.s:111    .text.led_set:000000000000001e .Loc.38
+     /tmp/cczuEGlR.s:113    .text.led_set:000000000000001e .Loc.39
+     /tmp/cczuEGlR.s:114    .text.led_set:000000000000001e .Loc.40
+     /tmp/cczuEGlR.s:117    .text.led_set:0000000000000020 .Loc.41
+     /tmp/cczuEGlR.s:120    .text.led_set:0000000000000022 .Loc.42
+     /tmp/cczuEGlR.s:121    .text.led_set:0000000000000022 .Loc.43
+     /tmp/cczuEGlR.s:125    .text.led_set:0000000000000026 .Loc.44
+     /tmp/cczuEGlR.s:126    .text.led_set:0000000000000026 .Loc.45
+     /tmp/cczuEGlR.s:130    .text.led_set:000000000000002a .Loc.46
+     /tmp/cczuEGlR.s:131    .text.led_set:000000000000002a .Loc.47
+     /tmp/cczuEGlR.s:135    .text.led_set:000000000000002e .Loc.48
+     /tmp/cczuEGlR.s:136    .text.led_set:000000000000002e .Loc.49
+     /tmp/cczuEGlR.s:139    .text.led_set:0000000000000032 L0
+     /tmp/cczuEGlR.s:151    .progmem.data.keymaps:0000000000000000 keymaps
+     /tmp/cczuEGlR.s:56     .text.process_record_user:000000000000001c L0
+     /tmp/cczuEGlR.s:142    .text.led_set:0000000000000032 L0
+                     .debug_frame:0000000000000000 L0
+     /tmp/cczuEGlR.s:47     .text.process_record_user:0000000000000018 .L2
+     /tmp/cczuEGlR.s:119    .text.led_set:0000000000000022 .L7
+     /tmp/cczuEGlR.s:124    .text.led_set:0000000000000026 .L9
+     /tmp/cczuEGlR.s:129    .text.led_set:000000000000002a .L11
+     /tmp/cczuEGlR.s:134    .text.led_set:000000000000002e .L13
+     /tmp/cczuEGlR.s:76     .text.led_set:0000000000000006 .L15
+     /tmp/cczuEGlR.s:88     .text.led_set:000000000000000e .L16
+     /tmp/cczuEGlR.s:100    .text.led_set:0000000000000016 .L17
+     /tmp/cczuEGlR.s:112    .text.led_set:000000000000001e .L18
+     /tmp/cczuEGlR.s:1649   .debug_abbrev:0000000000000000 .Ldebug_abbrev0
+     /tmp/cczuEGlR.s:2146   .debug_ranges:0000000000000000 .Ldebug_ranges0
+     /tmp/cczuEGlR.s:2154   .debug_line:0000000000000000 .Ldebug_line0
+     /tmp/cczuEGlR.s:61     .text.led_set:0000000000000000 .LFB112
+     /tmp/cczuEGlR.s:140    .text.led_set:0000000000000032 .LFE112
+     /tmp/cczuEGlR.s:16     .text.process_record_user:0000000000000000 .LFB111
+     /tmp/cczuEGlR.s:54     .text.process_record_user:000000000000001c .LFE111
+     /tmp/cczuEGlR.s:2079   .debug_loc:0000000000000006 .LLST0
+     /tmp/cczuEGlR.s:2072   .debug_loc:0000000000000000 .LVUS0
+     /tmp/cczuEGlR.s:2112   .debug_loc:0000000000000040 .LLST1
+     /tmp/cczuEGlR.s:2107   .debug_loc:000000000000003c .LVUS1
+     /tmp/cczuEGlR.s:39     .text.process_record_user:0000000000000010 .LBB2
+     /tmp/cczuEGlR.s:42     .text.process_record_user:0000000000000010 .LBE2
+     /tmp/cczuEGlR.s:46     .text.process_record_user:0000000000000018 .LVL2
+     /tmp/cczuEGlR.s:15     .text.process_record_user:0000000000000000 .LVL0
+     /tmp/cczuEGlR.s:29     .text.process_record_user:0000000000000006 .LVL1
+     /tmp/cczuEGlR.s:370    .debug_info:0000000000000000 .Ldebug_info0
+
+UNDEFINED SYMBOLS
+send_string
