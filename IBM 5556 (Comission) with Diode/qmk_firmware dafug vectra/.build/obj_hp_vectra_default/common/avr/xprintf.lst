@@ -1,0 +1,606 @@
+   1               	# 0 "./tmk_core/common/avr/xprintf.S"
+   2               	# 0 "<built-in>"
+   3               	# 0 "<command-line>"
+   4               	# 1 "./keyboards/hp_vectra/config.h" 1
+   1               	#ifndef CONFIG_H
+   2               	#define CONFIG_H
+   3               	
+   4               	#include "config_common.h"
+   1               	#ifndef CONFIG_DEFINITIONS_H
+   5               	
+   0               	
+   1               	;---------------------------------------------------------------------------;
+   2               	; Extended itoa, puts, printf and atoi                     (C)ChaN, 2011
+   3               	;---------------------------------------------------------------------------;
+   4               	
+  19               	.list
+  20               	
+  21               	#ifdef SPM_PAGESIZE	// Recent devices have "lpm Rd,Z+" and "movw".
+  22               	.macro	_LPMI	reg
+  23               		lpm	\reg, Z+
+  24               	.endm
+  25               	.macro	_MOVW	dh,dl, sh,sl
+  26               		movw	\dl, \sl
+  27               	.endm
+  28               	#else			// Earlier devices do not have "lpm Rd,Z+" nor "movw".
+  29               	.macro	_LPMI	reg
+  30               		lpm
+  31               		mov	\reg, r0
+  32               		adiw	ZL, 1
+  33               	.endm
+  34               	.macro	_MOVW	dh,dl, sh,sl
+  35               		mov	\dl, \sl
+  36               		mov	\dh, \sh
+  37               	.endm
+  38               	#endif
+  39               	
+  40               	
+  41               	
+  42               	;---------------------------------------------------------------------------
+  43               	; Stub function to forward to user output function
+  44               	;
+  45               	;Prototype: void xputc (char chr	// a character to be output
+  46               	;			);
+  47               	;Size: 12/12 words
+  48               	
+  49               	.section .bss
+  50               	.global xfunc_out	; xfunc_out must be initialized before using this module.
+  51 0000 0000      	xfunc_out:	.ds.w	1
+  52               	.section .text
+  53               	
+  54               	
+  55               	.func xputc
+  56               	.global xputc
+  57               	xputc:
+  58               	#if CR_CRLF
+  59:./tmk_core/common/avr/xprintf.S **** 	cpi	r24, 10		;LF --> CRLF
+  60:./tmk_core/common/avr/xprintf.S **** 	brne	1f		;
+  61:./tmk_core/common/avr/xprintf.S **** 	ldi	r24, 13		;
+  62:./tmk_core/common/avr/xprintf.S **** 	rcall	1f		;
+  63:./tmk_core/common/avr/xprintf.S **** 	ldi	r24, 10		;/
+  64:./tmk_core/common/avr/xprintf.S **** 1:
+  65:./tmk_core/common/avr/xprintf.S **** #endif
+  66:./tmk_core/common/avr/xprintf.S **** 	push	ZH
+  67:./tmk_core/common/avr/xprintf.S **** 	push	ZL
+  68:./tmk_core/common/avr/xprintf.S **** 	lds	ZL, xfunc_out+0	;Pointer to the registered output function.
+  69:./tmk_core/common/avr/xprintf.S **** 	lds	ZH, xfunc_out+1	;/
+  70:./tmk_core/common/avr/xprintf.S **** 	sbiw	ZL, 0		;Skip if null
+  71:./tmk_core/common/avr/xprintf.S **** 	breq	2f		;/
+  72:./tmk_core/common/avr/xprintf.S **** 	icall
+  73:./tmk_core/common/avr/xprintf.S **** 2:	pop	ZL
+  74:./tmk_core/common/avr/xprintf.S **** 	pop	ZH
+  75:./tmk_core/common/avr/xprintf.S **** 	ret
+  76               	.endfunc
+  77               	
+  78               	
+  79               	
+  80               	;---------------------------------------------------------------------------
+  81               	; Direct ROM string output
+  82               	;
+  83               	;Prototype: void xputs (const char *str_p // rom string to be output
+  84               	;			);
+  85               	
+  86               	.func xputs
+  87               	.global xputs
+  88               	xputs:
+  89:./tmk_core/common/avr/xprintf.S **** 	_MOVW	ZH,ZL, r25,r24	; Z = pointer to rom string
+  90:./tmk_core/common/avr/xprintf.S **** 1:	_LPMI	r24
+  91:./tmk_core/common/avr/xprintf.S **** 	cpi	r24, 0
+  92:./tmk_core/common/avr/xprintf.S **** 	breq	2f
+  93:./tmk_core/common/avr/xprintf.S **** 	rcall	xputc
+  94:./tmk_core/common/avr/xprintf.S **** 	rjmp	1b
+  95:./tmk_core/common/avr/xprintf.S **** 2:	ret
+  96               	.endfunc
+  97               	
+  98               	
+  99               	;---------------------------------------------------------------------------
+ 100               	; Extended direct numeral string output (32bit version)
+ 101               	;
+ 102               	;Prototype: void xitoa (long value,	// value to be output
+ 103               	;                       char radix,	// radix
+ 104               	;                       char width);	// minimum width
+ 105               	;
+ 106               	
+ 107               	.func xitoa
+ 108               	.global xitoa
+ 109               	xitoa:
+ 110               					;r25:r22 = value, r20 = base, r18 = digits
+ 111:./tmk_core/common/avr/xprintf.S **** 	clr	r31		;r31 = stack level
+ 112:./tmk_core/common/avr/xprintf.S **** 	ldi	r30, ' '	;r30 = sign
+ 113:./tmk_core/common/avr/xprintf.S **** 	ldi	r19, ' '	;r19 = filler
+ 114:./tmk_core/common/avr/xprintf.S **** 	sbrs	r20, 7		;When base indicates signd format and the value
+ 115:./tmk_core/common/avr/xprintf.S **** 	rjmp	0f		;is minus, add a '-'.
+ 116:./tmk_core/common/avr/xprintf.S **** 	neg	r20		;
+ 117:./tmk_core/common/avr/xprintf.S **** 	sbrs	r25, 7		;
+ 118:./tmk_core/common/avr/xprintf.S **** 	rjmp	0f		;
+ 119:./tmk_core/common/avr/xprintf.S **** 	ldi	r30, '-'	;
+ 120:./tmk_core/common/avr/xprintf.S **** 	com	r22		;
+ 121:./tmk_core/common/avr/xprintf.S **** 	com	r23		;
+ 122:./tmk_core/common/avr/xprintf.S **** 	com	r24		;
+ 123:./tmk_core/common/avr/xprintf.S **** 	com	r25		;
+ 124:./tmk_core/common/avr/xprintf.S **** 	adc	r22, r1		;
+ 125:./tmk_core/common/avr/xprintf.S **** 	adc	r23, r1		;
+ 126:./tmk_core/common/avr/xprintf.S **** 	adc	r24, r1		;
+ 127:./tmk_core/common/avr/xprintf.S **** 	adc	r25, r1		;/
+ 128:./tmk_core/common/avr/xprintf.S **** 0:	sbrs	r18, 7		;When digits indicates zero filled,
+ 129:./tmk_core/common/avr/xprintf.S **** 	rjmp	1f		;filler is '0'.
+ 130:./tmk_core/common/avr/xprintf.S **** 	neg	r18		;
+ 131:./tmk_core/common/avr/xprintf.S **** 	ldi	r19, '0'	;/
+ 132               					;----- string conversion loop
+ 133:./tmk_core/common/avr/xprintf.S **** 1:	ldi	r21, 32		;r26 = r25:r22 % r20
+ 134:./tmk_core/common/avr/xprintf.S **** 	clr	r26		;r25:r22 /= r20
+ 135:./tmk_core/common/avr/xprintf.S **** 2:	lsl	r22		;
+ 136:./tmk_core/common/avr/xprintf.S **** 	rol	r23		;
+ 137:./tmk_core/common/avr/xprintf.S **** 	rol	r24		;
+ 138:./tmk_core/common/avr/xprintf.S **** 	rol	r25		;
+ 139:./tmk_core/common/avr/xprintf.S **** 	rol	r26		;
+ 140:./tmk_core/common/avr/xprintf.S **** 	cp	r26, r20	;
+ 141:./tmk_core/common/avr/xprintf.S **** 	brcs	3f		;
+ 142:./tmk_core/common/avr/xprintf.S **** 	sub	r26, r20	;
+ 143:./tmk_core/common/avr/xprintf.S **** 	inc	r22		;
+ 144:./tmk_core/common/avr/xprintf.S **** 3:	dec	r21		;
+ 145:./tmk_core/common/avr/xprintf.S **** 	brne	2b		;/
+ 146:./tmk_core/common/avr/xprintf.S **** 	cpi	r26, 10		;r26 is a numeral digit '0'-'F'
+ 147:./tmk_core/common/avr/xprintf.S **** 	brcs	4f		;
+ 148:./tmk_core/common/avr/xprintf.S **** 	subi	r26, -7		;
+ 149:./tmk_core/common/avr/xprintf.S **** 4:	subi	r26, -'0'	;/
+ 150:./tmk_core/common/avr/xprintf.S **** 	push	r26		;Stack it
+ 151:./tmk_core/common/avr/xprintf.S **** 	inc	r31		;/
+ 152:./tmk_core/common/avr/xprintf.S **** 	cp	r22, r1		;Repeat until r25:r22 gets zero
+ 153:./tmk_core/common/avr/xprintf.S **** 	cpc	r23, r1		;
+ 154:./tmk_core/common/avr/xprintf.S **** 	cpc	r24, r1		;
+ 155:./tmk_core/common/avr/xprintf.S **** 	cpc	r25, r1		;
+ 156:./tmk_core/common/avr/xprintf.S **** 	brne	1b		;/
+ 157               	
+ 158:./tmk_core/common/avr/xprintf.S **** 	cpi	r30, '-'	;Minus sign if needed
+ 159:./tmk_core/common/avr/xprintf.S **** 	brne	5f		;
+ 160:./tmk_core/common/avr/xprintf.S **** 	push	r30		;
+ 161:./tmk_core/common/avr/xprintf.S **** 	inc	r31		;/
+ 162:./tmk_core/common/avr/xprintf.S **** 5:	cp	r31, r18	;Filler
+ 163:./tmk_core/common/avr/xprintf.S **** 	brcc	6f		;
+ 164:./tmk_core/common/avr/xprintf.S **** 	push	r19		;
+ 165:./tmk_core/common/avr/xprintf.S **** 	inc	r31		;
+ 166:./tmk_core/common/avr/xprintf.S **** 	rjmp	5b		;/
+ 167               	
+ 168:./tmk_core/common/avr/xprintf.S **** 6:	pop	r24		;Flush stacked digits and exit
+ 169:./tmk_core/common/avr/xprintf.S **** 	rcall	xputc		;
+ 170:./tmk_core/common/avr/xprintf.S **** 	dec	r31		;
+ 171:./tmk_core/common/avr/xprintf.S **** 	brne	6b		;/
+ 172               	
+ 173:./tmk_core/common/avr/xprintf.S **** 	ret
+ 174               	.endfunc
+ 175               	
+ 176               	
+ 177               	
+ 178               	;---------------------------------------------------------------------------;
+ 179               	; Formatted string output (16/32bit version)
+ 180               	;
+ 181               	;Prototype:
+ 182               	; void __xprintf (const char *format_p, ...);
+ 183               	; void __xsprintf(char*, const char *format_p, ...);
+ 184               	; void __xfprintf(void(*func)(char), const char *format_p, ...);
+ 185               	;
+ 186               	
+ 187               	#if USE_XPRINTF
+ 188               	
+ 189               	.func xvprintf
+ 190               	xvprintf:
+ 191:./tmk_core/common/avr/xprintf.S **** 	ld	ZL, Y+		;Z = pointer to format string
+ 192:./tmk_core/common/avr/xprintf.S **** 	ld	ZH, Y+		;/
+ 193               	
+ 194:./tmk_core/common/avr/xprintf.S **** 0:	_LPMI	r24		;Get a format char
+ 195:./tmk_core/common/avr/xprintf.S **** 	cpi	r24, 0		;End of format string?
+ 196:./tmk_core/common/avr/xprintf.S **** 	breq	90f		;/
+ 197:./tmk_core/common/avr/xprintf.S **** 	cpi	r24, '%'	;Is format?
+ 198:./tmk_core/common/avr/xprintf.S **** 	breq	20f		;/
+ 199:./tmk_core/common/avr/xprintf.S **** 1:	rcall	xputc		;Put a normal character
+ 200:./tmk_core/common/avr/xprintf.S **** 	rjmp	0b		;/
+ 201:./tmk_core/common/avr/xprintf.S **** 90:	ret
+ 202               	
+ 203:./tmk_core/common/avr/xprintf.S **** 20:	ldi	r18, 0		;r18: digits
+ 204:./tmk_core/common/avr/xprintf.S **** 	clt			;T: filler
+ 205:./tmk_core/common/avr/xprintf.S **** 	_LPMI	r21		;Get flags
+ 206:./tmk_core/common/avr/xprintf.S **** 	cpi	r21, '%'	;Is a %?
+ 207:./tmk_core/common/avr/xprintf.S **** 	breq	1b		;/
+ 208:./tmk_core/common/avr/xprintf.S **** 	cpi	r21, '0'	;Zero filled?
+ 209:./tmk_core/common/avr/xprintf.S **** 	brne	23f		;
+ 210:./tmk_core/common/avr/xprintf.S **** 	set			;/
+ 211:./tmk_core/common/avr/xprintf.S **** 22:	_LPMI	r21		;Get width
+ 212:./tmk_core/common/avr/xprintf.S **** 23:	cpi	r21, '9'+1	;
+ 213:./tmk_core/common/avr/xprintf.S **** 	brcc	24f		;
+ 214:./tmk_core/common/avr/xprintf.S **** 	subi	r21, '0'	;
+ 215:./tmk_core/common/avr/xprintf.S **** 	brcs	90b		;
+ 216:./tmk_core/common/avr/xprintf.S **** 	lsl	r18		;
+ 217:./tmk_core/common/avr/xprintf.S **** 	mov	r0, r18		;
+ 218:./tmk_core/common/avr/xprintf.S **** 	lsl	r18		;
+ 219:./tmk_core/common/avr/xprintf.S **** 	lsl	r18		;
+ 220:./tmk_core/common/avr/xprintf.S **** 	add	r18, r0		;
+ 221:./tmk_core/common/avr/xprintf.S **** 	add	r18, r21	;
+ 222:./tmk_core/common/avr/xprintf.S **** 	rjmp	22b		;/
+ 223               	
+ 224:./tmk_core/common/avr/xprintf.S **** 24:	brtc	25f		;get value (low word)
+ 225:./tmk_core/common/avr/xprintf.S **** 	neg	r18		;
+ 226:./tmk_core/common/avr/xprintf.S **** 25:	ld	r24, Y+		;
+ 227:./tmk_core/common/avr/xprintf.S **** 	ld	r25, Y+		;/
+ 228:./tmk_core/common/avr/xprintf.S **** 	cpi	r21, 'c'	;Is type character?
+ 229:./tmk_core/common/avr/xprintf.S **** 	breq	1b		;/
+ 230:./tmk_core/common/avr/xprintf.S **** 	cpi	r21, 's'	;Is type RAM string?
+ 231:./tmk_core/common/avr/xprintf.S **** 	breq	50f		;/
+ 232:./tmk_core/common/avr/xprintf.S **** 	cpi	r21, 'S'	;Is type ROM string?
+ 233:./tmk_core/common/avr/xprintf.S **** 	breq	60f		;/
+ 234:./tmk_core/common/avr/xprintf.S **** 	_MOVW	r23,r22,r25,r24	;r25:r22 = value
+ 235:./tmk_core/common/avr/xprintf.S **** 	clr	r24		;
+ 236:./tmk_core/common/avr/xprintf.S **** 	clr	r25		;
+ 237:./tmk_core/common/avr/xprintf.S **** 	clt			;/
+ 238:./tmk_core/common/avr/xprintf.S **** 	cpi	r21, 'l'	;Is long int?
+ 239:./tmk_core/common/avr/xprintf.S **** 	brne	26f		;
+ 240:./tmk_core/common/avr/xprintf.S **** 	ld	r24, Y+		;get value (high word)
+ 241:./tmk_core/common/avr/xprintf.S **** 	ld	r25, Y+		;
+ 242:./tmk_core/common/avr/xprintf.S **** 	set			;
+ 243:./tmk_core/common/avr/xprintf.S **** 	_LPMI	r21		;/
+ 244:./tmk_core/common/avr/xprintf.S **** 26:	cpi	r21, 'd'	;Is type signed decimal?
+ 245:./tmk_core/common/avr/xprintf.S **** 	brne	27f		;/
+ 246:./tmk_core/common/avr/xprintf.S **** 	ldi	r20, -10	;
+ 247:./tmk_core/common/avr/xprintf.S **** 	brts	40f		;
+ 248:./tmk_core/common/avr/xprintf.S **** 	sbrs	r23, 7		;
+ 249:./tmk_core/common/avr/xprintf.S **** 	rjmp	40f		;
+ 250:./tmk_core/common/avr/xprintf.S **** 	ldi	r24, -1		;
+ 251:./tmk_core/common/avr/xprintf.S **** 	ldi	r25, -1		;
+ 252:./tmk_core/common/avr/xprintf.S **** 	rjmp	40f		;/
+ 253:./tmk_core/common/avr/xprintf.S **** 27:	cpi	r21, 'u'	;Is type unsigned decimal?
+ 254:./tmk_core/common/avr/xprintf.S **** 	ldi	r20, 10		;
+ 255:./tmk_core/common/avr/xprintf.S **** 	breq	40f		;/
+ 256:./tmk_core/common/avr/xprintf.S **** 	cpi	r21, 'X'	;Is type hexdecimal?
+ 257:./tmk_core/common/avr/xprintf.S **** 	ldi	r20, 16		;
+ 258:./tmk_core/common/avr/xprintf.S **** 	breq	40f		;/
+ 259:./tmk_core/common/avr/xprintf.S **** 	cpi	r21, 'b'	;Is type binary?
+ 260:./tmk_core/common/avr/xprintf.S **** 	ldi	r20, 2		;
+ 261:./tmk_core/common/avr/xprintf.S **** 	breq	40f		;/
+ 262:./tmk_core/common/avr/xprintf.S **** 	ret			;abort
+ 263:./tmk_core/common/avr/xprintf.S **** 40:	push	ZH		;Output the value
+ 264:./tmk_core/common/avr/xprintf.S **** 	push	ZL		;
+ 265:./tmk_core/common/avr/xprintf.S **** 	rcall	xitoa		;
+ 266:./tmk_core/common/avr/xprintf.S **** 42:	pop	ZL		;
+ 267:./tmk_core/common/avr/xprintf.S **** 	pop	ZH		;
+ 268:./tmk_core/common/avr/xprintf.S **** 	rjmp	0b		;/
+ 269               	
+ 270:./tmk_core/common/avr/xprintf.S **** 50:	push	ZH		;Put a string on the RAM
+ 271:./tmk_core/common/avr/xprintf.S **** 	push	ZL
+ 272:./tmk_core/common/avr/xprintf.S **** 	_MOVW	ZH,ZL, r25,r24
+ 273:./tmk_core/common/avr/xprintf.S **** 51:	ld	r24, Z+
+ 274:./tmk_core/common/avr/xprintf.S **** 	cpi	r24, 0
+ 275:./tmk_core/common/avr/xprintf.S **** 	breq	42b
+ 276:./tmk_core/common/avr/xprintf.S **** 	rcall	xputc
+ 277:./tmk_core/common/avr/xprintf.S **** 	rjmp	51b
+ 278               	
+ 279:./tmk_core/common/avr/xprintf.S **** 60:	push	ZH		;Put a string on the ROM
+ 280:./tmk_core/common/avr/xprintf.S **** 	push	ZL
+ 281:./tmk_core/common/avr/xprintf.S **** 	rcall	xputs
+ 282:./tmk_core/common/avr/xprintf.S **** 	rjmp	42b
+ 283               	.endfunc
+ 284               	
+ 285               	
+ 286               	.func __xprintf
+ 287               	.global __xprintf
+ 288               	__xprintf:
+ 289:./tmk_core/common/avr/xprintf.S **** 	push	YH
+ 290:./tmk_core/common/avr/xprintf.S **** 	push	YL
+ 291:./tmk_core/common/avr/xprintf.S **** 	in	YL, _SFR_IO_ADDR(SPL)
+ 292               	#ifdef SPH
+ 293:./tmk_core/common/avr/xprintf.S **** 	in	YH, _SFR_IO_ADDR(SPH)
+ 294               	#else
+ 295               		clr	YH
+ 296               	#endif
+ 297:./tmk_core/common/avr/xprintf.S **** 	adiw	YL, 5		;Y = pointer to arguments
+ 298:./tmk_core/common/avr/xprintf.S **** 	rcall	xvprintf
+ 299:./tmk_core/common/avr/xprintf.S **** 	pop	YL
+ 300:./tmk_core/common/avr/xprintf.S **** 	pop	YH
+ 301:./tmk_core/common/avr/xprintf.S **** 	ret
+ 302               	.endfunc
+ 303               	
+ 304               	
+ 305               	#if USE_XSPRINTF
+ 306               	
+ 307               	.func __xsprintf
+ 308               	putram:
+ 309               		_MOVW	ZH,ZL, r15,r14
+ 310               		st	Z+, r24
+ 311               		_MOVW	r15,r14, ZH,ZL
+ 312               		ret
+ 313               	.global __xsprintf
+ 314               	__xsprintf:
+ 315               		push	YH
+ 316               		push	YL
+ 317               		in	YL, _SFR_IO_ADDR(SPL)
+ 318               	#ifdef SPH
+ 319               		in	YH, _SFR_IO_ADDR(SPH)
+ 320               	#else
+ 321               		clr	YH
+ 322               	#endif
+ 323               		adiw	YL, 5		;Y = pointer to arguments
+ 324               		lds	ZL, xfunc_out+0	;Save registered output function
+ 325               		lds	ZH, xfunc_out+1	;
+ 326               		push	ZL		;
+ 327               		push	ZH		;/
+ 328               		ldi	ZL, lo8(pm(putram));Set local output function
+ 329               		ldi	ZH, hi8(pm(putram));
+ 330               		sts	xfunc_out+0, ZL	;
+ 331               		sts	xfunc_out+1, ZH	;/
+ 332               		push	r15		;Initialize pointer to string buffer
+ 333               		push	r14		;
+ 334               		ld	r14, Y+		;
+ 335               		ld	r15, Y+		;/
+ 336               		rcall	xvprintf
+ 337               		_MOVW	ZH,ZL, r15,r14	;Terminate string
+ 338               		st	Z, r1		;
+ 339               		pop	r14		;
+ 340               		pop	r15		;/
+ 341               		pop	ZH		;Restore registered output function
+ 342               		pop	ZL		;
+ 343               		sts	xfunc_out+0, ZL	;
+ 344               		sts	xfunc_out+1, ZH	;/
+ 345               		pop	YL
+ 346               		pop	YH
+ 347               		ret
+ 348               	.endfunc
+ 349               	#endif
+ 350               	
+ 351               	
+ 352               	#if USE_XFPRINTF
+ 353               	.func __xfprintf
+ 354               	.global __xfprintf
+ 355               	__xfprintf:
+ 356               		push	YH
+ 357               		push	YL
+ 358               		in	YL, _SFR_IO_ADDR(SPL)
+ 359               	#ifdef SPH
+ 360               		in	YH, _SFR_IO_ADDR(SPH)
+ 361               	#else
+ 362               		clr	YH
+ 363               	#endif
+ 364               		adiw	YL, 5		;Y = pointer to arguments
+ 365               		lds	ZL, xfunc_out+0	;Save registered output function
+ 366               		lds	ZH, xfunc_out+1	;
+ 367               		push	ZL		;
+ 368               		push	ZH		;/
+ 369               		ld	ZL, Y+		;Set output function
+ 370               		ld	ZH, Y+		;
+ 371               		sts	xfunc_out+0, ZL	;
+ 372               		sts	xfunc_out+1, ZH	;/
+ 373               		rcall	xvprintf
+ 374               		pop	ZH		;Restore registered output function
+ 375               		pop	ZL		;
+ 376               		sts	xfunc_out+0, ZL	;
+ 377               		sts	xfunc_out+1, ZH	;/
+ 378               		pop	YL
+ 379               		pop	YH
+ 380               		ret
+ 381               	.endfunc
+ 382               	#endif
+ 383               	
+ 384               	#endif
+ 385               	
+ 386               	
+ 387               	
+ 388               	;---------------------------------------------------------------------------
+ 389               	; Extended numeral string input
+ 390               	;
+ 391               	;Prototype:
+ 392               	; char xatoi (           /* 1: Successful, 0: Failed */
+ 393               	;      const char **str, /* pointer to pointer to source string */
+ 394               	;      long *res         /* result */
+ 395               	; );
+ 396               	;
+DEFINED SYMBOLS
+./tmk_core/common/avr/xprintf.S:51     .bss:0000000000000000 xfunc_out
+./tmk_core/common/avr/xprintf.S:57     .text:0000000000000000 xputc
+./tmk_core/common/avr/xprintf.S:88     .text:0000000000000018 xputs
+./tmk_core/common/avr/xprintf.S:109    .text:0000000000000026 xitoa
+./tmk_core/common/avr/xprintf.S:190    .text:000000000000009c xvprintf
+./tmk_core/common/avr/xprintf.S:288    .text:000000000000014a __xprintf
+./tmk_core/common/avr/xprintf.S:73     .text:0000000000000012 .L21
+./tmk_core/common/avr/xprintf.S:95     .text:0000000000000024 .L22
+./tmk_core/common/avr/xprintf.S:90     .text:000000000000001a .L11
+./tmk_core/common/avr/xprintf.S:128    .text:0000000000000048 .L1
+./tmk_core/common/avr/xprintf.S:133    .text:0000000000000050 .L12
+./tmk_core/common/avr/xprintf.S:144    .text:0000000000000066 .L31
+./tmk_core/common/avr/xprintf.S:135    .text:0000000000000054 .L23
+./tmk_core/common/avr/xprintf.S:149    .text:0000000000000070 .L41
+./tmk_core/common/avr/xprintf.S:162    .text:0000000000000088 .L51
+./tmk_core/common/avr/xprintf.S:168    .text:0000000000000092 .L61
+./tmk_core/common/avr/xprintf.S:201    .text:00000000000000ae .L901
+./tmk_core/common/avr/xprintf.S:203    .text:00000000000000b0 .L201
+./tmk_core/common/avr/xprintf.S:194    .text:00000000000000a0 .L2
+./tmk_core/common/avr/xprintf.S:199    .text:00000000000000aa .L13
+./tmk_core/common/avr/xprintf.S:212    .text:00000000000000c2 .L231
+./tmk_core/common/avr/xprintf.S:224    .text:00000000000000d8 .L241
+./tmk_core/common/avr/xprintf.S:211    .text:00000000000000c0 .L221
+./tmk_core/common/avr/xprintf.S:226    .text:00000000000000dc .L251
+./tmk_core/common/avr/xprintf.S:270    .text:0000000000000132 .L501
+./tmk_core/common/avr/xprintf.S:279    .text:0000000000000142 .L601
+./tmk_core/common/avr/xprintf.S:244    .text:0000000000000100 .L261
+./tmk_core/common/avr/xprintf.S:253    .text:0000000000000112 .L271
+./tmk_core/common/avr/xprintf.S:263    .text:0000000000000126 .L401
+./tmk_core/common/avr/xprintf.S:266    .text:000000000000012c .L421
+./tmk_core/common/avr/xprintf.S:273    .text:0000000000000138 .L511
+     /tmp/ccdujXz3.s:0      .text:0000000000000000 L0F0
+./tmk_core/common/avr/xprintf.S:66     .text:0000000000000000 L0F1
+./tmk_core/common/avr/xprintf.S:66     .text:0000000000000000 L0L0
+./tmk_core/common/avr/xprintf.S:67     .text:0000000000000002 L0L1
+./tmk_core/common/avr/xprintf.S:68     .text:0000000000000004 L0L2
+./tmk_core/common/avr/xprintf.S:69     .text:0000000000000008 L0L3
+./tmk_core/common/avr/xprintf.S:70     .text:000000000000000c L0L4
+./tmk_core/common/avr/xprintf.S:71     .text:000000000000000e L0L5
+./tmk_core/common/avr/xprintf.S:72     .text:0000000000000010 L0L6
+./tmk_core/common/avr/xprintf.S:73     .text:0000000000000012 L0L7
+./tmk_core/common/avr/xprintf.S:74     .text:0000000000000014 L0L8
+./tmk_core/common/avr/xprintf.S:75     .text:0000000000000016 L0L9
+./tmk_core/common/avr/xprintf.S:76     .text:0000000000000018 L0endfunc0
+./tmk_core/common/avr/xprintf.S:89     .text:0000000000000018 L0L10
+./tmk_core/common/avr/xprintf.S:90     .text:000000000000001a L0L11
+./tmk_core/common/avr/xprintf.S:91     .text:000000000000001c L0L12
+./tmk_core/common/avr/xprintf.S:92     .text:000000000000001e L0L13
+./tmk_core/common/avr/xprintf.S:93     .text:0000000000000020 L0L14
+./tmk_core/common/avr/xprintf.S:94     .text:0000000000000022 L0L15
+./tmk_core/common/avr/xprintf.S:95     .text:0000000000000024 L0L16
+./tmk_core/common/avr/xprintf.S:96     .text:0000000000000026 L0endfunc1
+./tmk_core/common/avr/xprintf.S:111    .text:0000000000000026 L0L17
+./tmk_core/common/avr/xprintf.S:112    .text:0000000000000028 L0L18
+./tmk_core/common/avr/xprintf.S:113    .text:000000000000002a L0L19
+./tmk_core/common/avr/xprintf.S:114    .text:000000000000002c L0L20
+./tmk_core/common/avr/xprintf.S:115    .text:000000000000002e L0L21
+./tmk_core/common/avr/xprintf.S:116    .text:0000000000000030 L0L22
+./tmk_core/common/avr/xprintf.S:117    .text:0000000000000032 L0L23
+./tmk_core/common/avr/xprintf.S:118    .text:0000000000000034 L0L24
+./tmk_core/common/avr/xprintf.S:119    .text:0000000000000036 L0L25
+./tmk_core/common/avr/xprintf.S:120    .text:0000000000000038 L0L26
+./tmk_core/common/avr/xprintf.S:121    .text:000000000000003a L0L27
+./tmk_core/common/avr/xprintf.S:122    .text:000000000000003c L0L28
+./tmk_core/common/avr/xprintf.S:123    .text:000000000000003e L0L29
+./tmk_core/common/avr/xprintf.S:124    .text:0000000000000040 L0L30
+./tmk_core/common/avr/xprintf.S:125    .text:0000000000000042 L0L31
+./tmk_core/common/avr/xprintf.S:126    .text:0000000000000044 L0L32
+./tmk_core/common/avr/xprintf.S:127    .text:0000000000000046 L0L33
+./tmk_core/common/avr/xprintf.S:128    .text:0000000000000048 L0L34
+./tmk_core/common/avr/xprintf.S:129    .text:000000000000004a L0L35
+./tmk_core/common/avr/xprintf.S:130    .text:000000000000004c L0L36
+./tmk_core/common/avr/xprintf.S:131    .text:000000000000004e L0L37
+./tmk_core/common/avr/xprintf.S:133    .text:0000000000000050 L0L38
+./tmk_core/common/avr/xprintf.S:134    .text:0000000000000052 L0L39
+./tmk_core/common/avr/xprintf.S:135    .text:0000000000000054 L0L40
+./tmk_core/common/avr/xprintf.S:136    .text:0000000000000056 L0L41
+./tmk_core/common/avr/xprintf.S:137    .text:0000000000000058 L0L42
+./tmk_core/common/avr/xprintf.S:138    .text:000000000000005a L0L43
+./tmk_core/common/avr/xprintf.S:139    .text:000000000000005c L0L44
+./tmk_core/common/avr/xprintf.S:140    .text:000000000000005e L0L45
+./tmk_core/common/avr/xprintf.S:141    .text:0000000000000060 L0L46
+./tmk_core/common/avr/xprintf.S:142    .text:0000000000000062 L0L47
+./tmk_core/common/avr/xprintf.S:143    .text:0000000000000064 L0L48
+./tmk_core/common/avr/xprintf.S:144    .text:0000000000000066 L0L49
+./tmk_core/common/avr/xprintf.S:145    .text:0000000000000068 L0L50
+./tmk_core/common/avr/xprintf.S:146    .text:000000000000006a L0L51
+./tmk_core/common/avr/xprintf.S:147    .text:000000000000006c L0L52
+./tmk_core/common/avr/xprintf.S:148    .text:000000000000006e L0L53
+./tmk_core/common/avr/xprintf.S:149    .text:0000000000000070 L0L54
+./tmk_core/common/avr/xprintf.S:150    .text:0000000000000072 L0L55
+./tmk_core/common/avr/xprintf.S:151    .text:0000000000000074 L0L56
+./tmk_core/common/avr/xprintf.S:152    .text:0000000000000076 L0L57
+./tmk_core/common/avr/xprintf.S:153    .text:0000000000000078 L0L58
+./tmk_core/common/avr/xprintf.S:154    .text:000000000000007a L0L59
+./tmk_core/common/avr/xprintf.S:155    .text:000000000000007c L0L60
+./tmk_core/common/avr/xprintf.S:156    .text:000000000000007e L0L61
+./tmk_core/common/avr/xprintf.S:158    .text:0000000000000080 L0L62
+./tmk_core/common/avr/xprintf.S:159    .text:0000000000000082 L0L63
+./tmk_core/common/avr/xprintf.S:160    .text:0000000000000084 L0L64
+./tmk_core/common/avr/xprintf.S:161    .text:0000000000000086 L0L65
+./tmk_core/common/avr/xprintf.S:162    .text:0000000000000088 L0L66
+./tmk_core/common/avr/xprintf.S:163    .text:000000000000008a L0L67
+./tmk_core/common/avr/xprintf.S:164    .text:000000000000008c L0L68
+./tmk_core/common/avr/xprintf.S:165    .text:000000000000008e L0L69
+./tmk_core/common/avr/xprintf.S:166    .text:0000000000000090 L0L70
+./tmk_core/common/avr/xprintf.S:168    .text:0000000000000092 L0L71
+./tmk_core/common/avr/xprintf.S:169    .text:0000000000000094 L0L72
+./tmk_core/common/avr/xprintf.S:170    .text:0000000000000096 L0L73
+./tmk_core/common/avr/xprintf.S:171    .text:0000000000000098 L0L74
+./tmk_core/common/avr/xprintf.S:173    .text:000000000000009a L0L75
+./tmk_core/common/avr/xprintf.S:174    .text:000000000000009c L0endfunc2
+./tmk_core/common/avr/xprintf.S:191    .text:000000000000009c L0L76
+./tmk_core/common/avr/xprintf.S:192    .text:000000000000009e L0L77
+./tmk_core/common/avr/xprintf.S:194    .text:00000000000000a0 L0L78
+./tmk_core/common/avr/xprintf.S:195    .text:00000000000000a2 L0L79
+./tmk_core/common/avr/xprintf.S:196    .text:00000000000000a4 L0L80
+./tmk_core/common/avr/xprintf.S:197    .text:00000000000000a6 L0L81
+./tmk_core/common/avr/xprintf.S:198    .text:00000000000000a8 L0L82
+./tmk_core/common/avr/xprintf.S:199    .text:00000000000000aa L0L83
+./tmk_core/common/avr/xprintf.S:200    .text:00000000000000ac L0L84
+./tmk_core/common/avr/xprintf.S:201    .text:00000000000000ae L0L85
+./tmk_core/common/avr/xprintf.S:203    .text:00000000000000b0 L0L86
+./tmk_core/common/avr/xprintf.S:204    .text:00000000000000b2 L0L87
+./tmk_core/common/avr/xprintf.S:205    .text:00000000000000b4 L0L88
+./tmk_core/common/avr/xprintf.S:206    .text:00000000000000b6 L0L89
+./tmk_core/common/avr/xprintf.S:207    .text:00000000000000b8 L0L90
+./tmk_core/common/avr/xprintf.S:208    .text:00000000000000ba L0L91
+./tmk_core/common/avr/xprintf.S:209    .text:00000000000000bc L0L92
+./tmk_core/common/avr/xprintf.S:210    .text:00000000000000be L0L93
+./tmk_core/common/avr/xprintf.S:211    .text:00000000000000c0 L0L94
+./tmk_core/common/avr/xprintf.S:212    .text:00000000000000c2 L0L95
+./tmk_core/common/avr/xprintf.S:213    .text:00000000000000c4 L0L96
+./tmk_core/common/avr/xprintf.S:214    .text:00000000000000c6 L0L97
+./tmk_core/common/avr/xprintf.S:215    .text:00000000000000c8 L0L98
+./tmk_core/common/avr/xprintf.S:216    .text:00000000000000ca L0L99
+./tmk_core/common/avr/xprintf.S:217    .text:00000000000000cc L0L100
+./tmk_core/common/avr/xprintf.S:218    .text:00000000000000ce L0L101
+./tmk_core/common/avr/xprintf.S:219    .text:00000000000000d0 L0L102
+./tmk_core/common/avr/xprintf.S:220    .text:00000000000000d2 L0L103
+./tmk_core/common/avr/xprintf.S:221    .text:00000000000000d4 L0L104
+./tmk_core/common/avr/xprintf.S:222    .text:00000000000000d6 L0L105
+./tmk_core/common/avr/xprintf.S:224    .text:00000000000000d8 L0L106
+./tmk_core/common/avr/xprintf.S:225    .text:00000000000000da L0L107
+./tmk_core/common/avr/xprintf.S:226    .text:00000000000000dc L0L108
+./tmk_core/common/avr/xprintf.S:227    .text:00000000000000de L0L109
+./tmk_core/common/avr/xprintf.S:228    .text:00000000000000e0 L0L110
+./tmk_core/common/avr/xprintf.S:229    .text:00000000000000e2 L0L111
+./tmk_core/common/avr/xprintf.S:230    .text:00000000000000e4 L0L112
+./tmk_core/common/avr/xprintf.S:231    .text:00000000000000e6 L0L113
+./tmk_core/common/avr/xprintf.S:232    .text:00000000000000e8 L0L114
+./tmk_core/common/avr/xprintf.S:233    .text:00000000000000ea L0L115
+./tmk_core/common/avr/xprintf.S:234    .text:00000000000000ec L0L116
+./tmk_core/common/avr/xprintf.S:235    .text:00000000000000ee L0L117
+./tmk_core/common/avr/xprintf.S:236    .text:00000000000000f0 L0L118
+./tmk_core/common/avr/xprintf.S:237    .text:00000000000000f2 L0L119
+./tmk_core/common/avr/xprintf.S:238    .text:00000000000000f4 L0L120
+./tmk_core/common/avr/xprintf.S:239    .text:00000000000000f6 L0L121
+./tmk_core/common/avr/xprintf.S:240    .text:00000000000000f8 L0L122
+./tmk_core/common/avr/xprintf.S:241    .text:00000000000000fa L0L123
+./tmk_core/common/avr/xprintf.S:242    .text:00000000000000fc L0L124
+./tmk_core/common/avr/xprintf.S:243    .text:00000000000000fe L0L125
+./tmk_core/common/avr/xprintf.S:244    .text:0000000000000100 L0L126
+./tmk_core/common/avr/xprintf.S:245    .text:0000000000000102 L0L127
+./tmk_core/common/avr/xprintf.S:246    .text:0000000000000104 L0L128
+./tmk_core/common/avr/xprintf.S:247    .text:0000000000000106 L0L129
+./tmk_core/common/avr/xprintf.S:248    .text:0000000000000108 L0L130
+./tmk_core/common/avr/xprintf.S:249    .text:000000000000010a L0L131
+./tmk_core/common/avr/xprintf.S:250    .text:000000000000010c L0L132
+./tmk_core/common/avr/xprintf.S:251    .text:000000000000010e L0L133
+./tmk_core/common/avr/xprintf.S:252    .text:0000000000000110 L0L134
+./tmk_core/common/avr/xprintf.S:253    .text:0000000000000112 L0L135
+./tmk_core/common/avr/xprintf.S:254    .text:0000000000000114 L0L136
+./tmk_core/common/avr/xprintf.S:255    .text:0000000000000116 L0L137
+./tmk_core/common/avr/xprintf.S:256    .text:0000000000000118 L0L138
+./tmk_core/common/avr/xprintf.S:257    .text:000000000000011a L0L139
+./tmk_core/common/avr/xprintf.S:258    .text:000000000000011c L0L140
+./tmk_core/common/avr/xprintf.S:259    .text:000000000000011e L0L141
+./tmk_core/common/avr/xprintf.S:260    .text:0000000000000120 L0L142
+./tmk_core/common/avr/xprintf.S:261    .text:0000000000000122 L0L143
+./tmk_core/common/avr/xprintf.S:262    .text:0000000000000124 L0L144
+./tmk_core/common/avr/xprintf.S:263    .text:0000000000000126 L0L145
+./tmk_core/common/avr/xprintf.S:264    .text:0000000000000128 L0L146
+./tmk_core/common/avr/xprintf.S:265    .text:000000000000012a L0L147
+./tmk_core/common/avr/xprintf.S:266    .text:000000000000012c L0L148
+./tmk_core/common/avr/xprintf.S:267    .text:000000000000012e L0L149
+./tmk_core/common/avr/xprintf.S:268    .text:0000000000000130 L0L150
+./tmk_core/common/avr/xprintf.S:270    .text:0000000000000132 L0L151
+./tmk_core/common/avr/xprintf.S:271    .text:0000000000000134 L0L152
+./tmk_core/common/avr/xprintf.S:272    .text:0000000000000136 L0L153
+./tmk_core/common/avr/xprintf.S:273    .text:0000000000000138 L0L154
+./tmk_core/common/avr/xprintf.S:274    .text:000000000000013a L0L155
+./tmk_core/common/avr/xprintf.S:275    .text:000000000000013c L0L156
+./tmk_core/common/avr/xprintf.S:276    .text:000000000000013e L0L157
+./tmk_core/common/avr/xprintf.S:277    .text:0000000000000140 L0L158
+./tmk_core/common/avr/xprintf.S:279    .text:0000000000000142 L0L159
+./tmk_core/common/avr/xprintf.S:280    .text:0000000000000144 L0L160
+./tmk_core/common/avr/xprintf.S:281    .text:0000000000000146 L0L161
+./tmk_core/common/avr/xprintf.S:282    .text:0000000000000148 L0L162
+./tmk_core/common/avr/xprintf.S:283    .text:000000000000014a L0endfunc3
+./tmk_core/common/avr/xprintf.S:289    .text:000000000000014a L0L163
+./tmk_core/common/avr/xprintf.S:290    .text:000000000000014c L0L164
+./tmk_core/common/avr/xprintf.S:291    .text:000000000000014e L0L165
+./tmk_core/common/avr/xprintf.S:293    .text:0000000000000150 L0L166
+./tmk_core/common/avr/xprintf.S:297    .text:0000000000000152 L0L167
+./tmk_core/common/avr/xprintf.S:298    .text:0000000000000154 L0L168
+./tmk_core/common/avr/xprintf.S:299    .text:0000000000000156 L0L169
+./tmk_core/common/avr/xprintf.S:300    .text:0000000000000158 L0L170
+./tmk_core/common/avr/xprintf.S:301    .text:000000000000015a L0L171
+./tmk_core/common/avr/xprintf.S:302    .text:000000000000015c L0endfunc4
+
+NO UNDEFINED SYMBOLS

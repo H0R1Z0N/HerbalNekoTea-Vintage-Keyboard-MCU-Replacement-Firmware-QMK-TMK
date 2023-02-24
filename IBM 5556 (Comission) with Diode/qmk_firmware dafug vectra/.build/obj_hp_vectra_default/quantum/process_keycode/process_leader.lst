@@ -1,0 +1,368 @@
+   1               		.file	"process_leader.c"
+   2               	__SP_H__ = 0x3e
+   3               	__SP_L__ = 0x3d
+   4               	__SREG__ = 0x3f
+   5               	__tmp_reg__ = 0
+   6               	__zero_reg__ = 1
+   7               		.text
+   8               	.Ltext0:
+   9               		.cfi_sections	.debug_frame
+  10               		.file 1 "quantum/process_keycode/process_leader.c"
+  11               		.section	.text.leader_start,"ax",@progbits
+  12               		.weak	leader_start
+  14               	leader_start:
+  15               	.LFB111:
+   1:quantum/process_keycode/process_leader.c **** #include "process_leader.h"
+   2:quantum/process_keycode/process_leader.c **** 
+   3:quantum/process_keycode/process_leader.c **** __attribute__ ((weak))
+   4:quantum/process_keycode/process_leader.c **** void leader_start(void) {}
+  16               		.loc 1 4 25 view -0
+  17               		.cfi_startproc
+  18               	/* prologue: function */
+  19               	/* frame size = 0 */
+  20               	/* stack size = 0 */
+  21               	.L__stack_usage = 0
+  22               		.loc 1 4 26 view .LVU1
+  23               	/* epilogue start */
+  24 0000 0895      		ret
+  25               		.cfi_endproc
+  26               	.LFE111:
+  28               		.set	leader_start.localalias,leader_start
+  29               		.section	.text.leader_end,"ax",@progbits
+  30               		.weak	leader_end
+  32               	leader_end:
+  33               	.LFB115:
+  34               		.cfi_startproc
+   5:quantum/process_keycode/process_leader.c **** 
+   6:quantum/process_keycode/process_leader.c **** __attribute__ ((weak))
+   7:quantum/process_keycode/process_leader.c **** void leader_end(void) {}
+  35               		.loc 1 7 6 view -0
+  36               	/* prologue: function */
+  37               	/* frame size = 0 */
+  38               	/* stack size = 0 */
+  39               	.L__stack_usage = 0
+  40               	/* epilogue start */
+  41 0000 0895      		ret
+  42               		.cfi_endproc
+  43               	.LFE115:
+  45               		.section	.text.process_leader,"ax",@progbits
+  46               	.global	process_leader
+  48               	process_leader:
+  49               	.LVL0:
+  50               	.LFB113:
+   8:quantum/process_keycode/process_leader.c **** 
+   9:quantum/process_keycode/process_leader.c **** // Leader key stuff
+  10:quantum/process_keycode/process_leader.c **** bool leading = false;
+  11:quantum/process_keycode/process_leader.c **** uint16_t leader_time = 0;
+  12:quantum/process_keycode/process_leader.c **** 
+  13:quantum/process_keycode/process_leader.c **** uint16_t leader_sequence[5] = {0, 0, 0, 0, 0};
+  14:quantum/process_keycode/process_leader.c **** uint8_t leader_sequence_size = 0;
+  15:quantum/process_keycode/process_leader.c **** 
+  16:quantum/process_keycode/process_leader.c **** bool process_leader(uint16_t keycode, keyrecord_t *record) {
+  51               		.loc 1 16 60 view -0
+  52               		.cfi_startproc
+  53               		.loc 1 16 60 is_stmt 0 view .LVU4
+  54 0000 CF93      		push r28
+  55               	.LCFI0:
+  56               		.cfi_def_cfa_offset 3
+  57               		.cfi_offset 28, -2
+  58 0002 DF93      		push r29
+  59               	.LCFI1:
+  60               		.cfi_def_cfa_offset 4
+  61               		.cfi_offset 29, -3
+  62               	/* prologue: function */
+  63               	/* frame size = 0 */
+  64               	/* stack size = 2 */
+  65               	.L__stack_usage = 2
+  66 0004 EC01      		movw r28,r24
+  17:quantum/process_keycode/process_leader.c ****   // Leader key set-up
+  18:quantum/process_keycode/process_leader.c ****   if (record->event.pressed) {
+  67               		.loc 1 18 3 is_stmt 1 view .LVU5
+  68               		.loc 1 18 6 is_stmt 0 view .LVU6
+  69 0006 FB01      		movw r30,r22
+  70 0008 8281      		ldd r24,Z+2
+  71               	.LVL1:
+  72               		.loc 1 18 6 view .LVU7
+  73 000a 8111      		cpse r24,__zero_reg__
+  74 000c 00C0      		rjmp .L4
+  75               	.LVL2:
+  76               	.L7:
+  19:quantum/process_keycode/process_leader.c ****     if (!leading && keycode == KC_LEAD) {
+  20:quantum/process_keycode/process_leader.c ****       leader_start();
+  21:quantum/process_keycode/process_leader.c ****       leading = true;
+  22:quantum/process_keycode/process_leader.c ****       leader_time = timer_read();
+  23:quantum/process_keycode/process_leader.c ****       leader_sequence_size = 0;
+  24:quantum/process_keycode/process_leader.c ****       leader_sequence[0] = 0;
+  25:quantum/process_keycode/process_leader.c ****       leader_sequence[1] = 0;
+  26:quantum/process_keycode/process_leader.c ****       leader_sequence[2] = 0;
+  27:quantum/process_keycode/process_leader.c ****       leader_sequence[3] = 0;
+  28:quantum/process_keycode/process_leader.c ****       leader_sequence[4] = 0;
+  29:quantum/process_keycode/process_leader.c ****       return false;
+  30:quantum/process_keycode/process_leader.c ****     }
+  31:quantum/process_keycode/process_leader.c ****     if (leading && timer_elapsed(leader_time) < LEADER_TIMEOUT) {
+  32:quantum/process_keycode/process_leader.c ****       leader_sequence[leader_sequence_size] = keycode;
+  33:quantum/process_keycode/process_leader.c ****       leader_sequence_size++;
+  34:quantum/process_keycode/process_leader.c ****       return false;
+  35:quantum/process_keycode/process_leader.c ****     }
+  36:quantum/process_keycode/process_leader.c ****   }
+  37:quantum/process_keycode/process_leader.c ****   return true;
+  77               		.loc 1 37 10 view .LVU8
+  78 000e 81E0      		ldi r24,lo8(1)
+  79               	.L3:
+  80               	/* epilogue start */
+  38:quantum/process_keycode/process_leader.c **** }...
+  81               		.loc 1 38 1 view .LVU9
+  82 0010 DF91      		pop r29
+  83 0012 CF91      		pop r28
+  84               	.LVL3:
+  85               		.loc 1 38 1 view .LVU10
+  86 0014 0895      		ret
+  87               	.LVL4:
+  88               	.L4:
+  19:quantum/process_keycode/process_leader.c ****     if (!leading && keycode == KC_LEAD) {
+  89               		.loc 1 19 5 is_stmt 1 view .LVU11
+  19:quantum/process_keycode/process_leader.c ****     if (!leading && keycode == KC_LEAD) {
+  90               		.loc 1 19 8 is_stmt 0 view .LVU12
+  91 0016 8091 0000 		lds r24,leading
+  92 001a 8111      		cpse r24,__zero_reg__
+  93 001c 00C0      		rjmp .L6
+  19:quantum/process_keycode/process_leader.c ****     if (!leading && keycode == KC_LEAD) {
+  94               		.loc 1 19 18 discriminator 1 view .LVU13
+  95 001e C531      		cpi r28,21
+  96 0020 D047      		sbci r29,112
+  97 0022 01F4      		brne .L7
+  20:quantum/process_keycode/process_leader.c ****       leader_start();
+  98               		.loc 1 20 7 is_stmt 1 view .LVU14
+  99 0024 0E94 0000 		call leader_start
+ 100               	.LVL5:
+  21:quantum/process_keycode/process_leader.c ****       leading = true;
+ 101               		.loc 1 21 7 view .LVU15
+  21:quantum/process_keycode/process_leader.c ****       leading = true;
+ 102               		.loc 1 21 15 is_stmt 0 view .LVU16
+ 103 0028 81E0      		ldi r24,lo8(1)
+ 104 002a 8093 0000 		sts leading,r24
+  22:quantum/process_keycode/process_leader.c ****       leader_time = timer_read();
+ 105               		.loc 1 22 7 is_stmt 1 view .LVU17
+  22:quantum/process_keycode/process_leader.c ****       leader_time = timer_read();
+ 106               		.loc 1 22 21 is_stmt 0 view .LVU18
+ 107 002e 0E94 0000 		call timer_read
+ 108               	.LVL6:
+  22:quantum/process_keycode/process_leader.c ****       leader_time = timer_read();
+ 109               		.loc 1 22 19 view .LVU19
+ 110 0032 9093 0000 		sts leader_time+1,r25
+ 111 0036 8093 0000 		sts leader_time,r24
+  23:quantum/process_keycode/process_leader.c ****       leader_sequence_size = 0;
+ 112               		.loc 1 23 7 is_stmt 1 view .LVU20
+  23:quantum/process_keycode/process_leader.c ****       leader_sequence_size = 0;
+ 113               		.loc 1 23 28 is_stmt 0 view .LVU21
+ 114 003a 1092 0000 		sts leader_sequence_size,__zero_reg__
+  24:quantum/process_keycode/process_leader.c ****       leader_sequence[0] = 0;
+ 115               		.loc 1 24 7 is_stmt 1 view .LVU22
+  24:quantum/process_keycode/process_leader.c ****       leader_sequence[0] = 0;
+ 116               		.loc 1 24 26 is_stmt 0 view .LVU23
+ 117 003e 1092 0000 		sts leader_sequence+1,__zero_reg__
+ 118 0042 1092 0000 		sts leader_sequence,__zero_reg__
+  25:quantum/process_keycode/process_leader.c ****       leader_sequence[1] = 0;
+ 119               		.loc 1 25 7 is_stmt 1 view .LVU24
+  25:quantum/process_keycode/process_leader.c ****       leader_sequence[1] = 0;
+ 120               		.loc 1 25 26 is_stmt 0 view .LVU25
+ 121 0046 1092 0000 		sts leader_sequence+2+1,__zero_reg__
+ 122 004a 1092 0000 		sts leader_sequence+2,__zero_reg__
+  26:quantum/process_keycode/process_leader.c ****       leader_sequence[2] = 0;
+ 123               		.loc 1 26 7 is_stmt 1 view .LVU26
+  26:quantum/process_keycode/process_leader.c ****       leader_sequence[2] = 0;
+ 124               		.loc 1 26 26 is_stmt 0 view .LVU27
+ 125 004e 1092 0000 		sts leader_sequence+4+1,__zero_reg__
+ 126 0052 1092 0000 		sts leader_sequence+4,__zero_reg__
+  27:quantum/process_keycode/process_leader.c ****       leader_sequence[3] = 0;
+ 127               		.loc 1 27 7 is_stmt 1 view .LVU28
+  27:quantum/process_keycode/process_leader.c ****       leader_sequence[3] = 0;
+ 128               		.loc 1 27 26 is_stmt 0 view .LVU29
+ 129 0056 1092 0000 		sts leader_sequence+6+1,__zero_reg__
+ 130 005a 1092 0000 		sts leader_sequence+6,__zero_reg__
+  28:quantum/process_keycode/process_leader.c ****       leader_sequence[4] = 0;
+ 131               		.loc 1 28 7 is_stmt 1 view .LVU30
+  28:quantum/process_keycode/process_leader.c ****       leader_sequence[4] = 0;
+ 132               		.loc 1 28 26 is_stmt 0 view .LVU31
+ 133 005e 1092 0000 		sts leader_sequence+8+1,__zero_reg__
+ 134 0062 1092 0000 		sts leader_sequence+8,__zero_reg__
+  29:quantum/process_keycode/process_leader.c ****       return false;
+ 135               		.loc 1 29 7 is_stmt 1 view .LVU32
+ 136               	.L8:
+  29:quantum/process_keycode/process_leader.c ****       return false;
+ 137               		.loc 1 29 14 is_stmt 0 view .LVU33
+ 138 0066 80E0      		ldi r24,0
+ 139 0068 00C0      		rjmp .L3
+ 140               	.LVL7:
+ 141               	.L6:
+  31:quantum/process_keycode/process_leader.c ****     if (leading && timer_elapsed(leader_time) < LEADER_TIMEOUT) {
+ 142               		.loc 1 31 5 is_stmt 1 discriminator 1 view .LVU34
+  31:quantum/process_keycode/process_leader.c ****     if (leading && timer_elapsed(leader_time) < LEADER_TIMEOUT) {
+ 143               		.loc 1 31 20 is_stmt 0 discriminator 1 view .LVU35
+ 144 006a 8091 0000 		lds r24,leader_time
+ 145 006e 9091 0000 		lds r25,leader_time+1
+ 146 0072 0E94 0000 		call timer_elapsed
+ 147               	.LVL8:
+  31:quantum/process_keycode/process_leader.c ****     if (leading && timer_elapsed(leader_time) < LEADER_TIMEOUT) {
+ 148               		.loc 1 31 17 discriminator 1 view .LVU36
+ 149 0076 883C      		cpi r24,-56
+ 150 0078 9105      		cpc r25,__zero_reg__
+ 151 007a 00F4      		brsh .L7
+  32:quantum/process_keycode/process_leader.c ****       leader_sequence[leader_sequence_size] = keycode;
+ 152               		.loc 1 32 7 is_stmt 1 view .LVU37
+  32:quantum/process_keycode/process_leader.c ****       leader_sequence[leader_sequence_size] = keycode;
+ 153               		.loc 1 32 22 is_stmt 0 view .LVU38
+ 154 007c 8091 0000 		lds r24,leader_sequence_size
+ 155 0080 E82F      		mov r30,r24
+ 156 0082 F0E0      		ldi r31,0
+  32:quantum/process_keycode/process_leader.c ****       leader_sequence[leader_sequence_size] = keycode;
+ 157               		.loc 1 32 45 view .LVU39
+ 158 0084 EE0F      		lsl r30
+ 159 0086 FF1F      		rol r31
+ 160 0088 E050      		subi r30,lo8(-(leader_sequence))
+ 161 008a F040      		sbci r31,hi8(-(leader_sequence))
+ 162 008c D183      		std Z+1,r29
+ 163 008e C083      		st Z,r28
+  33:quantum/process_keycode/process_leader.c ****       leader_sequence_size++;
+ 164               		.loc 1 33 7 is_stmt 1 view .LVU40
+  33:quantum/process_keycode/process_leader.c ****       leader_sequence_size++;
+ 165               		.loc 1 33 27 is_stmt 0 view .LVU41
+ 166 0090 8F5F      		subi r24,lo8(-(1))
+ 167 0092 8093 0000 		sts leader_sequence_size,r24
+  34:quantum/process_keycode/process_leader.c ****       return false;
+ 168               		.loc 1 34 7 is_stmt 1 view .LVU42
+  34:quantum/process_keycode/process_leader.c ****       return false;
+ 169               		.loc 1 34 14 is_stmt 0 view .LVU43
+ 170 0096 00C0      		rjmp .L8
+ 171               		.cfi_endproc
+ 172               	.LFE113:
+ 174               	.global	leader_sequence_size
+ 175               		.section	.bss.leader_sequence_size,"aw",@nobits
+ 178               	leader_sequence_size:
+ 179 0000 00        		.zero	1
+ 180               	.global	leader_sequence
+ 181               		.section	.bss.leader_sequence,"aw",@nobits
+ 184               	leader_sequence:
+ 185 0000 0000 0000 		.zero	10
+ 185      0000 0000 
+ 185      0000 
+ 186               	.global	leader_time
+ 187               		.section	.bss.leader_time,"aw",@nobits
+ 190               	leader_time:
+ 191 0000 0000      		.zero	2
+ 192               	.global	leading
+ 193               		.section	.bss.leading,"aw",@nobits
+ 196               	leading:
+ 197 0000 00        		.zero	1
+ 198               		.text
+ 199               	.Letext0:
+ 200               		.file 2 "/usr/avr/include/stdint.h"
+ 201               		.file 3 "./tmk_core/common/keyboard.h"
+ 202               		.file 4 "./tmk_core/common/action.h"
+ 203               		.file 5 "./quantum/quantum_keycodes.h"
+ 204               		.file 6 "./tmk_core/common/timer.h"
+DEFINED SYMBOLS
+                            *ABS*:0000000000000000 process_leader.c
+     /tmp/ccABkXq0.s:2      *ABS*:000000000000003e __SP_H__
+     /tmp/ccABkXq0.s:3      *ABS*:000000000000003d __SP_L__
+     /tmp/ccABkXq0.s:4      *ABS*:000000000000003f __SREG__
+     /tmp/ccABkXq0.s:5      *ABS*:0000000000000000 __tmp_reg__
+     /tmp/ccABkXq0.s:6      *ABS*:0000000000000001 __zero_reg__
+     /tmp/ccABkXq0.s:14     .text.leader_start:0000000000000000 leader_start
+     /tmp/ccABkXq0.s:16     .text.leader_start:0000000000000000 .Loc.0
+     /tmp/ccABkXq0.s:17     .text.leader_start:0000000000000000 L0
+     /tmp/ccABkXq0.s:22     .text.leader_start:0000000000000000 .Loc.1
+     /tmp/ccABkXq0.s:25     .text.leader_start:0000000000000002 L0
+     /tmp/ccABkXq0.s:14     .text.leader_start:0000000000000000 leader_start.localalias
+     /tmp/ccABkXq0.s:32     .text.leader_end:0000000000000000 leader_end
+     /tmp/ccABkXq0.s:34     .text.leader_end:0000000000000000 L0
+     /tmp/ccABkXq0.s:35     .text.leader_end:0000000000000000 .Loc.2
+     /tmp/ccABkXq0.s:42     .text.leader_end:0000000000000002 L0
+     /tmp/ccABkXq0.s:48     .text.process_leader:0000000000000000 process_leader
+     /tmp/ccABkXq0.s:51     .text.process_leader:0000000000000000 .Loc.3
+     /tmp/ccABkXq0.s:52     .text.process_leader:0000000000000000 L0
+     /tmp/ccABkXq0.s:53     .text.process_leader:0000000000000000 .Loc.4
+     /tmp/ccABkXq0.s:67     .text.process_leader:0000000000000006 .Loc.5
+     /tmp/ccABkXq0.s:68     .text.process_leader:0000000000000006 .Loc.6
+     /tmp/ccABkXq0.s:72     .text.process_leader:000000000000000a .Loc.7
+     /tmp/ccABkXq0.s:77     .text.process_leader:000000000000000e .Loc.8
+     /tmp/ccABkXq0.s:81     .text.process_leader:0000000000000010 .Loc.9
+     /tmp/ccABkXq0.s:85     .text.process_leader:0000000000000014 .Loc.10
+     /tmp/ccABkXq0.s:89     .text.process_leader:0000000000000016 .Loc.11
+     /tmp/ccABkXq0.s:90     .text.process_leader:0000000000000016 .Loc.12
+     /tmp/ccABkXq0.s:196    .bss.leading:0000000000000000 leading
+     /tmp/ccABkXq0.s:94     .text.process_leader:000000000000001e .Loc.13
+     /tmp/ccABkXq0.s:98     .text.process_leader:0000000000000024 .Loc.14
+     /tmp/ccABkXq0.s:101    .text.process_leader:0000000000000028 .Loc.15
+     /tmp/ccABkXq0.s:102    .text.process_leader:0000000000000028 .Loc.16
+     /tmp/ccABkXq0.s:105    .text.process_leader:000000000000002e .Loc.17
+     /tmp/ccABkXq0.s:106    .text.process_leader:000000000000002e .Loc.18
+     /tmp/ccABkXq0.s:109    .text.process_leader:0000000000000032 .Loc.19
+     /tmp/ccABkXq0.s:190    .bss.leader_time:0000000000000000 leader_time
+     /tmp/ccABkXq0.s:112    .text.process_leader:000000000000003a .Loc.20
+     /tmp/ccABkXq0.s:113    .text.process_leader:000000000000003a .Loc.21
+     /tmp/ccABkXq0.s:178    .bss.leader_sequence_size:0000000000000000 leader_sequence_size
+     /tmp/ccABkXq0.s:115    .text.process_leader:000000000000003e .Loc.22
+     /tmp/ccABkXq0.s:116    .text.process_leader:000000000000003e .Loc.23
+     /tmp/ccABkXq0.s:184    .bss.leader_sequence:0000000000000000 leader_sequence
+     /tmp/ccABkXq0.s:119    .text.process_leader:0000000000000046 .Loc.24
+     /tmp/ccABkXq0.s:120    .text.process_leader:0000000000000046 .Loc.25
+     /tmp/ccABkXq0.s:123    .text.process_leader:000000000000004e .Loc.26
+     /tmp/ccABkXq0.s:124    .text.process_leader:000000000000004e .Loc.27
+     /tmp/ccABkXq0.s:127    .text.process_leader:0000000000000056 .Loc.28
+     /tmp/ccABkXq0.s:128    .text.process_leader:0000000000000056 .Loc.29
+     /tmp/ccABkXq0.s:131    .text.process_leader:000000000000005e .Loc.30
+     /tmp/ccABkXq0.s:132    .text.process_leader:000000000000005e .Loc.31
+     /tmp/ccABkXq0.s:135    .text.process_leader:0000000000000066 .Loc.32
+     /tmp/ccABkXq0.s:137    .text.process_leader:0000000000000066 .Loc.33
+     /tmp/ccABkXq0.s:142    .text.process_leader:000000000000006a .Loc.34
+     /tmp/ccABkXq0.s:143    .text.process_leader:000000000000006a .Loc.35
+     /tmp/ccABkXq0.s:148    .text.process_leader:0000000000000076 .Loc.36
+     /tmp/ccABkXq0.s:152    .text.process_leader:000000000000007c .Loc.37
+     /tmp/ccABkXq0.s:153    .text.process_leader:000000000000007c .Loc.38
+     /tmp/ccABkXq0.s:157    .text.process_leader:0000000000000084 .Loc.39
+     /tmp/ccABkXq0.s:164    .text.process_leader:0000000000000090 .Loc.40
+     /tmp/ccABkXq0.s:165    .text.process_leader:0000000000000090 .Loc.41
+     /tmp/ccABkXq0.s:168    .text.process_leader:0000000000000096 .Loc.42
+     /tmp/ccABkXq0.s:169    .text.process_leader:0000000000000096 .Loc.43
+     /tmp/ccABkXq0.s:171    .text.process_leader:0000000000000098 L0
+     /tmp/ccABkXq0.s:29     .text.leader_start:0000000000000002 L0
+     /tmp/ccABkXq0.s:45     .text.leader_end:0000000000000002 L0
+     /tmp/ccABkXq0.s:175    .text.process_leader:0000000000000098 L0
+                     .debug_frame:0000000000000000 L0
+     /tmp/ccABkXq0.s:88     .text.process_leader:0000000000000016 .L4
+     /tmp/ccABkXq0.s:141    .text.process_leader:000000000000006a .L6
+     /tmp/ccABkXq0.s:76     .text.process_leader:000000000000000e .L7
+     /tmp/ccABkXq0.s:79     .text.process_leader:0000000000000010 .L3
+     /tmp/ccABkXq0.s:136    .text.process_leader:0000000000000066 .L8
+     /tmp/ccABkXq0.s:897    .debug_abbrev:0000000000000000 .Ldebug_abbrev0
+     /tmp/ccABkXq0.s:1414   .debug_ranges:0000000000000000 .Ldebug_ranges0
+     /tmp/ccABkXq0.s:1424   .debug_line:0000000000000000 .Ldebug_line0
+     /tmp/ccABkXq0.s:50     .text.process_leader:0000000000000000 .LFB113
+     /tmp/ccABkXq0.s:172    .text.process_leader:0000000000000098 .LFE113
+     /tmp/ccABkXq0.s:1266   .debug_loc:0000000000000000 .LLST0
+     /tmp/ccABkXq0.s:1296   .debug_loc:0000000000000037 .LLST1
+     /tmp/ccABkXq0.s:1287   .debug_loc:000000000000002f .LVUS1
+     /tmp/ccABkXq0.s:1346   .debug_loc:0000000000000089 .LLST2
+     /tmp/ccABkXq0.s:1333   .debug_loc:000000000000007d .LVUS2
+     /tmp/ccABkXq0.s:100    .text.process_leader:0000000000000028 .LVL5
+     /tmp/ccABkXq0.s:108    .text.process_leader:0000000000000032 .LVL6
+     /tmp/ccABkXq0.s:147    .text.process_leader:0000000000000076 .LVL8
+     /tmp/ccABkXq0.s:15     .text.leader_start:0000000000000000 .LFB111
+     /tmp/ccABkXq0.s:26     .text.leader_start:0000000000000002 .LFE111
+     /tmp/ccABkXq0.s:55     .text.process_leader:0000000000000002 .LCFI0
+     /tmp/ccABkXq0.s:59     .text.process_leader:0000000000000004 .LCFI1
+     /tmp/ccABkXq0.s:49     .text.process_leader:0000000000000000 .LVL0
+     /tmp/ccABkXq0.s:71     .text.process_leader:000000000000000a .LVL1
+     /tmp/ccABkXq0.s:84     .text.process_leader:0000000000000014 .LVL3
+     /tmp/ccABkXq0.s:87     .text.process_leader:0000000000000016 .LVL4
+     /tmp/ccABkXq0.s:75     .text.process_leader:000000000000000e .LVL2
+     /tmp/ccABkXq0.s:140    .text.process_leader:000000000000006a .LVL7
+     /tmp/ccABkXq0.s:206    .debug_info:0000000000000000 .Ldebug_info0
+     /tmp/ccABkXq0.s:33     .text.leader_end:0000000000000000 .LFB115
+     /tmp/ccABkXq0.s:43     .text.leader_end:0000000000000002 .LFE115
+
+UNDEFINED SYMBOLS
+timer_read
+timer_elapsed
+__do_clear_bss
